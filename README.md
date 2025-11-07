@@ -14,6 +14,8 @@ https://github.com/n0-computer/iroh-doctor/
 
 ## Usage
 
+### Two devices
+
 If you're running a test from two computers, you can use the default keys.
 
 Computer 1:
@@ -31,6 +33,24 @@ Computer 2:
 > cargo endpoint connect {computer1_endpoint_id}
 
 Your devices are now free to move about the internet
+
+### One device
+
+For less difficult round trip testing, the commands optionally take a key name.
+
+Terminal 1:
+
+> cargo endpoint create ep1
+> cargo endpoint read ep1
+
+(copy the end point id)
+
+> cargo endpoint listen ep1
+
+Terminal 2:
+
+> cargo endpoint create ep2
+> cargo endpoint connect ep2 {paste ep1 connection string}
 
 ## References
 
