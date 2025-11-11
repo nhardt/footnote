@@ -4,7 +4,7 @@ use std::fs;
 use std::path::Path;
 
 const KEY_DIR: &str = "./.keys";
-const ALPN1: &[u8] = b"nateha/iroh-cli/1";
+const ALPN_PING: &[u8] = b"nateha/iroh-cli/ping";
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -25,17 +25,17 @@ async fn main() -> anyhow::Result<()> {
         ["endpoint", "read", keyname] => {
             print_endpoint(keyname).await?;
         }
-        ["endpoint", "listen"] => {
-            iroh_listen("secret").await?;
+        ["ping", "listen"] => {
+            iroh_ping_listen("secret").await?;
         }
-        ["endpoint", "listen", keyname] => {
-            iroh_listen(keyname).await?;
+        ["ping", "listen", keyname] => {
+            iroh_ping_listen(keyname).await?;
         }
-        ["endpoint", "connect", addr] => {
-            iroh_connect("secret", addr).await?;
+        ["ping", "connect", addr] => {
+            iroh_ping_connect("secret", addr).await?;
         }
-        ["endpoint", "connect", from_keyname, to_endpoint_id] => {
-            iroh_connect(from_keyname, to_endpoint_id).await?;
+        ["ping", "connect", from_keyname, to_endpoint_id] => {
+            iroh_ping_connect(from_keyname, to_endpoint_id).await?;
         }
         _ => {
             println!("unknown command");
@@ -71,7 +71,7 @@ async fn print_endpoint(name: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn iroh_listen(keyname: &str) -> anyhow::Result<()> {
+async fn iroh_ping_listen(keyname: &str) -> anyhow::Result<()> {
     let secret_key = get_secret_key(keyname)?;
     println!(
         "listening for ping on key '{}' at {}",
@@ -81,7 +81,7 @@ async fn iroh_listen(keyname: &str) -> anyhow::Result<()> {
     //let endpoint_id: EndpointId = secret_key.public();
     let endpoint = Endpoint::builder()
         .secret_key(secret_key)
-        .alpns(vec![ALPN1.to_vec()])
+        .alpns(vec![ALPN_PING.to_vec()])
         .bind()
         .await?;
     if let Some(incoming) = endpoint.accept().await {
@@ -98,12 +98,12 @@ async fn iroh_listen(keyname: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn iroh_connect(from_keyname: &str, to_endpoint: &str) -> anyhow::Result<()> {
+async fn iroh_ping_connect(from_keyname: &str, to_endpoint: &str) -> anyhow::Result<()> {
     println!("pinging from {} to {}", from_keyname, to_endpoint);
     let secret_key = get_secret_key(from_keyname)?;
     let endpoint = Endpoint::builder().secret_key(secret_key).bind().await?;
     let addr: PublicKey = to_endpoint.parse()?;
-    let conn = endpoint.connect(addr, b"nateha/iroh-cli/1").await?;
+    let conn = endpoint.connect(addr, b"nateha/iroh-cli/ping").await?;
     let (mut send, mut recv) = conn.open_bi().await?;
     println!("connection opened");
     send.write_all(b"did we make it?").await?;

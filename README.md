@@ -14,7 +14,9 @@ https://github.com/n0-computer/iroh-doctor/
 
 ## Usage
 
-### Two devices
+### Connect/Ping
+
+#### Two devices
 
 If you're running a test from two computers, you can use the default keys.
 
@@ -25,16 +27,16 @@ Computer 1:
 
 (get the endpoint id from computer 1 to computer 2 however is most convenient)
 
-> cargo endpoint listen
+> cargo ping listen
 
 Computer 2:
 
 > cargo endpoint create
-> cargo endpoint connect {computer1_endpoint_id}
+> cargo ping connect {computer1_endpoint_id}
 
 Your devices are now free to move about the internet
 
-### One device
+#### One device
 
 For less difficult round trip testing, the commands optionally take a key name.
 
@@ -45,12 +47,12 @@ Terminal 1:
 
 (copy the end point id)
 
-> cargo endpoint listen ep1
+> cargo ping listen ep1
 
 Terminal 2:
 
 > cargo endpoint create ep2
-> cargo endpoint connect ep2 {paste ep1 connection string}
+> cargo ping connect ep2 {paste ep1 connection string}
 
 ## References
 
