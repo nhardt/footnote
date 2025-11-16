@@ -1,7 +1,9 @@
-use anyhow::Ok;
 use iroh::{Endpoint, PublicKey, SecretKey};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+use walkdir::WalkDir;
 
 const KEY_DIR: &str = "./.keys";
 const ALPN_PING: &[u8] = b"nateha/iroh-cli/ping";
@@ -124,13 +126,26 @@ async fn iroh_ping_connect(from_keyname: &str, to_endpoint: &str) -> anyhow::Res
 struct Sync;
 
 impl iroh::protocol::ProtocolHandler for Sync {
-    /// The `accept` method is called for each incoming connection for our ALPN.
-    ///
-    /// The returned future runs on a newly spawned tokio task, so it can run as long as
-    /// the connection lasts without blocking other connections.
-    fn accept(&self, connection: iroh::Connection) -> n0_future::boxed::BoxFuture<Result<()>> {
+    // basic protocal for manifest sync
+    // connector sends manifest
+    // reciever checks remote manifest against local
+    // for each different file, get remote
+    fn accept(
+        &self,
+        connection: iroh::endpoint::Connection,
+    ) -> n0_future::boxed::BoxFuture<anyhow::Result<()>> {
         Box::pin(async move {
-            // TODO!
+            let remote_endpoint_id = connection.remote_id()?;
+            let remote_device_name = endpoint_to_device_name(&remote_endpoint_id).await?;
+            // create manifest for ./data/
+            // read manifest length
+            // read bytes, deserialize to manifest
+
+            // - compare manifest to on-disk layout at data/{my_endpoint_id}/mirror_for/{their_petname}
+            // - for each file, request file
+            //   - wait for file
+            //   - write file to disk
+            // - send eof
 
             Ok(())
         })
@@ -154,36 +169,84 @@ async fn sync_listen(keyname: &str) -> anyhow::Result<()> {
         .accept(ALPN_SYNC, Sync)
         .spawn();
 
-    // listen for connections
-    // - on connect:
-    //   - get remote endpoint id
-    //   - check ./keys/.* for a petname that matches the remote endpoint id
-    //     - matching key:
-    //       - sync_protocol_listener(remote_endpoint_id)
-    //       -
-    //
-    // sync_protocol_listener(my_endpoint_id, their_patname, their_endpoint):
-    // // presumably, the connecting party has changes for us, so:
-    // - wait for new manifest, which will be a list of files and checksums
-    // - compare manifest to on-disk layout at data/{my_endpoint_id}/mirror_for/{their_petname}
-    // - for each file, request file
-    //   - wait for file
-    //   - write file to disk
-    // - send eof
-
     Ok(())
 }
 
 async fn sync_push(from_keyname: &str, to_keyname: &str) -> anyhow::Result<()> {
-    // plan
-    //
-    // create_manifest_for ./data/from_keyname/mirror_to/to_keyname
-    // connect_send_manifest to keyname.address
-    // while not eof:
-    //   - verify_file_request
-    //   - send_file
+    let dir = format!("./data/from_{}/to_{}", from_keyname, to_keyname);
+    let manifest = directory_to_manifest(&dir);
 
+    let secret_key = get_secret_key(from_keyname)?;
+    let endpoint = Endpoint::builder().secret_key(secret_key).bind().await?;
+    let to_endpoint = get_secret_key(to_keyname)?.public();
+    let conn = endpoint
+        .connect(to_endpoint, b"nateha/iroh-cli/sync")
+        .await?;
+    let (mut send, mut recv) = conn.open_bi().await?;
+
+    let encoded = bincode::serialize(&manifest)?;
+    let len = encoded.len() as u32;
+    send.write_all(&len.to_be_bytes()).await?;
+    send.write_all(&encoded).await?;
+
+    // while not remote_eof:
+    // read(file_name)
+    // if file_name not in manifest: bail
+    // read_file
+    // send_file_len
+    // send_file_contents
+
+    send.write_all(b"did we make it?").await?;
+    send.finish()?;
+    let m = recv.read_to_end(100).await?;
+    conn.close(0u8.into(), b"done");
+    conn.closed().await;
     Ok(())
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Manifest {
+    files: HashMap<String, String>, // path -> checksum
+}
+
+async fn directory_to_manifest(path_to_dir: &str) -> anyhow::Result<Manifest> {
+    let mut m = Manifest {
+        files: HashMap::new(),
+    };
+    for entry in WalkDir::new(path_to_dir) {
+        let entry = entry?;
+        if entry.file_type().is_file() {
+            m.files.insert(
+                entry.file_name().to_string_lossy().to_string(),
+                hash_file(entry.path()).await?,
+            );
+        }
+    }
+
+    Ok(m)
+}
+
+async fn hash_file(path: &Path) -> anyhow::Result<String> {
+    let data = fs::read(path)?;
+    let hash = blake3::hash(&data);
+    Ok(hash.to_hex().to_string())
+}
+
+async fn endpoint_to_device_name(endpoint: &PublicKey) -> anyhow::Result<String> {
+    let key_dir = Path::new(KEY_DIR);
+
+    for entry in fs::read_dir(key_dir)? {
+        let entry = entry?;
+        let keyname = entry.file_name().to_string_lossy().to_string();
+
+        if let Ok(secret_key) = get_secret_key(&keyname) {
+            if &secret_key.public() == endpoint {
+                return Ok(keyname);
+            }
+        }
+    }
+
+    anyhow::bail!("no device found for endpoint {}", endpoint)
 }
 
 fn get_secret_key(name: &str) -> anyhow::Result<SecretKey> {
