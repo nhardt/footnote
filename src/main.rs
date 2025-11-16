@@ -1,8 +1,10 @@
+use bincode::{Decode, Encode};
+use futures::TryFutureExt;
+use iroh::protocol::AcceptError;
 use iroh::{Endpoint, PublicKey, SecretKey};
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 const KEY_DIR: &str = "./.keys";
@@ -123,32 +125,118 @@ async fn iroh_ping_connect(from_keyname: &str, to_endpoint: &str) -> anyhow::Res
 }
 
 #[derive(Debug, Clone)]
-struct Sync;
+struct Sync {
+    local_keyname: String,
+}
 
 impl iroh::protocol::ProtocolHandler for Sync {
-    // basic protocal for manifest sync
-    // connector sends manifest
-    // reciever checks remote manifest against local
-    // for each different file, get remote
+    //fn accept(&self, connection: iroh::endpoint::Connection) -> BoxFuture<'_, Result<(), AcceptError>> {
     fn accept(
         &self,
         connection: iroh::endpoint::Connection,
-    ) -> n0_future::boxed::BoxFuture<anyhow::Result<()>> {
-        Box::pin(async move {
-            let remote_endpoint_id = connection.remote_id()?;
-            let remote_device_name = endpoint_to_device_name(&remote_endpoint_id).await?;
-            // create manifest for ./data/
-            // read manifest length
-            // read bytes, deserialize to manifest
+    ) -> impl futures::Future<Output = Result<(), AcceptError>> + std::marker::Send {
+        let local_keyname = self.local_keyname.clone();
+        Box::pin(
+            async move {
+                let remote_endpoint_id = connection.remote_id()?;
+                let remote_device_name = endpoint_to_device_name(&remote_endpoint_id).await?;
 
-            // - compare manifest to on-disk layout at data/{my_endpoint_id}/mirror_for/{their_petname}
-            // - for each file, request file
-            //   - wait for file
-            //   - write file to disk
-            // - send eof
+                println!(
+                    "Receiving sync from {} ({})",
+                    remote_device_name, remote_endpoint_id
+                );
 
-            Ok(())
-        })
+                // Open bidirectional stream
+                let (mut send, mut recv) = connection.accept_bi().await?;
+
+                // Read manifest length
+                let mut len_buf = [0u8; 4];
+                recv.read_exact(&mut len_buf).await?;
+                let manifest_len = u32::from_be_bytes(len_buf) as usize;
+
+                // Read and deserialize manifest
+                let mut manifest_buf = vec![0u8; manifest_len];
+                recv.read_exact(&mut manifest_buf).await?;
+                let (remote_manifest, _): (Manifest, _) =
+                    bincode::decode_from_slice(&manifest_buf, bincode::config::standard())?;
+
+                println!(
+                    "Received manifest with {} files",
+                    remote_manifest.files.len()
+                );
+
+                // Create local directory and manifest
+                let local_dir =
+                    format!("./data/{}/mirror_for/{}", local_keyname, remote_device_name);
+                fs::create_dir_all(&local_dir)?;
+                let local_manifest = directory_to_manifest(&local_dir).await?;
+
+                // Diff: find files to request
+                let mut files_to_request = Vec::new();
+                for (path, remote_hash) in &remote_manifest.files {
+                    match local_manifest.files.get(path.as_str()) {
+                        Some(local_hash) if local_hash == remote_hash => {
+                            // File exists and matches, skip
+                        }
+                        _ => {
+                            // File missing or different, request it
+                            files_to_request.push(path.clone());
+                        }
+                    }
+                }
+
+                println!("Requesting {} files", files_to_request.len());
+
+                // Request and receive each file
+                for file_path in &files_to_request {
+                    // Send file request: path length + path
+                    let path_bytes = file_path.as_bytes();
+                    let path_len = path_bytes.len() as u32;
+                    send.write_all(&path_len.to_be_bytes()).await?;
+                    send.write_all(path_bytes).await?;
+
+                    // Receive file length
+                    let mut file_len_buf = [0u8; 8];
+                    recv.read_exact(&mut file_len_buf).await?;
+                    let file_len = u64::from_be_bytes(file_len_buf) as usize;
+
+                    // Receive file contents
+                    let mut file_contents = vec![0u8; file_len];
+                    recv.read_exact(&mut file_contents).await?;
+
+                    // Write file to disk
+                    let full_path = PathBuf::from(&local_dir).join(file_path);
+                    if let Some(parent) = full_path.parent() {
+                        fs::create_dir_all(parent)?;
+                    }
+                    fs::write(&full_path, file_contents)?;
+                    println!("Wrote file: {}", file_path);
+                }
+
+                // Send EOF signal (0-length path)
+                send.write_all(&0u32.to_be_bytes()).await?;
+                send.finish()?;
+
+                // Delete local files not in remote manifest
+                for (local_path, _) in &local_manifest.files {
+                    if !remote_manifest.files.contains_key(local_path) {
+                        let full_path = PathBuf::from(&local_dir).join(local_path);
+                        if full_path.exists() {
+                            fs::remove_file(&full_path)?;
+                            println!("Deleted file not in remote: {}", local_path);
+                        }
+                    }
+                }
+
+                println!("Sync complete!");
+                connection.closed().await;
+                Ok(())
+            }
+            .map_err(|e: anyhow::Error| {
+                let boxed: Box<dyn std::error::Error + Send + std::marker::Sync> = e.into();
+                AcceptError::from(boxed)
+            }),
+        )
     }
 }
 
@@ -165,16 +253,25 @@ async fn sync_listen(keyname: &str) -> anyhow::Result<()> {
         .bind()
         .await?;
 
-    let router = iroh::protocol::Router::builder(endpoint)
-        .accept(ALPN_SYNC, Sync)
+    let _router = iroh::protocol::Router::builder(endpoint)
+        .accept(
+            ALPN_SYNC,
+            Sync {
+                local_keyname: keyname.to_string(),
+            },
+        )
         .spawn();
 
+    // Keep the process running
+    tokio::signal::ctrl_c().await?;
     Ok(())
 }
 
 async fn sync_push(from_keyname: &str, to_keyname: &str) -> anyhow::Result<()> {
     let dir = format!("./data/from_{}/to_{}", from_keyname, to_keyname);
-    let manifest = directory_to_manifest(&dir);
+    let manifest = directory_to_manifest(&dir).await?;
+
+    println!("Pushing {} files to {}", manifest.files.len(), to_keyname);
 
     let secret_key = get_secret_key(from_keyname)?;
     let endpoint = Endpoint::builder().secret_key(secret_key).bind().await?;
@@ -184,27 +281,56 @@ async fn sync_push(from_keyname: &str, to_keyname: &str) -> anyhow::Result<()> {
         .await?;
     let (mut send, mut recv) = conn.open_bi().await?;
 
-    let encoded = bincode::serialize(&manifest)?;
+    // Send manifest
+    let encoded = bincode::encode_to_vec(&manifest, bincode::config::standard())?;
     let len = encoded.len() as u32;
     send.write_all(&len.to_be_bytes()).await?;
     send.write_all(&encoded).await?;
 
-    // while not remote_eof:
-    // read(file_name)
-    // if file_name not in manifest: bail
-    // read_file
-    // send_file_len
-    // send_file_contents
+    println!("Manifest sent, waiting for file requests...");
 
-    send.write_all(b"did we make it?").await?;
+    // Loop: read file requests and serve files
+    loop {
+        // Read file path length
+        let mut path_len_buf = [0u8; 4];
+        recv.read_exact(&mut path_len_buf).await?;
+        let path_len = u32::from_be_bytes(path_len_buf);
+
+        // EOF signal (0-length path)
+        if path_len == 0 {
+            println!("Received EOF signal, sync complete");
+            break;
+        }
+
+        // Read file path
+        let mut path_buf = vec![0u8; path_len as usize];
+        recv.read_exact(&mut path_buf).await?;
+        let file_path = String::from_utf8(path_buf)?;
+
+        // Verify file is in manifest
+        if !manifest.files.contains_key(&file_path) {
+            anyhow::bail!("Requested file not in manifest: {}", file_path);
+        }
+
+        // Read file from disk
+        let full_path = PathBuf::from(&dir).join(&file_path);
+        let file_contents = fs::read(&full_path)?;
+
+        // Send file length + contents
+        let file_len = file_contents.len() as u64;
+        send.write_all(&file_len.to_be_bytes()).await?;
+        send.write_all(&file_contents).await?;
+
+        println!("Sent file: {} ({} bytes)", file_path, file_len);
+    }
+
     send.finish()?;
-    let m = recv.read_to_end(100).await?;
     conn.close(0u8.into(), b"done");
     conn.closed().await;
     Ok(())
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Encode, Decode, Debug)]
 struct Manifest {
     files: HashMap<String, String>, // path -> checksum
 }

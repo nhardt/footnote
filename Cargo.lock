@@ -1430,6 +1430,7 @@ dependencies = [
  "anyhow",
  "bincode",
  "blake3",
+ "futures",
  "iroh",
  "n0-future",
  "rand 0.9.2",

@@ -90,7 +90,13 @@ directory will not be included in the example.
 
 Now, start one instance of the sync engine as dev1, and one as dev2
 
-> cargo run sync_watch_as dev1
+Terminal 1:
+
+> cargo run sync listen dev1
+
+Terminal 2:
+
+> cargo run sync push dev2 dev1
 
 In a different terminal
 
