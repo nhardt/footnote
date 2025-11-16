@@ -167,7 +167,7 @@ impl iroh::protocol::ProtocolHandler for Sync {
 
                 // Create local directory and manifest
                 let local_dir =
-                    format!("./data/{}/mirror_for/{}", local_keyname, remote_device_name);
+                    format!("./data/{}/mirror_from/{}", local_keyname, remote_device_name);
                 fs::create_dir_all(&local_dir)?;
                 let local_manifest = directory_to_manifest(&local_dir).await?;
 
@@ -218,12 +218,16 @@ impl iroh::protocol::ProtocolHandler for Sync {
                 send.finish()?;
 
                 // Delete local files not in remote manifest
+                println!("checking {} for files not in remote", local_dir);
                 for (local_path, _) in &local_manifest.files {
                     if !remote_manifest.files.contains_key(local_path) {
                         let full_path = PathBuf::from(&local_dir).join(local_path);
                         if full_path.exists() {
                             fs::remove_file(&full_path)?;
-                            println!("Deleted file not in remote: {}", local_path);
+                            println!(
+                                "Deleted {}/{}, key {} not in remote",
+                                local_dir, local_path, local_path
+                            );
                         }
                     }
                 }
@@ -268,7 +272,7 @@ async fn sync_listen(keyname: &str) -> anyhow::Result<()> {
 }
 
 async fn sync_push(from_keyname: &str, to_keyname: &str) -> anyhow::Result<()> {
-    let dir = format!("./data/from_{}/to_{}", from_keyname, to_keyname);
+    let dir = format!("./data/{}/mirror_to/{}", from_keyname, to_keyname);
     let manifest = directory_to_manifest(&dir).await?;
 
     println!("Pushing {} files to {}", manifest.files.len(), to_keyname);
@@ -336,6 +340,7 @@ struct Manifest {
 }
 
 async fn directory_to_manifest(path_to_dir: &str) -> anyhow::Result<Manifest> {
+    println!("building manifest for {}", path_to_dir);
     let mut m = Manifest {
         files: HashMap::new(),
     };

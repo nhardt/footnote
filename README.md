@@ -75,15 +75,15 @@ Now create on-disk structures to simulate the two devices. Each device will have
 an imagined directory they want to mirror to the remote
 
 > mkdir -p ./data/dev1/mirror_to/dev2/
-> mkdir -p ./data/dev1/mirror_for/dev2/
-> echo "# The best basketball shot I ever made" > ./data/dev1/mirror_for/dev2/escape_from_la.md
+> mkdir -p ./data/dev1/mirror_from/dev2/
+> echo "# The best basketball shot I ever made" > ./data/dev1/mirror_to/dev2/escape_from_la.md
 > mkdir -p ./data/dev2/mirror_to/dev1/
-> mkdir -p ./data/dev2/mirror_for/dev1/
-> echo "# A story about how my life got turned upside down" > ./data/dev2/mirror_for/dev1/belaire.md
+> mkdir -p ./data/dev2/mirror_from/dev1/
+> echo "# A story about how my life got turned upside down" > ./data/dev2/mirror_to/dev1/belaire.md
 
 We now have two theoretical devices, each with a file they want to sync to the
 other. Conceptually, dev1 owns the directory mirror_to/dev2, and any files there
-are intended to be mirrored on dev2 in the mirror_from_dev1 directory.
+are intended to be mirrored on dev2 in the mirror_from/dev1 directory.
 Obviously, this is a trust situation. dev2 and dev1 should be owned by two people
 that know each other. Putting in reasonable safeguards for the max size of the
 directory will not be included in the example.
