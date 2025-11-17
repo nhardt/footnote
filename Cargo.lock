@@ -865,6 +865,7 @@ dependencies = [
  "rand 0.9.2",
  "rand_core 0.6.4",
  "serde",
+ "serde_json",
  "serde_yaml",
  "tokio",
  "uuid",

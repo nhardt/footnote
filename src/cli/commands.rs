@@ -61,6 +61,12 @@ pub enum DeviceAction {
         user_name: String,
         device_name: String,
     },
+    /// Authorize a new device to join (listen for connection)
+    Authorize {
+        /// Listen for incoming device join requests
+        #[arg(long)]
+        listen: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -106,6 +112,13 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
                 user_name,
                 device_name,
             } => crate::core::device::delete(&user_name, &device_name).await,
+            DeviceAction::Authorize { listen } => {
+                if listen {
+                    crate::core::device::authorize_listen().await
+                } else {
+                    anyhow::bail!("Use --listen flag to start authorization listener")
+                }
+            }
         },
         Commands::Mirror { action } => match action {
             MirrorAction::Listen => crate::core::mirror::listen().await,
