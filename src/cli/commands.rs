@@ -67,6 +67,14 @@ pub enum DeviceAction {
         #[arg(long)]
         listen: bool,
     },
+    /// Join an existing identity as a new device
+    Join {
+        /// Connection string from primary device (iroh://endpoint-id?token=xyz)
+        connection_string: String,
+        /// Name for this device
+        #[arg(long)]
+        device_name: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -119,6 +127,10 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
                     anyhow::bail!("Use --listen flag to start authorization listener")
                 }
             }
+            DeviceAction::Join {
+                connection_string,
+                device_name,
+            } => crate::core::device::join(&connection_string, &device_name).await,
         },
         Commands::Mirror { action } => match action {
             MirrorAction::Listen => crate::core::mirror::listen().await,

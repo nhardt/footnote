@@ -156,6 +156,170 @@ pub async fn authorize_listen() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Join an existing identity as a new device
+pub async fn join(connection_string: &str, device_name: &str) -> anyhow::Result<()> {
+    // Check if vault already exists
+    let vault_path = vault::get_vault_path()?;
+    if vault_path.exists() {
+        anyhow::bail!(
+            "Vault already exists at {}. Remove it first if you want to join as a new device.",
+            vault_path.display()
+        );
+    }
+
+    // Parse connection string: iroh://endpoint-id?token=xyz
+    let (endpoint_id, token) = parse_connection_string(connection_string)?;
+
+    println!("\nDevice Join");
+    println!("Connecting to primary device...");
+
+    // Generate Iroh endpoint for this device
+    let secret_key = SecretKey::generate(&mut rand::rng());
+    let public_key = secret_key.public();
+
+    // Create endpoint
+    let endpoint = Endpoint::builder()
+        .secret_key(secret_key.clone())
+        .bind()
+        .await?;
+
+    // Connect to primary device
+    let conn = endpoint.connect(endpoint_id, ALPN_DEVICE_AUTH).await?;
+    let (mut send, mut recv) = conn.open_bi().await.anyerr()?;
+
+    println!("Connected");
+
+    // Send join request
+    let request = DeviceJoinRequest {
+        device_name: device_name.to_string(),
+        iroh_endpoint_id: public_key.to_string(),
+        token,
+    };
+
+    let request_bytes = serde_json::to_vec(&request)?;
+    send.write_all(&request_bytes).await.anyerr()?;
+    send.finish().anyerr()?;
+
+    println!("Authenticating...");
+
+    // Receive response
+    let response_bytes = recv.read_to_end(100000).await.anyerr()?;
+    let response: DeviceJoinResponse = serde_json::from_slice(&response_bytes)?;
+
+    println!("Received identity");
+
+    // Create vault directory structure
+    let keys_dir = vault::get_keys_dir()?;
+    let devices_dir = vault::get_devices_dir()?;
+    let notes_dir = vault::get_notes_dir()?;
+    let outpost_dir = vault::get_outpost_dir()?;
+
+    fs::create_dir_all(&keys_dir)?;
+    fs::create_dir_all(&devices_dir)?;
+    fs::create_dir_all(&notes_dir)?;
+    fs::create_dir_all(&outpost_dir)?;
+
+    // Store Iroh secret key
+    let key_file = keys_dir.join(device_name);
+    fs::write(&key_file, secret_key.to_bytes())?;
+
+    // Create identity.md
+    let identity_file = vault::get_identity_path()?;
+    let identity_content = format!(
+        r#"---
+master_public_key: {}
+nickname: {}
+---
+
+# My Identity
+
+This device joined an existing identity.
+"#,
+        response.master_public_key, response.nickname
+    );
+    fs::write(&identity_file, identity_content)?;
+
+    // Create device file
+    let device_file = devices_dir.join(format!("{}.md", device_name));
+    let device_content = format!(
+        r#"---
+device_name: {}
+iroh_endpoint_id: {}
+authorized_by: {}
+timestamp: {}
+signature: {}
+---
+
+This device joined via authorization.
+"#,
+        response.device_name,
+        response.iroh_endpoint_id,
+        response.authorized_by,
+        response.timestamp,
+        response.signature
+    );
+    fs::write(&device_file, device_content)?;
+
+    // Create home note
+    let home_uuid = Uuid::new_v4();
+    let home_file = notes_dir.join("home.md");
+    let home_content = format!(
+        r#"---
+uuid: {}
+share_with: []
+---
+
+# Home
+
+Welcome to fieldnote on {}!
+"#,
+        home_uuid, device_name
+    );
+    fs::write(&home_file, home_content)?;
+
+    println!("\nJoin complete!");
+    println!("Identity: {}", response.nickname);
+    println!("Master key: {}", response.master_public_key);
+    println!("Device: {}", device_name);
+    println!("Vault created at: {}", vault_path.display());
+
+    conn.close(0u8.into(), b"done");
+    conn.closed().await;
+
+    Ok(())
+}
+
+fn parse_connection_string(conn_str: &str) -> anyhow::Result<(iroh::PublicKey, String)> {
+    // Expected format: iroh://endpoint-id?token=xyz
+    let conn_str = conn_str.trim();
+
+    if !conn_str.starts_with("iroh://") {
+        anyhow::bail!("Invalid connection string. Expected format: iroh://endpoint-id?token=xyz");
+    }
+
+    let without_prefix = conn_str.strip_prefix("iroh://").unwrap();
+    let parts: Vec<&str> = without_prefix.split('?').collect();
+
+    if parts.len() != 2 {
+        anyhow::bail!("Invalid connection string. Expected format: iroh://endpoint-id?token=xyz");
+    }
+
+    let endpoint_id: iroh::PublicKey = parts[0]
+        .parse()
+        .map_err(|_| anyhow::anyhow!("Invalid endpoint ID"))?;
+
+    // Parse token from query string
+    let query = parts[1];
+    let token = query
+        .split('&')
+        .find(|s| s.starts_with("token="))
+        .and_then(|s| s.strip_prefix("token="))
+        .ok_or_else(|| anyhow::anyhow!("Token not found in connection string"))?
+        .to_string();
+
+    Ok((endpoint_id, token))
+}
+
 fn parse_nickname(content: &str) -> anyhow::Result<String> {
     let mut lines = content.lines();
 
