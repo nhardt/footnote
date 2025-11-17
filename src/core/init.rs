@@ -50,7 +50,7 @@ pub async fn initialize() -> anyhow::Result<()> {
     let device_file = me_devices_dir.join(format!("{}.md", DEVICE_NAME));
     let device_content = format!(
         r#"---
-iroh-endpoint-id: {}
+iroh_endpoint_id: {}
 ---
 
 This is the device file for this device.

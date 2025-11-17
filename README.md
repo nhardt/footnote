@@ -18,7 +18,7 @@ uuid, which is its canonical identifier.
 
 ##### Note Checkpoint
 
-A document checkpoint is: `{uuid}-{vector_timestamp}-{path}`
+A document checkpoint is: `{uuid}_{vector_timestamp}_{path}`
 
 UUID uniquely identifies the document. vector_timestamp is the modified date.
 Fieldnote will initially implement LWW with a vector timestamp. The path is
@@ -99,7 +99,7 @@ to bob to request files.
 
 ```markdown
 ---
-iroh-endpoint-id: asdfasfasdfsadf
+iroh_endpoint_id: asdfasfasdfsadf
 ---
 
 Mardown text here at user's discretion
@@ -110,7 +110,7 @@ Mardown text here at user's discretion
 ```markdown
 ---
 uuid: 12312321-sdff1-234fd-234-231
-share-with:
+share_with:
   - bob
   - charlie
 ---
