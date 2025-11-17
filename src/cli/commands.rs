@@ -37,6 +37,16 @@ pub enum UserAction {
     Delete { user_name: String },
     /// Read and display all users and their devices
     Read,
+    /// Export a user's contact information
+    Export { user_name: String },
+    /// Import a user's contact information
+    Import {
+        /// Path to the exported user file
+        file_path: String,
+        /// Petname for this user (what you call them locally)
+        #[arg(long)]
+        petname: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -80,6 +90,12 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
                 crate::core::user::delete(&user_name).await
             }
             UserAction::Read => crate::core::user::read().await,
+            UserAction::Export { user_name } => {
+                crate::core::user::export(&user_name).await
+            }
+            UserAction::Import { file_path, petname } => {
+                crate::core::user::import(&file_path, &petname).await
+            }
         },
         Commands::Device { action } => match action {
             DeviceAction::Create {

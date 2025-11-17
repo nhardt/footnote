@@ -39,6 +39,22 @@ struct UsersOutput {
     users: Vec<User>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct ExportDevice {
+    device_name: String,
+    iroh_endpoint_id: String,
+    authorized_by: String,
+    timestamp: String,
+    signature: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct UserExport {
+    nickname: String,
+    master_public_key: String,
+    devices: Vec<ExportDevice>,
+}
+
 /// Create a new user
 pub async fn create(user_name: &str) -> anyhow::Result<()> {
     println!("TODO: user::create({})", user_name);
@@ -48,6 +64,181 @@ pub async fn create(user_name: &str) -> anyhow::Result<()> {
 /// Delete a user
 pub async fn delete(user_name: &str) -> anyhow::Result<()> {
     println!("TODO: user::delete({})", user_name);
+    Ok(())
+}
+
+/// Export a user's contact information
+pub async fn export(user_name: &str) -> anyhow::Result<()> {
+    let vault_path = vault::get_vault_path()?;
+
+    if !vault_path.exists() {
+        anyhow::bail!(
+            "Vault not found at {}. Run 'fieldnote init' first.",
+            vault_path.display()
+        );
+    }
+
+    // Determine paths based on user name
+    let (identity_path, devices_dir) = if user_name == "me" {
+        (vault::get_identity_path()?, vault::get_devices_dir()?)
+    } else {
+        (
+            vault::get_user_identity_path(user_name)?,
+            vault::get_user_devices_dir(user_name)?,
+        )
+    };
+
+    // Read identity
+    if !identity_path.exists() {
+        anyhow::bail!("User '{}' not found", user_name);
+    }
+
+    let content = fs::read_to_string(&identity_path)?;
+    let (master_public_key, nickname) = parse_identity_frontmatter(&content);
+
+    let master_public_key = master_public_key
+        .ok_or_else(|| anyhow::anyhow!("No master public key found for user '{}'", user_name))?;
+
+    // Read devices
+    let mut devices = Vec::new();
+    if devices_dir.exists() {
+        for device_entry in fs::read_dir(&devices_dir)? {
+            let device_entry = device_entry?;
+            let device_path = device_entry.path();
+
+            if device_path.extension().and_then(|s| s.to_str()) == Some("md") {
+                let content = fs::read_to_string(&device_path)?;
+                let frontmatter = extract_frontmatter(&content);
+                if let Some(fm) = frontmatter {
+                    if let Ok(parsed) = serde_yaml::from_str::<DeviceFrontmatter>(&fm) {
+                        devices.push(ExportDevice {
+                            device_name: parsed.device_name,
+                            iroh_endpoint_id: parsed.iroh_endpoint_id,
+                            authorized_by: parsed.authorized_by,
+                            timestamp: parsed.timestamp,
+                            signature: parsed.signature,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    // Create export struct
+    let export = UserExport {
+        nickname: nickname.unwrap_or_default(),
+        master_public_key,
+        devices,
+    };
+
+    // Serialize and print
+    let yaml = serde_yaml::to_string(&export)?;
+    println!("{}", yaml);
+
+    Ok(())
+}
+
+/// Import a user's contact information
+pub async fn import(file_path: &str, petname: &str) -> anyhow::Result<()> {
+    let vault_path = vault::get_vault_path()?;
+
+    if !vault_path.exists() {
+        anyhow::bail!(
+            "Vault not found at {}. Run 'fieldnote init' first.",
+            vault_path.display()
+        );
+    }
+
+    // Read and parse the export file
+    let content = fs::read_to_string(file_path)?;
+    let export: UserExport = serde_yaml::from_str(&content)?;
+
+    // Verify all device signatures
+    for device in &export.devices {
+        let valid = crypto::verify_device_signature(
+            &device.device_name,
+            &device.iroh_endpoint_id,
+            &device.authorized_by,
+            &device.timestamp,
+            &device.signature,
+        )?;
+
+        if !valid {
+            anyhow::bail!(
+                "Invalid signature for device '{}'. Import aborted.",
+                device.device_name
+            );
+        }
+    }
+
+    println!(
+        "✓ All signatures verified ({} devices)",
+        export.devices.len()
+    );
+
+    // Create outpost directory for this user
+    let outpost_dir = vault::get_user_outpost_dir(petname)?;
+    if outpost_dir.exists() {
+        anyhow::bail!(
+            "User '{}' already exists in outpost. Remove it first if you want to re-import.",
+            petname
+        );
+    }
+
+    let identity_path = vault::get_user_identity_path(petname)?;
+    let devices_dir = vault::get_user_devices_dir(petname)?;
+    let notes_dir = vault::get_user_notes_dir(petname)?;
+
+    fs::create_dir_all(&devices_dir)?;
+    fs::create_dir_all(&notes_dir)?;
+
+    // Create identity.md
+    let identity_content = format!(
+        r#"---
+master_public_key: {}
+nickname: {}
+---
+
+# {}
+
+Imported contact.
+Petname: {}
+"#,
+        export.master_public_key,
+        export.nickname,
+        export.nickname,
+        petname
+    );
+    fs::write(&identity_path, identity_content)?;
+    println!("✓ Created identity for '{}'", petname);
+
+    // Create device files
+    for device in &export.devices {
+        let device_file = devices_dir.join(format!("{}.md", device.device_name));
+        let device_content = format!(
+            r#"---
+device_name: {}
+iroh_endpoint_id: {}
+authorized_by: {}
+timestamp: {}
+signature: {}
+---
+
+Device imported from contact export.
+"#,
+            device.device_name,
+            device.iroh_endpoint_id,
+            device.authorized_by,
+            device.timestamp,
+            device.signature
+        );
+        fs::write(&device_file, device_content)?;
+        println!("✓ Created device '{}'", device.device_name);
+    }
+
+    println!("\n✓ Import complete!");
+    println!("User '{}' added to outpost at {}", petname, outpost_dir.display());
+
     Ok(())
 }
 
