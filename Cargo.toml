@@ -1,5 +1,5 @@
 [package]
-name = "iroh-cli"
+name = "fieldnote"
 version = "0.1.0"
 edition = "2024"
 
@@ -7,6 +7,7 @@ edition = "2024"
 anyhow = "1.0.100"
 bincode = "2.0.1"
 blake3 = "1.8.2"
+clap = { version = "4.5", features = ["derive"] }
 futures = "0.3.31"
 iroh = "0.95"
 n0-error = { version = "0.1.2", features = ["anyhow"] }
