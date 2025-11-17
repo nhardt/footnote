@@ -1,21 +1,13 @@
+use crate::core::vault;
 use iroh::SecretKey;
 use std::fs;
-use std::path::PathBuf;
 use uuid::Uuid;
 
-const VAULT_DIR: &str = "fieldnotes-vault";
 const DEVICE_NAME: &str = "this_device";
-
-/// Get the base vault directory path
-fn get_vault_path() -> anyhow::Result<PathBuf> {
-    let home = std::env::var("HOME")
-        .map_err(|_| anyhow::anyhow!("HOME environment variable not set"))?;
-    Ok(PathBuf::from(home).join(VAULT_DIR))
-}
 
 /// Initialize the fieldnote vault
 pub async fn initialize() -> anyhow::Result<()> {
-    let vault_path = get_vault_path()?;
+    let vault_path = vault::get_vault_path()?;
 
     // Check if already initialized
     if vault_path.exists() {
@@ -28,13 +20,15 @@ pub async fn initialize() -> anyhow::Result<()> {
     println!("Initializing fieldnote vault at {}", vault_path.display());
 
     // Create directory structure
-    let keys_dir = vault_path.join(".keys");
-    let me_devices_dir = vault_path.join("me/devices");
-    let me_notes_dir = vault_path.join("me/notes");
+    let keys_dir = vault::get_keys_dir()?;
+    let devices_dir = vault::get_devices_dir()?;
+    let notes_dir = vault::get_notes_dir()?;
+    let outpost_dir = vault::get_outpost_dir()?;
 
     fs::create_dir_all(&keys_dir)?;
-    fs::create_dir_all(&me_devices_dir)?;
-    fs::create_dir_all(&me_notes_dir)?;
+    fs::create_dir_all(&devices_dir)?;
+    fs::create_dir_all(&notes_dir)?;
+    fs::create_dir_all(&outpost_dir)?;
 
     // Generate secret key for this device
     println!("Generating secret key for this device...");
@@ -47,7 +41,7 @@ pub async fn initialize() -> anyhow::Result<()> {
     println!("Secret key stored at {}", key_file.display());
 
     // Create device markdown file
-    let device_file = me_devices_dir.join(format!("{}.md", DEVICE_NAME));
+    let device_file = devices_dir.join(format!("{}.md", DEVICE_NAME));
     let device_content = format!(
         r#"---
 iroh_endpoint_id: {}
@@ -62,11 +56,11 @@ This is the device file for this device.
 
     // Create home note
     let home_uuid = Uuid::new_v4();
-    let home_file = me_notes_dir.join("home.md");
+    let home_file = notes_dir.join("home.md");
     let home_content = format!(
         r#"---
 uuid: {}
-share-with: []
+share_with: []
 ---
 
 # Home
