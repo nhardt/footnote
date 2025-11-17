@@ -68,19 +68,36 @@ Edit the nickname field to set how you present yourself to others.
     fs::write(&key_file, secret_key.to_bytes())?;
     println!("Device Iroh key stored at {}", key_file.display());
 
-    // Create device markdown file
+    // Sign the device record with master key
+    let timestamp = chrono::Utc::now().to_rfc3339();
+    let signature = crypto::sign_device_record(
+        DEVICE_NAME,
+        &public_key.to_string(),
+        &signing_key,
+        &timestamp,
+    )?;
+
+    // Create device markdown file with signature
     let device_file = devices_dir.join(format!("{}.md", DEVICE_NAME));
     let device_content = format!(
         r#"---
+device_name: {}
 iroh_endpoint_id: {}
+authorized_by: {}
+timestamp: {}
+signature: {}
 ---
 
 This is the device file for this device.
 "#,
-        public_key
+        DEVICE_NAME,
+        public_key,
+        crypto::verifying_key_to_hex(&verifying_key),
+        timestamp,
+        signature
     );
     fs::write(&device_file, device_content)?;
-    println!("Device file created at {}", device_file.display());
+    println!("Device file created and signed at {}", device_file.display());
 
     // Create home note
     let home_uuid = Uuid::new_v4();
