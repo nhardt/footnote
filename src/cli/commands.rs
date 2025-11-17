@@ -10,6 +10,8 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Initialize fieldnote vault and create default structure
+    Init,
     /// User management commands
     User {
         #[command(subcommand)]
@@ -67,6 +69,7 @@ pub enum MirrorAction {
 /// Execute the CLI command
 pub async fn execute(cli: Cli) -> anyhow::Result<()> {
     match cli.command {
+        Commands::Init => crate::core::init::initialize().await,
         Commands::User { action } => match action {
             UserAction::Create { user_name } => {
                 crate::core::user::create(&user_name).await

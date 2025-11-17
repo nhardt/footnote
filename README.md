@@ -120,6 +120,20 @@ Markdown text here. Primary use for app is to take notes here.
 
 ## Usage
 
+### Self Setup
+
+```
+fieldnote init
+```
+
+This will create your "me" directory, generate a key pair for this device and set up your first note.
+
+#### Add a second device
+
+On a second device, also run `fieldnote init`.
+
+### User
+
 Fieldnote allows a user to manage all these objects via a cli tool.
 
 ```
