@@ -1,9 +1,10 @@
-use crate::core::vault;
+use crate::core::{crypto, vault};
 use iroh::SecretKey;
 use std::fs;
 use uuid::Uuid;
 
 const DEVICE_NAME: &str = "this_device";
+const MASTER_KEY_FILE: &str = "master_identity";
 
 /// Initialize the fieldnote vault
 pub async fn initialize() -> anyhow::Result<()> {
@@ -30,15 +31,42 @@ pub async fn initialize() -> anyhow::Result<()> {
     fs::create_dir_all(&notes_dir)?;
     fs::create_dir_all(&outpost_dir)?;
 
-    // Generate secret key for this device
-    println!("Generating secret key for this device...");
+    // Generate master identity key pair
+    println!("Generating master identity key...");
+    let (signing_key, verifying_key) = crypto::generate_identity_keypair();
+
+    // Store master private key
+    let master_key_file = keys_dir.join(MASTER_KEY_FILE);
+    fs::write(&master_key_file, crypto::signing_key_to_hex(&signing_key))?;
+    println!("Master identity key stored at {}", master_key_file.display());
+
+    // Create identity.md
+    let identity_file = vault::get_identity_path()?;
+    let identity_content = format!(
+        r#"---
+master_public_key: {}
+nickname: ""
+---
+
+# My Identity
+
+This file contains your master identity information.
+Edit the nickname field to set how you present yourself to others.
+"#,
+        crypto::verifying_key_to_hex(&verifying_key)
+    );
+    fs::write(&identity_file, identity_content)?;
+    println!("Identity file created at {}", identity_file.display());
+
+    // Generate Iroh endpoint for this device
+    println!("Generating Iroh endpoint for this device...");
     let secret_key = SecretKey::generate(&mut rand::rng());
     let public_key = secret_key.public();
 
-    // Store secret key
+    // Store Iroh secret key
     let key_file = keys_dir.join(DEVICE_NAME);
     fs::write(&key_file, secret_key.to_bytes())?;
-    println!("Secret key stored at {}", key_file.display());
+    println!("Device Iroh key stored at {}", key_file.display());
 
     // Create device markdown file
     let device_file = devices_dir.join(format!("{}.md", DEVICE_NAME));
@@ -73,7 +101,11 @@ Welcome to fieldnote! This is your home note.
     println!("Home note created at {}", home_file.display());
 
     println!("\nInitialization complete!");
-    println!("Your endpoint ID: {}", public_key);
+    println!("Your master identity key: {}", crypto::verifying_key_to_hex(&verifying_key));
+    println!("Your device endpoint ID: {}", public_key);
+    println!("\nNext steps:");
+    println!("1. Edit {} to set your nickname", identity_file.display());
+    println!("2. Run 'fieldnote user read' to view your identity");
 
     Ok(())
 }
