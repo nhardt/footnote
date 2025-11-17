@@ -35,6 +35,8 @@ pub enum UserAction {
     Create { user_name: String },
     /// Delete a user
     Delete { user_name: String },
+    /// Read and display all users and their devices
+    Read,
 }
 
 #[derive(Subcommand)]
@@ -77,6 +79,7 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
             UserAction::Delete { user_name } => {
                 crate::core::user::delete(&user_name).await
             }
+            UserAction::Read => crate::core::user::read().await,
         },
         Commands::Device { action } => match action {
             DeviceAction::Create {
