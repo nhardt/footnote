@@ -27,15 +27,9 @@ included for file moves.
 #### Users
 
 Users are added locally using the name they are to you. You also add their
-devices by hand, or from a trusted peer.
+devices by hand, or from a trusted peer, or from an identity export.
 
-There is a special "me" user. Any devices you add to the "me" user are sync'd
-fully between each other.
-
-Each user has a single primary device. Internal to your devices, they will all
-sync to primary. The user is in charge of this. If two devices attempt to sync
-and both are marked as primary, sync'ing will be blocked and the user will be
-notified.
+Details: [docs/users.md]
 
 #### Devices
 
@@ -46,6 +40,10 @@ Every device can read, create and update notes at any time but changes are just 
 
 ##### Primary Device
 
+Each user has a single primary device. Internal to the user, all devices will
+sync to primary. The user manages this. If two devices attempt to sync and both
+are marked as primary, sync'ing will be blocked and the user will be notified.
+
 A primary device handles two things uniquely: Remote device sync and file
 deletes. If I, as a user, add multiple devices for a remote user, I do not
 need to manage those as being primary. User-to-User sync via primary is just
@@ -53,7 +51,7 @@ an optimization.
 
 ## Syncing
 
-Syncing occurs between any devices owned by "me". When a device thinks it has data
+Syncing occurs between all devices owned by a user. When a device thinks it has data
 for a peer, it attempt to connect. On connect, it sends a manifest. The acceptor
 will check see if all note chekckpoints match. If the connector has a newer write,
 the acceptor will request it. The acceptor will also store the connector's manifest.
@@ -67,33 +65,33 @@ for shared research while retaining ownership.
 
 The layout on Alice's fileystem:
 
-- me
-  - devices
-    - phone.md
-    - laptop.md
-    - desktop.md
-  - notes
-    - that_one_time.md
-    - interesting_new_things.md
-- bob
-  - devices
-    - desktop.md
-  - notes
-    - requests_for_alice.md
-    - my_favorite_movies.md
-- charlie
-  - devices
-    - desktop.md
-  - notes
-    - my_favorite_movies.md
-    - bobs_surprise_party_details.md
+- devices
+  - phone.md
+  - laptop.md
+  - desktop.md
+- notes
+  - that_one_time.md
+  - interesting_new_things.md
+- outposts
+  - bob
+    - devices
+      - desktop.md
+    - notes
+      - requests_for_alice.md
+      - my_favorite_movies.md
+  - charlie
+    - devices
+      - desktop.md
+    - notes
+      - my_favorite_movies.md
+      - bobs_surprise_party_details.md
 
 The key thing to note here is that everything shared from bob to alice will be
-in bob/notes/. devices associated with bob, within reason, should be considered
-to have a lease on that subdirectory. when a device of bob's connects, it will
-send a manifest of what should be in that directory, which will be a mirror of
-all files that bob has shared with alice. alice's device will then connect back
-to bob to request files.
+in outpost/bob/notes/. devices associated with bob, within reason, should be
+considered to have a lease on that subdirectory. when a device of bob's
+connects, it will send a manifest of what should be in that directory, which
+will be a mirror of all files that bob has shared with alice. alice's device
+will then connect back to bob to request files.
 
 ### Device File Layout
 
@@ -126,11 +124,29 @@ Markdown text here. Primary use for app is to take notes here.
 fieldnote init
 ```
 
-This will create your "me" directory, generate a key pair for this device and set up your first note.
+This will create the on-disk directory structure, and add the local device as a primary device.
 
 #### Add a second device
 
-On a second device, also run `fieldnote init`.
+Adding a second device requires the primary and secondary device to connect.
+
+```
+$ fieldnote device authorize --listen
+
+Listening for new device...
+Copy this to your new device:
+  iroh://abc123def456...?token=xyz789
+
+Secondary Device:
+
+$ fieldnote device join "iroh://abc123...?token=xyz789" --device-name "my-phone"
+
+Connecting to primary device...
+Authenticating...
+Receiving identity...
+- [x] Joined as device 'my-phone'
+- [x] Identity: @alice-jones (master key: def456...)
+```
 
 ### User
 
