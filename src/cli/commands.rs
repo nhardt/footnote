@@ -51,26 +51,25 @@ pub enum UserAction {
 
 #[derive(Subcommand)]
 pub enum DeviceAction {
-    /// Create a new device for a user
-    Create {
-        user_name: String,
-        device_name: String,
-    },
     /// Delete a device
     Delete {
         user_name: String,
         device_name: String,
     },
-    /// Authorize a new device to join (listen for connection)
-    Authorize {
-        /// Listen for incoming device join requests
-        #[arg(long)]
-        listen: bool,
+    /// Create and authorize a new device (primary device generates join URL, or
+    /// remote device joins)
+    Create {
+        #[command(subcommand)]
+        mode: Option<CreateMode>,
     },
-    /// Join an existing identity as a new device
-    Join {
-        /// Connection string from primary device (iroh://endpoint-id?token=xyz)
-        connection_string: String,
+}
+
+#[derive(Subcommand)]
+pub enum CreateMode {
+    /// Join from a remote device using a connection URL
+    Remote {
+        /// Connection URL from primary device (iroh://endpoint-id?token=xyz)
+        remote_url: String,
         /// Name for this device
         #[arg(long)]
         device_name: String,
@@ -112,25 +111,23 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
             }
         },
         Commands::Device { action } => match action {
-            DeviceAction::Create {
-                user_name,
-                device_name,
-            } => crate::core::device::create(&user_name, &device_name).await,
             DeviceAction::Delete {
                 user_name,
                 device_name,
             } => crate::core::device::delete(&user_name, &device_name).await,
-            DeviceAction::Authorize { listen } => {
-                if listen {
-                    crate::core::device::authorize_listen().await
-                } else {
-                    anyhow::bail!("Use --listen flag to start authorization listener")
+            DeviceAction::Create { mode } => match mode {
+                None => {
+                    // Primary device: generate join URL
+                    crate::core::device::create_primary().await
                 }
-            }
-            DeviceAction::Join {
-                connection_string,
-                device_name,
-            } => crate::core::device::join(&connection_string, &device_name).await,
+                Some(CreateMode::Remote {
+                    remote_url,
+                    device_name,
+                }) => {
+                    // Remote device: join using URL
+                    crate::core::device::create_remote(&remote_url, &device_name).await
+                }
+            },
         },
         Commands::Mirror { action } => match action {
             MirrorAction::Listen => crate::core::mirror::listen().await,

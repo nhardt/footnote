@@ -131,16 +131,18 @@ This will create the on-disk directory structure, and add the local device as a 
 
 Adding a second device requires the primary and secondary device to connect.
 
+On the primary device:
 ```
-$ fieldnote device authorize --listen
+$ fieldnote device create
 
 Listening for new device...
 Copy this to your new device:
   iroh://abc123def456...?token=xyz789
+```
 
-Secondary Device:
-
-$ fieldnote device join "iroh://abc123...?token=xyz789" --device-name "my-phone"
+On the secondary device:
+```
+$ fieldnote device create remote "iroh://abc123...?token=xyz789" --device-name "my-phone"
 
 Connecting to primary device...
 Authenticating...
@@ -157,11 +159,12 @@ Fieldnote allows a user to manage all these objects via a cli tool.
 fieldnote user create {user_name}
 fieldnote user delete {user_name}
 
-fieldnote device create {user_name} {device_name}
-fieldnote device delete {user_name}
+fieldnote device create
+fieldnote device create remote {remote_url} --device-name {device_name}
+fieldnote device delete {user_name} {device_name}
 
-fieldnote sync push {optional: device id}
-fieldnote share push {optional: device id}
+fieldnote mirror listen
+fieldnote mirror push --user {user_name} --device {device_name}
 ```
 
 ## Future Improvements

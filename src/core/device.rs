@@ -26,13 +26,11 @@ struct DeviceJoinResponse {
     signature: String,
 }
 
-/// Create a new device for a user
-pub async fn create(user_name: &str, device_name: &str) -> anyhow::Result<()> {
-    println!(
-        "TODO: device::create({}, {})",
-        user_name, device_name
-    );
-    Ok(())
+/// Check if the current device is a primary device
+fn is_primary_device() -> anyhow::Result<bool> {
+    let keys_dir = vault::get_keys_dir()?;
+    let master_key_file = keys_dir.join(MASTER_KEY_FILE);
+    Ok(master_key_file.exists())
 }
 
 /// Delete a device
@@ -44,13 +42,21 @@ pub async fn delete(user_name: &str, device_name: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Listen for a new device to authorize
-pub async fn authorize_listen() -> anyhow::Result<()> {
+/// Create a new device (primary side) - generates join URL and listens for connection
+pub async fn create_primary() -> anyhow::Result<()> {
     let vault_path = vault::get_vault_path()?;
     if !vault_path.exists() {
         anyhow::bail!(
             "Vault not found at {}. Run 'fieldnote init' first.",
             vault_path.display()
+        );
+    }
+
+    // Check if this device is primary
+    if !is_primary_device()? {
+        anyhow::bail!(
+            "This device is not marked as primary. Only the primary device can create join URLs.\n\
+            Run this command on your primary device."
         );
     }
 
@@ -156,8 +162,8 @@ pub async fn authorize_listen() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Join an existing identity as a new device
-pub async fn join(connection_string: &str, device_name: &str) -> anyhow::Result<()> {
+/// Create a new device (remote side) - joins using connection URL from primary
+pub async fn create_remote(connection_string: &str, device_name: &str) -> anyhow::Result<()> {
     // Check if vault already exists
     let vault_path = vault::get_vault_path()?;
     if vault_path.exists() {
