@@ -1,0 +1,192 @@
+use anyhow::{Context, Result};
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::Path;
+use uuid::Uuid;
+
+/// Frontmatter metadata for a note
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NoteFrontmatter {
+    #[serde(default = "generate_uuid")]
+    pub uuid: Uuid,
+
+    #[serde(default = "current_timestamp")]
+    pub modified: DateTime<Utc>,
+
+    #[serde(default)]
+    pub share_with: Vec<String>,
+}
+
+fn generate_uuid() -> Uuid {
+    Uuid::new_v4()
+}
+
+fn current_timestamp() -> DateTime<Utc> {
+    Utc::now()
+}
+
+impl Default for NoteFrontmatter {
+    fn default() -> Self {
+        Self {
+            uuid: generate_uuid(),
+            modified: current_timestamp(),
+            share_with: Vec::new(),
+        }
+    }
+}
+
+/// A parsed note with frontmatter and content
+#[derive(Debug)]
+pub struct Note {
+    pub frontmatter: NoteFrontmatter,
+    pub content: String,
+}
+
+/// Parse a markdown file and extract frontmatter
+///
+/// Expects frontmatter in YAML format between `---` delimiters:
+/// ```markdown
+/// ---
+/// uuid: 550e8400-e29b-41d4-a716-446655440000
+/// modified: 2024-01-15T10:30:00Z
+/// share_with:
+///   - alice
+///   - bob
+/// ---
+/// # Document content here
+/// ```
+///
+/// If no frontmatter is found, returns default frontmatter with a new UUID
+pub fn parse_note(path: &Path) -> Result<Note> {
+    let content = fs::read_to_string(path)
+        .with_context(|| format!("Failed to read note: {}", path.display()))?;
+
+    parse_note_from_string(&content)
+}
+
+/// Parse note content from a string
+pub fn parse_note_from_string(content: &str) -> Result<Note> {
+    // Check if content starts with frontmatter delimiter
+    if !content.starts_with("---\n") && !content.starts_with("---\r\n") {
+        // No frontmatter - return default
+        return Ok(Note {
+            frontmatter: NoteFrontmatter::default(),
+            content: content.to_string(),
+        });
+    }
+
+    // Find the end of frontmatter
+    let rest = if content.starts_with("---\r\n") {
+        &content[5..]
+    } else {
+        &content[4..]
+    };
+
+    if let Some(end_pos) = rest.find("\n---\n").or_else(|| rest.find("\r\n---\r\n")) {
+        // Extract frontmatter YAML
+        let yaml_str = &rest[..end_pos];
+        let frontmatter: NoteFrontmatter = serde_yaml::from_str(yaml_str)
+            .context("Failed to parse frontmatter YAML")?;
+
+        // Extract content after frontmatter
+        let content_start = if rest[end_pos..].starts_with("\r\n") {
+            end_pos + 7 // Skip "\r\n---\r\n"
+        } else {
+            end_pos + 5 // Skip "\n---\n"
+        };
+        let content = rest[content_start..].to_string();
+
+        Ok(Note {
+            frontmatter,
+            content,
+        })
+    } else {
+        // Malformed frontmatter - treat entire file as content
+        Ok(Note {
+            frontmatter: NoteFrontmatter::default(),
+            content: content.to_string(),
+        })
+    }
+}
+
+/// Serialize a note back to markdown with frontmatter
+pub fn serialize_note(note: &Note) -> Result<String> {
+    let yaml = serde_yaml::to_string(&note.frontmatter)
+        .context("Failed to serialize frontmatter")?;
+
+    Ok(format!("---\n{}---\n{}", yaml, note.content))
+}
+
+/// Update the frontmatter of a file
+pub fn update_frontmatter(path: &Path, frontmatter: NoteFrontmatter) -> Result<()> {
+    let mut note = parse_note(path)?;
+    note.frontmatter = frontmatter;
+
+    let serialized = serialize_note(&note)?;
+    fs::write(path, serialized)
+        .with_context(|| format!("Failed to write note: {}", path.display()))?;
+
+    Ok(())
+}
+
+/// Get just the frontmatter from a file without parsing the full content
+pub fn get_frontmatter(path: &Path) -> Result<NoteFrontmatter> {
+    let note = parse_note(path)?;
+    Ok(note.frontmatter)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_note_with_frontmatter() {
+        let content = r#"---
+uuid: 550e8400-e29b-41d4-a716-446655440000
+modified: 2024-01-15T10:30:00Z
+share_with:
+  - alice
+  - bob
+---
+# My Note
+
+This is the content.
+"#;
+
+        let note = parse_note_from_string(content).unwrap();
+        assert_eq!(note.frontmatter.uuid.to_string(), "550e8400-e29b-41d4-a716-446655440000");
+        assert_eq!(note.frontmatter.share_with, vec!["alice", "bob"]);
+        assert_eq!(note.content, "# My Note\n\nThis is the content.\n");
+    }
+
+    #[test]
+    fn test_parse_note_without_frontmatter() {
+        let content = "# My Note\n\nNo frontmatter here.";
+
+        let note = parse_note_from_string(content).unwrap();
+        assert_eq!(note.content, content);
+        assert_eq!(note.frontmatter.share_with.len(), 0);
+    }
+
+    #[test]
+    fn test_serialize_note() {
+        let frontmatter = NoteFrontmatter {
+            uuid: Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap(),
+            modified: DateTime::parse_from_rfc3339("2024-01-15T10:30:00Z")
+                .unwrap()
+                .with_timezone(&Utc),
+            share_with: vec!["alice".to_string()],
+        };
+
+        let note = Note {
+            frontmatter,
+            content: "# Content".to_string(),
+        };
+
+        let serialized = serialize_note(&note).unwrap();
+        assert!(serialized.starts_with("---\n"));
+        assert!(serialized.contains("uuid:"));
+        assert!(serialized.contains("# Content"));
+    }
+}
