@@ -11,7 +11,11 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     /// Initialize fieldnote vault and create default structure
-    Init,
+    Init {
+        /// Name for this device (optional)
+        #[arg(long)]
+        device_name: Option<String>,
+    },
     /// User management commands
     User {
         #[command(subcommand)]
@@ -94,7 +98,7 @@ pub enum MirrorAction {
 /// Execute the CLI command
 pub async fn execute(cli: Cli) -> anyhow::Result<()> {
     match cli.command {
-        Commands::Init => crate::core::init::initialize().await,
+        Commands::Init { device_name } => crate::core::init::initialize(device_name.as_deref()).await,
         Commands::User { action } => match action {
             UserAction::Create { user_name } => {
                 crate::core::user::create(&user_name).await

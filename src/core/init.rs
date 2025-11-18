@@ -3,11 +3,13 @@ use iroh::SecretKey;
 use std::fs;
 use uuid::Uuid;
 
-const DEVICE_NAME: &str = "this_device";
+const DEFAULT_DEVICE_NAME: &str = "primary";
+const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
 const MASTER_KEY_FILE: &str = "master_identity";
 
 /// Initialize the fieldnote vault
-pub async fn initialize() -> anyhow::Result<()> {
+pub async fn initialize(device_name: Option<&str>) -> anyhow::Result<()> {
+    let device_name = device_name.unwrap_or(DEFAULT_DEVICE_NAME);
     let vault_path = vault::get_vault_path()?;
 
     // Check if already initialized
@@ -64,21 +66,21 @@ Edit the nickname field to set how you present yourself to others.
     let public_key = secret_key.public();
 
     // Store Iroh secret key
-    let key_file = keys_dir.join(DEVICE_NAME);
+    let key_file = keys_dir.join(LOCAL_DEVICE_KEY_FILE);
     fs::write(&key_file, secret_key.to_bytes())?;
     println!("Device Iroh key stored at {}", key_file.display());
 
     // Sign the device record with master key
     let timestamp = chrono::Utc::now().to_rfc3339();
     let signature = crypto::sign_device_record(
-        DEVICE_NAME,
+        device_name,
         &public_key.to_string(),
         &signing_key,
         &timestamp,
     )?;
 
     // Create device markdown file with signature
-    let device_file = devices_dir.join(format!("{}.md", DEVICE_NAME));
+    let device_file = devices_dir.join(format!("{}.md", device_name));
     let device_content = format!(
         r#"---
 device_name: {}
@@ -90,7 +92,7 @@ signature: {}
 
 This is the device file for this device.
 "#,
-        DEVICE_NAME,
+        device_name,
         public_key,
         crypto::verifying_key_to_hex(&verifying_key),
         timestamp,

@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 const ALPN_DEVICE_AUTH: &[u8] = b"fieldnote/device-auth";
 const MASTER_KEY_FILE: &str = "master_identity";
+const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
 
 #[derive(Debug, Serialize, Deserialize)]
 struct DeviceJoinRequest {
@@ -31,6 +32,82 @@ fn is_primary_device() -> anyhow::Result<bool> {
     let keys_dir = vault::get_keys_dir()?;
     let master_key_file = keys_dir.join(MASTER_KEY_FILE);
     Ok(master_key_file.exists())
+}
+
+/// Get the local device name by matching the public key
+pub fn get_local_device_name() -> anyhow::Result<String> {
+    let keys_dir = vault::get_keys_dir()?;
+    let key_file = keys_dir.join(LOCAL_DEVICE_KEY_FILE);
+
+    if !key_file.exists() {
+        anyhow::bail!(
+            "Local device key not found at {}. Run 'fieldnote init' first.",
+            key_file.display()
+        );
+    }
+
+    let key_bytes = fs::read(&key_file)?;
+    let key_array: [u8; 32] = key_bytes
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("Invalid key length"))?;
+    let secret_key = SecretKey::from_bytes(&key_array);
+    let local_public_key = secret_key.public();
+
+    let devices_dir = vault::get_devices_dir()?;
+
+    for entry in fs::read_dir(&devices_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.extension().and_then(|s| s.to_str()) != Some("md") {
+            continue;
+        }
+
+        let content = fs::read_to_string(&path)?;
+        if let Ok(endpoint_id) = parse_device_endpoint_id(&content) {
+            if endpoint_id == local_public_key {
+                if let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
+                    return Ok(name.to_string());
+                }
+            }
+        }
+    }
+
+    anyhow::bail!(
+        "Could not find device file matching local public key {}. \
+         Your vault may be corrupted.",
+        local_public_key
+    )
+}
+
+fn parse_device_endpoint_id(content: &str) -> anyhow::Result<iroh::PublicKey> {
+    if !content.starts_with("---\n") && !content.starts_with("---\r\n") {
+        anyhow::bail!("Invalid device file format");
+    }
+
+    let rest = if content.starts_with("---\r\n") {
+        &content[5..]
+    } else {
+        &content[4..]
+    };
+
+    let end_pos = rest
+        .find("\n---\n")
+        .or_else(|| rest.find("\r\n---\r\n"))
+        .ok_or_else(|| anyhow::anyhow!("Frontmatter not properly closed"))?;
+
+    let frontmatter = &rest[..end_pos];
+
+    for line in frontmatter.lines() {
+        if let Some(stripped) = line.trim().strip_prefix("iroh_endpoint_id:") {
+            let endpoint_str = stripped.trim().trim_matches('"');
+            return endpoint_str
+                .parse()
+                .map_err(|_| anyhow::anyhow!("Invalid endpoint ID"));
+        }
+    }
+
+    anyhow::bail!("iroh_endpoint_id not found in device file")
 }
 
 /// Delete a device
@@ -80,7 +157,7 @@ pub async fn create_primary() -> anyhow::Result<()> {
     let token = Uuid::new_v4().to_string();
 
     // Load this device's Iroh secret key to create endpoint
-    let this_device_key_file = keys_dir.join("this_device");
+    let this_device_key_file = keys_dir.join(LOCAL_DEVICE_KEY_FILE);
     if !this_device_key_file.exists() {
         anyhow::bail!("This device's key not found. Run 'fieldnote init' first.");
     }
@@ -226,7 +303,7 @@ pub async fn create_remote(connection_string: &str, device_name: &str) -> anyhow
     fs::create_dir_all(&outpost_dir)?;
 
     // Store Iroh secret key
-    let key_file = keys_dir.join(device_name);
+    let key_file = keys_dir.join(LOCAL_DEVICE_KEY_FILE);
     fs::write(&key_file, secret_key.to_bytes())?;
 
     // Create identity.md

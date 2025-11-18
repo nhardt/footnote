@@ -4,6 +4,8 @@ use std::fs;
 
 use super::{sync, vault};
 
+const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
+
 /// Listen for incoming mirror connections
 ///
 /// Starts an Iroh endpoint listening for sync connections from other devices.
@@ -19,7 +21,7 @@ pub async fn listen() -> Result<()> {
 
     // Load this device's Iroh secret key
     let keys_dir = vault::get_keys_dir()?;
-    let key_file = keys_dir.join("this_device");
+    let key_file = keys_dir.join(LOCAL_DEVICE_KEY_FILE);
     if !key_file.exists() {
         anyhow::bail!(
             "Device key not found. Run 'fieldnote init' first."
@@ -119,7 +121,7 @@ pub async fn push(user: Option<&str>, device: Option<&str>) -> Result<()> {
 async fn push_to_own_device(device_name: &str) -> Result<()> {
     // Load this device's Iroh secret key
     let keys_dir = vault::get_keys_dir()?;
-    let key_file = keys_dir.join("this_device");
+    let key_file = keys_dir.join(LOCAL_DEVICE_KEY_FILE);
     if !key_file.exists() {
         anyhow::bail!("Device key not found. Run 'fieldnote init' first.");
     }
