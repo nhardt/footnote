@@ -10,6 +10,17 @@ a laptop or desktop. A nuc in your house. Fieldnote can also sync to peers that
 you have manually added. A good setup would be if you and friend connect your
 primary, usually-on devices.
 
+### Metaphor
+
+HQ: This is your primary device. It's on most often, it will generally be where your data is going to and coming from.
+
+Outpost: These are all your other devices. You take fieldnotes on them but bring
+them back to HQ.
+
+Embassy: An embassy is a directory in your fieldnotes that is "owned" by another
+user. Your primary devices will coordinate such that all the files you share
+with someone will go to your embassy on their device.
+
 ### Nouns
 
 #### Notes
