@@ -1,6 +1,7 @@
 # Fieldnote
 
-Fieldnote is a command line, p2p sync and share engine.
+Fieldnote is a command line, p2p sync and share engine for markdown documents
+with yaml frontmatter.
 
 ## Basics
 
