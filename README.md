@@ -37,7 +37,9 @@ Details: [docs/users.md]
 A device has an iroh Endpoint address and a name. The name is not functional and
 should have a name like "laptop", "iphone", "desktop", etc.
 
-Every device can read, create and update notes at any time but changes are just LWW.
+Every device can read, create and update notes at any time but changes are just
+LWW.  Deletes need to be figured out. Vaguely, a tombstone document and maybe a
+sync time of all known devices.
 
 ##### Primary Device
 
@@ -45,10 +47,9 @@ Each user has a single primary device. Internal to the user, all devices will
 sync to primary. The user manages this. If two devices attempt to sync and both
 are marked as primary, sync'ing will be blocked and the user will be notified.
 
-A primary device handles two things uniquely: Remote device sync and file
-deletes. If I, as a user, add multiple devices for a remote user, I do not
-need to manage those as being primary. User-to-User sync via primary is just
-an optimization.
+A primary device handles one thing uniquely, device authorization. If I, as a
+user, add multiple devices for a remote user, I do not need to manage those as
+being primary. User-to-User sync via primary is just an optimization.
 
 ## Syncing
 
