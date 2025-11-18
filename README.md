@@ -12,14 +12,28 @@ primary, usually-on devices.
 
 ### Metaphor
 
-HQ: This is your primary device. It's on most often, it will generally be where your data is going to and coming from.
+#### HQ
 
-Outpost: These are all your other devices. You take fieldnotes on them but bring
-them back to HQ.
+This is your primary device. It's on most often, it will generally be where your
+fieldnotes are going to be collated.
 
-Embassy: An embassy is a directory in your fieldnotes that is "owned" by another
-user. Your primary devices will coordinate such that all the files you share
-with someone will go to your embassy on their device.
+#### Outposts
+
+An outpost is one of your devices that will sync to HQ. Devices can sync to each
+other, but HQ will handle syncing with other users.
+
+#### Embassies
+
+An embassy is the core of the fieldnote sharing model. When you want to share a
+file with another user, you add their name to the shared_with field in the
+document metadata. When you create an embassy on their device, the documents you
+have shared with them will be collected and mirrored in your embassy on their
+device.
+
+Likewise, when you allow another user to set up an embassy at your HQ, you are
+giving them a folder on your hard drive to store their notes. It is intended
+that you will link your documents to theirs and the fieldnotes have been shared
+with you for reading. You should treat that directory as read-only though.
 
 ### Nouns
 
@@ -49,7 +63,7 @@ A device has an iroh Endpoint address and a name. The name is not functional and
 should have a name like "laptop", "iphone", "desktop", etc.
 
 Every device can read, create and update notes at any time but changes are just
-LWW.  Deletes need to be figured out. Vaguely, a tombstone document and maybe a
+LWW. Deletes need to be figured out. Vaguely, a tombstone document and maybe a
 sync time of all known devices.
 
 ##### Primary Device
@@ -85,7 +99,7 @@ The layout on Alice's fileystem:
 - notes
   - that_one_time.md
   - interesting_new_things.md
-- outposts
+- embassies
   - bob
     - devices
       - desktop.md
@@ -144,6 +158,7 @@ This will create the on-disk directory structure, and add the local device as a 
 Adding a second device requires the primary and secondary device to connect.
 
 On the primary device:
+
 ```
 $ fieldnote device create
 
@@ -153,6 +168,7 @@ Copy this to your new device:
 ```
 
 On the secondary device:
+
 ```
 $ fieldnote device create remote "iroh://abc123...?token=xyz789" --device-name "my-phone"
 
