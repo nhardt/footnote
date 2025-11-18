@@ -29,15 +29,15 @@ struct DeviceJoinResponse {
 
 /// Check if the current device is a primary device
 fn is_primary_device() -> anyhow::Result<bool> {
-    let keys_dir = vault::get_keys_dir()?;
-    let master_key_file = keys_dir.join(MASTER_KEY_FILE);
+    let fieldnotes_dir = vault::get_fieldnotes_dir()?;
+    let master_key_file = fieldnotes_dir.join(MASTER_KEY_FILE);
     Ok(master_key_file.exists())
 }
 
 /// Get the local device name by matching the public key
 pub fn get_local_device_name() -> anyhow::Result<String> {
-    let keys_dir = vault::get_keys_dir()?;
-    let key_file = keys_dir.join(LOCAL_DEVICE_KEY_FILE);
+    let fieldnotes_dir = vault::get_fieldnotes_dir()?;
+    let key_file = fieldnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
 
     if !key_file.exists() {
         anyhow::bail!(
@@ -130,8 +130,8 @@ pub async fn create_primary() -> anyhow::Result<()> {
     }
 
     // Load master identity key
-    let keys_dir = vault::get_keys_dir()?;
-    let master_key_file = keys_dir.join(MASTER_KEY_FILE);
+    let fieldnotes_dir = vault::get_fieldnotes_dir()?;
+    let master_key_file = fieldnotes_dir.join(MASTER_KEY_FILE);
     if !master_key_file.exists() {
         anyhow::bail!("Master identity key not found. Run 'fieldnote init' first.");
     }
@@ -149,7 +149,7 @@ pub async fn create_primary() -> anyhow::Result<()> {
     let token = Uuid::new_v4().to_string();
 
     // Load this device's Iroh secret key to create endpoint
-    let this_device_key_file = keys_dir.join(LOCAL_DEVICE_KEY_FILE);
+    let this_device_key_file = fieldnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
     let key_bytes = fs::read(&this_device_key_file)?;
     let key_array: [u8; 32] = key_bytes
         .try_into()
@@ -280,18 +280,18 @@ pub async fn create_remote(connection_string: &str, device_name: &str) -> anyhow
     println!("Received identity");
 
     // Create vault directory structure
-    let keys_dir = vault::get_keys_dir()?;
+    let fieldnotes_dir = vault::get_fieldnotes_dir()?;
     let outposts_dir = vault::get_outposts_dir()?;
     let notes_dir = vault::get_notes_dir()?;
     let embassies_dir = vault::get_embassies_dir()?;
 
-    fs::create_dir_all(&keys_dir)?;
+    fs::create_dir_all(&fieldnotes_dir)?;
     fs::create_dir_all(&outposts_dir)?;
     fs::create_dir_all(&notes_dir)?;
     fs::create_dir_all(&embassies_dir)?;
 
     // Store Iroh secret key
-    let key_file = keys_dir.join(LOCAL_DEVICE_KEY_FILE);
+    let key_file = fieldnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
     fs::write(&key_file, secret_key.to_bytes())?;
 
     // Create identity.md

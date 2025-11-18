@@ -1,23 +1,34 @@
 use std::path::PathBuf;
 
-const VAULT_DIR: &str = "fieldnotes-vault";
+const FIELDNOTES_DIR: &str = ".fieldnotes";
 const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
 const OUTPOSTS_DIR: &str = "outposts";
 const EMBASSIES_DIR: &str = "embassies";
 const NOTES_DIR: &str = "notes";
-const KEYS_DIR: &str = ".keys";
 const IDENTITY_FILE: &str = "identity.md";
 
-/// Get the base vault directory path
+/// Get the base vault directory path by searching upward for .fieldnotes/
 pub fn get_vault_path() -> anyhow::Result<PathBuf> {
-    let home = std::env::var("HOME")
-        .map_err(|_| anyhow::anyhow!("HOME environment variable not set"))?;
-    Ok(PathBuf::from(home).join(VAULT_DIR))
+    let mut current_dir = std::env::current_dir()
+        .map_err(|_| anyhow::anyhow!("Failed to get current directory"))?;
+
+    loop {
+        let fieldnotes_dir = current_dir.join(FIELDNOTES_DIR);
+        if fieldnotes_dir.exists() && fieldnotes_dir.is_dir() {
+            return Ok(current_dir);
+        }
+
+        if !current_dir.pop() {
+            anyhow::bail!(
+                "No fieldnote vault found. Run 'fieldnote hq create' to initialize a vault."
+            );
+        }
+    }
 }
 
-/// Get the .keys directory path
-pub fn get_keys_dir() -> anyhow::Result<PathBuf> {
-    Ok(get_vault_path()?.join(KEYS_DIR))
+/// Get the .fieldnotes directory path
+pub fn get_fieldnotes_dir() -> anyhow::Result<PathBuf> {
+    Ok(get_vault_path()?.join(FIELDNOTES_DIR))
 }
 
 /// Get the identity.md file path (for "me")
@@ -58,15 +69,16 @@ pub fn get_embassy_notes_dir(user_name: &str) -> anyhow::Result<PathBuf> {
 /// Verify that the vault has been initialized with required structure
 pub fn verify_vault_layout() -> anyhow::Result<()> {
     let vault_path = get_vault_path()?;
-    if !vault_path.exists() {
+    let fieldnotes_dir = get_fieldnotes_dir()?;
+
+    if !fieldnotes_dir.exists() {
         anyhow::bail!(
-            "Vault not found at {}. Run 'fieldnote hq create' first.",
+            "Vault not properly initialized at {}. Run 'fieldnote hq create' first.",
             vault_path.display()
         );
     }
 
-    let keys_dir = get_keys_dir()?;
-    let local_device_key = keys_dir.join(LOCAL_DEVICE_KEY_FILE);
+    let local_device_key = fieldnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
     if !local_device_key.exists() {
         anyhow::bail!(
             "Device key not found. Run 'fieldnote hq create' first."

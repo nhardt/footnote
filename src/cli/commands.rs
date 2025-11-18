@@ -36,6 +36,9 @@ pub enum Commands {
 pub enum HqAction {
     /// Create HQ (primary device) and initialize vault structure
     Create {
+        /// Path to create vault (defaults to current directory)
+        path: Option<std::path::PathBuf>,
+
         /// Name for this device (optional)
         #[arg(long)]
         device_name: Option<String>,
@@ -121,8 +124,8 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
 
     match cli.command {
         Commands::Hq { action } => match action {
-            HqAction::Create { device_name } => {
-                crate::core::init::create_hq(device_name.as_deref()).await
+            HqAction::Create { path, device_name } => {
+                crate::core::init::create_hq(path, device_name.as_deref()).await
             }
         },
         Commands::User { action } => match action {

@@ -12,8 +12,8 @@ const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
 /// Only accepts connections from devices belonging to the same user (verified via signatures).
 pub async fn listen() -> Result<()> {
     // Load this device's Iroh secret key
-    let keys_dir = vault::get_keys_dir()?;
-    let key_file = keys_dir.join(LOCAL_DEVICE_KEY_FILE);
+    let fieldnotes_dir = vault::get_fieldnotes_dir()?;
+    let key_file = fieldnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
     let key_bytes = fs::read(&key_file)?;
     let key_array: [u8; 32] = key_bytes
         .try_into()
@@ -98,8 +98,8 @@ pub async fn push(user: Option<&str>, device: Option<&str>) -> Result<()> {
 /// Push to one of the user's own devices (self-to-self sync)
 async fn push_to_own_device(device_name: &str) -> Result<()> {
     // Load this device's Iroh secret key
-    let keys_dir = vault::get_keys_dir()?;
-    let key_file = keys_dir.join(LOCAL_DEVICE_KEY_FILE);
+    let fieldnotes_dir = vault::get_fieldnotes_dir()?;
+    let key_file = fieldnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
     let key_bytes = fs::read(&key_file)?;
     let key_array: [u8; 32] = key_bytes
         .try_into()

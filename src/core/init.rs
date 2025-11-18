@@ -1,6 +1,7 @@
-use crate::core::{crypto, vault};
+use crate::core::crypto;
 use iroh::SecretKey;
 use std::fs;
+use std::path::PathBuf;
 use uuid::Uuid;
 
 const DEFAULT_DEVICE_NAME: &str = "primary";
@@ -8,12 +9,19 @@ const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
 const MASTER_KEY_FILE: &str = "master_identity";
 
 /// Create HQ (headquarters) - primary device and vault initialization
-pub async fn create_hq(device_name: Option<&str>) -> anyhow::Result<()> {
+pub async fn create_hq(path: Option<PathBuf>, device_name: Option<&str>) -> anyhow::Result<()> {
     let device_name = device_name.unwrap_or(DEFAULT_DEVICE_NAME);
-    let vault_path = vault::get_vault_path()?;
+
+    // Determine vault path: use provided path or current directory
+    let vault_path = match path {
+        Some(p) => p,
+        None => std::env::current_dir()
+            .map_err(|_| anyhow::anyhow!("Failed to get current directory"))?,
+    };
 
     // Check if already initialized
-    if vault_path.exists() {
+    let fieldnotes_dir = vault_path.join(".fieldnotes");
+    if fieldnotes_dir.exists() {
         anyhow::bail!(
             "Vault already exists at {}. Remove it first if you want to reinitialize.",
             vault_path.display()
@@ -23,12 +31,12 @@ pub async fn create_hq(device_name: Option<&str>) -> anyhow::Result<()> {
     println!("Creating HQ at {}", vault_path.display());
 
     // Create directory structure
-    let keys_dir = vault::get_keys_dir()?;
-    let outposts_dir = vault::get_outposts_dir()?;
-    let notes_dir = vault::get_notes_dir()?;
-    let embassies_dir = vault::get_embassies_dir()?;
+    let fieldnotes_dir = vault_path.join(".fieldnotes");
+    let outposts_dir = vault_path.join("outposts");
+    let notes_dir = vault_path.join("notes");
+    let embassies_dir = vault_path.join("embassies");
 
-    fs::create_dir_all(&keys_dir)?;
+    fs::create_dir_all(&fieldnotes_dir)?;
     fs::create_dir_all(&outposts_dir)?;
     fs::create_dir_all(&notes_dir)?;
     fs::create_dir_all(&embassies_dir)?;
@@ -38,12 +46,12 @@ pub async fn create_hq(device_name: Option<&str>) -> anyhow::Result<()> {
     let (signing_key, verifying_key) = crypto::generate_identity_keypair();
 
     // Store master private key
-    let master_key_file = keys_dir.join(MASTER_KEY_FILE);
+    let master_key_file = fieldnotes_dir.join(MASTER_KEY_FILE);
     fs::write(&master_key_file, crypto::signing_key_to_hex(&signing_key))?;
     println!("Master identity key stored at {}", master_key_file.display());
 
     // Create identity.md
-    let identity_file = vault::get_identity_path()?;
+    let identity_file = vault_path.join("identity.md");
     let identity_content = format!(
         r#"---
 master_public_key: {}
@@ -66,7 +74,7 @@ Edit the nickname field to set how you present yourself to others.
     let public_key = secret_key.public();
 
     // Store Iroh secret key
-    let key_file = keys_dir.join(LOCAL_DEVICE_KEY_FILE);
+    let key_file = fieldnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
     fs::write(&key_file, secret_key.to_bytes())?;
     println!("Device Iroh key stored at {}", key_file.display());
 
