@@ -10,11 +10,10 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Initialize fieldnote vault and create default structure
-    Init {
-        /// Name for this device (optional)
-        #[arg(long)]
-        device_name: Option<String>,
+    /// HQ (headquarters) commands
+    Hq {
+        #[command(subcommand)]
+        action: HqAction,
     },
     /// User management commands
     User {
@@ -30,6 +29,16 @@ pub enum Commands {
     Mirror {
         #[command(subcommand)]
         action: MirrorAction,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum HqAction {
+    /// Create HQ (primary device) and initialize vault structure
+    Create {
+        /// Name for this device (optional)
+        #[arg(long)]
+        device_name: Option<String>,
     },
 }
 
@@ -98,7 +107,7 @@ pub enum MirrorAction {
 /// Execute the CLI command
 pub async fn execute(cli: Cli) -> anyhow::Result<()> {
     let needs_vault = match &cli.command {
-        Commands::Init { .. } => false,
+        Commands::Hq { .. } => false,
         Commands::Device { action } => match action {
             DeviceAction::Create { mode: Some(CreateMode::Remote { .. }) } => false,
             _ => true,
@@ -111,7 +120,11 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
     }
 
     match cli.command {
-        Commands::Init { device_name } => crate::core::init::initialize(device_name.as_deref()).await,
+        Commands::Hq { action } => match action {
+            HqAction::Create { device_name } => {
+                crate::core::init::create_hq(device_name.as_deref()).await
+            }
+        },
         Commands::User { action } => match action {
             UserAction::Create { user_name } => {
                 crate::core::user::create(&user_name).await

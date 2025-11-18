@@ -32,7 +32,7 @@ struct IdentityFrontmatter {
 ///
 /// Returns the device name if found and verified, or an error
 async fn verify_device_same_user(endpoint_id: &iroh::PublicKey) -> Result<String> {
-    let devices_dir = vault::get_devices_dir()?;
+    let outposts_dir = vault::get_outposts_dir()?;
 
     // Load our own master public key
     let identity_path = vault::get_identity_path()?;
@@ -42,7 +42,7 @@ async fn verify_device_same_user(endpoint_id: &iroh::PublicKey) -> Result<String
         .context("Failed to parse local identity")?;
 
     // Search through all device files
-    for entry in WalkDir::new(&devices_dir)
+    for entry in WalkDir::new(&outposts_dir)
         .max_depth(1)
         .into_iter()
         .filter_map(|e| e.ok())

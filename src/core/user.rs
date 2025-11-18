@@ -69,31 +69,33 @@ pub async fn delete(user_name: &str) -> anyhow::Result<()> {
 
 /// Export a user's contact information
 pub async fn export(user_name: &str) -> anyhow::Result<()> {
-    // Determine paths based on user name
-    let (identity_path, devices_dir) = if user_name == "me" {
-        (vault::get_identity_path()?, vault::get_devices_dir()?)
+    if user_name == "me" {
+        return export_me().await;
     } else {
-        (
-            vault::get_user_identity_path(user_name)?,
-            vault::get_user_devices_dir(user_name)?,
-        )
-    };
+        return export_embassy(user_name).await;
+    }
+}
+
+/// Export "me" user's contact information
+async fn export_me() -> anyhow::Result<()> {
+    let identity_path = vault::get_identity_path()?;
+    let outposts_dir = vault::get_outposts_dir()?;
 
     // Read identity
     if !identity_path.exists() {
-        anyhow::bail!("User '{}' not found", user_name);
+        anyhow::bail!("Identity not found");
     }
 
     let content = fs::read_to_string(&identity_path)?;
     let (master_public_key, nickname) = parse_identity_frontmatter(&content);
 
     let master_public_key = master_public_key
-        .ok_or_else(|| anyhow::anyhow!("No master public key found for user '{}'", user_name))?;
+        .ok_or_else(|| anyhow::anyhow!("No master public key found"))?;
 
-    // Read devices
+    // Read devices from outposts directory
     let mut devices = Vec::new();
-    if devices_dir.exists() {
-        for device_entry in fs::read_dir(&devices_dir)? {
+    if outposts_dir.exists() {
+        for device_entry in fs::read_dir(&outposts_dir)? {
             let device_entry = device_entry?;
             let device_path = device_entry.path();
 
@@ -121,6 +123,29 @@ pub async fn export(user_name: &str) -> anyhow::Result<()> {
         master_public_key,
         devices,
     };
+
+    // Serialize and print
+    let yaml = serde_yaml::to_string(&export)?;
+    println!("{}", yaml);
+
+    Ok(())
+}
+
+/// Export an embassy user's contact information
+async fn export_embassy(user_name: &str) -> anyhow::Result<()> {
+    let info_path = vault::get_embassy_info_path(user_name)?;
+
+    if !info_path.exists() {
+        anyhow::bail!("Embassy '{}' not found", user_name);
+    }
+
+    // Read the single info file and extract the YAML frontmatter
+    let content = fs::read_to_string(&info_path)?;
+    let frontmatter = extract_frontmatter(&content)
+        .ok_or_else(|| anyhow::anyhow!("Invalid embassy info file format"))?;
+
+    // The frontmatter should already be in UserExport format
+    let export: UserExport = serde_yaml::from_str(&frontmatter)?;
 
     // Serialize and print
     let yaml = serde_yaml::to_string(&export)?;
@@ -158,68 +183,40 @@ pub async fn import(file_path: &str, petname: &str) -> anyhow::Result<()> {
         export.devices.len()
     );
 
-    // Create outpost directory for this user
-    let outpost_dir = vault::get_user_outpost_dir(petname)?;
-    if outpost_dir.exists() {
+    // Check if embassy already exists
+    let info_path = vault::get_embassy_info_path(petname)?;
+    if info_path.exists() {
         anyhow::bail!(
-            "User '{}' already exists in outpost. Remove it first if you want to re-import.",
+            "Embassy '{}' already exists. Remove it first if you want to re-import.",
             petname
         );
     }
 
-    let identity_path = vault::get_user_identity_path(petname)?;
-    let devices_dir = vault::get_user_devices_dir(petname)?;
-    let notes_dir = vault::get_user_notes_dir(petname)?;
-
-    fs::create_dir_all(&devices_dir)?;
+    // Create embassy directory and notes subdirectory
+    let embassy_dir = vault::get_embassy_dir(petname)?;
+    let notes_dir = vault::get_embassy_notes_dir(petname)?;
     fs::create_dir_all(&notes_dir)?;
 
-    // Create identity.md
-    let identity_content = format!(
+    // Create single info file with YAML frontmatter containing full export
+    let export_yaml = serde_yaml::to_string(&export)?;
+    let info_content = format!(
         r#"---
-master_public_key: {}
-nickname: {}
----
+{}---
 
 # {}
 
-Imported contact.
+Imported contact information.
 Petname: {}
 "#,
-        export.master_public_key,
-        export.nickname,
+        export_yaml,
         export.nickname,
         petname
     );
-    fs::write(&identity_path, identity_content)?;
-    println!("✓ Created identity for '{}'", petname);
-
-    // Create device files
-    for device in &export.devices {
-        let device_file = devices_dir.join(format!("{}.md", device.device_name));
-        let device_content = format!(
-            r#"---
-device_name: {}
-iroh_endpoint_id: {}
-authorized_by: {}
-timestamp: {}
-signature: {}
----
-
-Device imported from contact export.
-"#,
-            device.device_name,
-            device.iroh_endpoint_id,
-            device.authorized_by,
-            device.timestamp,
-            device.signature
-        );
-        fs::write(&device_file, device_content)?;
-        println!("✓ Created device '{}'", device.device_name);
-    }
+    fs::write(&info_path, info_content)?;
+    println!("✓ Created embassy info for '{}' with {} devices", petname, export.devices.len());
 
     println!("\n✓ Import complete!");
-    println!("User '{}' added to outpost at {}", petname, outpost_dir.display());
+    println!("Embassy '{}' added at {}", petname, embassy_dir.display());
 
     Ok(())
 }
@@ -238,11 +235,11 @@ pub async fn read() -> anyhow::Result<()> {
         (None, None)
     };
 
-    let me_devices_dir = vault::get_devices_dir()?;
+    let outposts_dir = vault::get_outposts_dir()?;
     let mut me_devices = Vec::new();
 
-    if me_devices_dir.exists() {
-        for device_entry in fs::read_dir(&me_devices_dir)? {
+    if outposts_dir.exists() {
+        for device_entry in fs::read_dir(&outposts_dir)? {
             let device_entry = device_entry?;
             let device_path = device_entry.path();
 
@@ -262,53 +259,57 @@ pub async fn read() -> anyhow::Result<()> {
         devices: me_devices,
     });
 
-    // Scan outpost/ directory for other users
-    let outpost_dir = vault::get_outpost_dir()?;
-    if outpost_dir.exists() {
-        for entry in fs::read_dir(&outpost_dir)? {
+    // Scan embassies/ directory for embassy info files
+    let embassies_dir = vault::get_embassies_dir()?;
+    if embassies_dir.exists() {
+        for entry in fs::read_dir(&embassies_dir)? {
             let entry = entry?;
             let path = entry.path();
 
-            if path.is_dir() {
-                let user_name = path
-                    .file_name()
-                    .unwrap()
-                    .to_string_lossy()
-                    .to_string();
+            // Look for *_info.md files
+            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("md") {
+                let filename = path.file_stem().unwrap().to_string_lossy();
+                if filename.ends_with("_info") {
+                    // Extract user name from filename (remove _info suffix)
+                    let user_name = filename.strip_suffix("_info").unwrap().to_string();
 
-                // Read identity for this user
-                let user_identity_path = path.join("identity.md");
-                let (master_public_key, nickname) = if user_identity_path.exists() {
-                    let content = fs::read_to_string(&user_identity_path)?;
-                    parse_identity_frontmatter(&content)
-                } else {
-                    (None, None)
-                };
+                    // Read and parse the info file
+                    let content = fs::read_to_string(&path)?;
+                    let frontmatter = extract_frontmatter(&content);
 
-                // Scan for devices in this user's outpost
-                let devices_dir = path.join("devices");
-                let mut devices = Vec::new();
+                    if let Some(fm) = frontmatter {
+                        // Parse the UserExport struct from frontmatter
+                        if let Ok(export) = serde_yaml::from_str::<UserExport>(&fm) {
+                            // Convert devices to Device struct
+                            let mut devices = Vec::new();
+                            for device in &export.devices {
+                                let signature_valid = crypto::verify_device_signature(
+                                    &device.device_name,
+                                    &device.iroh_endpoint_id,
+                                    &device.authorized_by,
+                                    &device.timestamp,
+                                    &device.signature,
+                                )
+                                .unwrap_or(false);
 
-                if devices_dir.exists() {
-                    for device_entry in fs::read_dir(&devices_dir)? {
-                        let device_entry = device_entry?;
-                        let device_path = device_entry.path();
-
-                        if device_path.extension().and_then(|s| s.to_str()) == Some("md") {
-                            let content = fs::read_to_string(&device_path)?;
-                            if let Some(device) = parse_device_frontmatter(&content) {
-                                devices.push(device);
+                                devices.push(Device {
+                                    name: device.device_name.clone(),
+                                    endpoint_id: device.iroh_endpoint_id.clone(),
+                                    authorized_by: device.authorized_by.clone(),
+                                    timestamp: device.timestamp.clone(),
+                                    signature_valid,
+                                });
                             }
+
+                            users.push(User {
+                                name: user_name,
+                                master_public_key: Some(export.master_public_key),
+                                nickname: Some(export.nickname),
+                                devices,
+                            });
                         }
                     }
                 }
-
-                users.push(User {
-                    name: user_name,
-                    master_public_key,
-                    nickname,
-                    devices,
-                });
             }
         }
     }

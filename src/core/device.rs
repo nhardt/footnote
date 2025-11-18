@@ -53,9 +53,9 @@ pub fn get_local_device_name() -> anyhow::Result<String> {
     let secret_key = SecretKey::from_bytes(&key_array);
     let local_public_key = secret_key.public();
 
-    let devices_dir = vault::get_devices_dir()?;
+    let outposts_dir = vault::get_outposts_dir()?;
 
-    for entry in fs::read_dir(&devices_dir)? {
+    for entry in fs::read_dir(&outposts_dir)? {
         let entry = entry?;
         let path = entry.path();
 
@@ -281,14 +281,14 @@ pub async fn create_remote(connection_string: &str, device_name: &str) -> anyhow
 
     // Create vault directory structure
     let keys_dir = vault::get_keys_dir()?;
-    let devices_dir = vault::get_devices_dir()?;
+    let outposts_dir = vault::get_outposts_dir()?;
     let notes_dir = vault::get_notes_dir()?;
-    let outpost_dir = vault::get_outpost_dir()?;
+    let embassies_dir = vault::get_embassies_dir()?;
 
     fs::create_dir_all(&keys_dir)?;
-    fs::create_dir_all(&devices_dir)?;
+    fs::create_dir_all(&outposts_dir)?;
     fs::create_dir_all(&notes_dir)?;
-    fs::create_dir_all(&outpost_dir)?;
+    fs::create_dir_all(&embassies_dir)?;
 
     // Store Iroh secret key
     let key_file = keys_dir.join(LOCAL_DEVICE_KEY_FILE);
@@ -311,7 +311,7 @@ This device joined an existing identity.
     fs::write(&identity_file, identity_content)?;
 
     // Create device file
-    let device_file = devices_dir.join(format!("{}.md", device_name));
+    let device_file = outposts_dir.join(format!("{}.md", device_name));
     let device_content = format!(
         r#"---
 device_name: {}

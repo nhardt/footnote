@@ -90,34 +90,32 @@ for shared research while retaining ownership.
 
 ### Disk Layout
 
-The layout on Alice's fileystem:
+The layout on Alice's filesystem:
 
-- devices
+- outposts (Alice's devices)
   - phone.md
   - laptop.md
   - desktop.md
-- notes
+- notes (Alice's notes)
   - that_one_time.md
   - interesting_new_things.md
-- embassies
-  - bob
-    - devices
-      - desktop.md
-    - notes
+- embassies (other users' shared notes and device info)
+  - bob_info.md (contains identity + all devices)
+  - bob/
+    - notes/
       - requests_for_alice.md
       - my_favorite_movies.md
-  - charlie
-    - devices
-      - desktop.md
-    - notes
+  - charlie_info.md (contains identity + all devices)
+  - charlie/
+    - notes/
       - my_favorite_movies.md
       - bobs_surprise_party_details.md
 
 The key thing to note here is that everything shared from bob to alice will be
-in outpost/bob/notes/. devices associated with bob, within reason, should be
-considered to have a lease on that subdirectory. when a device of bob's
+in embassies/bob/notes/. Devices associated with bob, within reason, should be
+considered to have a lease on that subdirectory. When a device of bob's
 connects, it will send a manifest of what should be in that directory, which
-will be a mirror of all files that bob has shared with alice. alice's device
+will be a mirror of all files that bob has shared with alice. Alice's device
 will then connect back to bob to request files.
 
 ### Device File Layout
@@ -148,10 +146,10 @@ Markdown text here. Primary use for app is to take notes here.
 ### Self Setup
 
 ```
-fieldnote init
+fieldnote hq create
 ```
 
-This will create the on-disk directory structure, and add the local device as a primary device.
+This will create the HQ (headquarters) - your primary device - and initialize the on-disk directory structure.
 
 #### Add a second device
 

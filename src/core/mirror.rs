@@ -107,8 +107,8 @@ async fn push_to_own_device(device_name: &str) -> Result<()> {
     let secret_key = SecretKey::from_bytes(&key_array);
 
     // Look up the target device
-    let devices_dir = vault::get_devices_dir()?;
-    let device_file = devices_dir.join(format!("{}.md", device_name));
+    let outposts_dir = vault::get_outposts_dir()?;
+    let device_file = outposts_dir.join(format!("{}.md", device_name));
 
     if !device_file.exists() {
         anyhow::bail!(

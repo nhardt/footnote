@@ -7,8 +7,8 @@ const DEFAULT_DEVICE_NAME: &str = "primary";
 const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
 const MASTER_KEY_FILE: &str = "master_identity";
 
-/// Initialize the fieldnote vault
-pub async fn initialize(device_name: Option<&str>) -> anyhow::Result<()> {
+/// Create HQ (headquarters) - primary device and vault initialization
+pub async fn create_hq(device_name: Option<&str>) -> anyhow::Result<()> {
     let device_name = device_name.unwrap_or(DEFAULT_DEVICE_NAME);
     let vault_path = vault::get_vault_path()?;
 
@@ -20,18 +20,18 @@ pub async fn initialize(device_name: Option<&str>) -> anyhow::Result<()> {
         );
     }
 
-    println!("Initializing fieldnote vault at {}", vault_path.display());
+    println!("Creating HQ at {}", vault_path.display());
 
     // Create directory structure
     let keys_dir = vault::get_keys_dir()?;
-    let devices_dir = vault::get_devices_dir()?;
+    let outposts_dir = vault::get_outposts_dir()?;
     let notes_dir = vault::get_notes_dir()?;
-    let outpost_dir = vault::get_outpost_dir()?;
+    let embassies_dir = vault::get_embassies_dir()?;
 
     fs::create_dir_all(&keys_dir)?;
-    fs::create_dir_all(&devices_dir)?;
+    fs::create_dir_all(&outposts_dir)?;
     fs::create_dir_all(&notes_dir)?;
-    fs::create_dir_all(&outpost_dir)?;
+    fs::create_dir_all(&embassies_dir)?;
 
     // Generate master identity key pair
     println!("Generating master identity key...");
@@ -80,7 +80,7 @@ Edit the nickname field to set how you present yourself to others.
     )?;
 
     // Create device markdown file with signature
-    let device_file = devices_dir.join(format!("{}.md", device_name));
+    let device_file = outposts_dir.join(format!("{}.md", device_name));
     let device_content = format!(
         r#"---
 device_name: {}
@@ -119,9 +119,9 @@ Welcome to fieldnote! This is your home note.
     fs::write(&home_file, home_content)?;
     println!("Home note created at {}", home_file.display());
 
-    println!("\nInitialization complete!");
+    println!("\nHQ creation complete!");
     println!("Your master identity key: {}", crypto::verifying_key_to_hex(&verifying_key));
-    println!("Your device endpoint ID: {}", public_key);
+    println!("Your HQ device endpoint ID: {}", public_key);
     println!("\nNext steps:");
     println!("1. Edit {} to set your nickname", identity_file.display());
     println!("2. Run 'fieldnote user read' to view your identity");
