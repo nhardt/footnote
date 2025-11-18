@@ -69,15 +69,6 @@ pub async fn delete(user_name: &str) -> anyhow::Result<()> {
 
 /// Export a user's contact information
 pub async fn export(user_name: &str) -> anyhow::Result<()> {
-    let vault_path = vault::get_vault_path()?;
-
-    if !vault_path.exists() {
-        anyhow::bail!(
-            "Vault not found at {}. Run 'fieldnote init' first.",
-            vault_path.display()
-        );
-    }
-
     // Determine paths based on user name
     let (identity_path, devices_dir) = if user_name == "me" {
         (vault::get_identity_path()?, vault::get_devices_dir()?)
@@ -140,15 +131,6 @@ pub async fn export(user_name: &str) -> anyhow::Result<()> {
 
 /// Import a user's contact information
 pub async fn import(file_path: &str, petname: &str) -> anyhow::Result<()> {
-    let vault_path = vault::get_vault_path()?;
-
-    if !vault_path.exists() {
-        anyhow::bail!(
-            "Vault not found at {}. Run 'fieldnote init' first.",
-            vault_path.display()
-        );
-    }
-
     // Read and parse the export file
     let content = fs::read_to_string(file_path)?;
     let export: UserExport = serde_yaml::from_str(&content)?;
@@ -244,15 +226,6 @@ Device imported from contact export.
 
 /// Read and display all users and their devices
 pub async fn read() -> anyhow::Result<()> {
-    let vault_path = vault::get_vault_path()?;
-
-    if !vault_path.exists() {
-        anyhow::bail!(
-            "Vault not found at {}. Run 'fieldnote init' first.",
-            vault_path.display()
-        );
-    }
-
     let mut users = Vec::new();
 
     // First, add "me" user from root-level identity.md and devices/

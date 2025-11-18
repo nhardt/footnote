@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 const VAULT_DIR: &str = "fieldnotes-vault";
+const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
 
 /// Get the base vault directory path
 pub fn get_vault_path() -> anyhow::Result<PathBuf> {
@@ -52,4 +53,32 @@ pub fn get_user_devices_dir(user_name: &str) -> anyhow::Result<PathBuf> {
 /// Get the notes directory path for a specific user's outpost
 pub fn get_user_notes_dir(user_name: &str) -> anyhow::Result<PathBuf> {
     Ok(get_user_outpost_dir(user_name)?.join("notes"))
+}
+
+/// Verify that the vault has been initialized with required structure
+pub fn verify_vault_layout() -> anyhow::Result<()> {
+    let vault_path = get_vault_path()?;
+    if !vault_path.exists() {
+        anyhow::bail!(
+            "Vault not found at {}. Run 'fieldnote init' first.",
+            vault_path.display()
+        );
+    }
+
+    let keys_dir = get_keys_dir()?;
+    let local_device_key = keys_dir.join(LOCAL_DEVICE_KEY_FILE);
+    if !local_device_key.exists() {
+        anyhow::bail!(
+            "Device key not found. Run 'fieldnote init' first."
+        );
+    }
+
+    let identity_path = get_identity_path()?;
+    if !identity_path.exists() {
+        anyhow::bail!(
+            "Identity file not found. Run 'fieldnote init' first."
+        );
+    }
+
+    Ok(())
 }

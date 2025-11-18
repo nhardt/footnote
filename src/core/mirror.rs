@@ -11,23 +11,9 @@ const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
 /// Starts an Iroh endpoint listening for sync connections from other devices.
 /// Only accepts connections from devices belonging to the same user (verified via signatures).
 pub async fn listen() -> Result<()> {
-    let vault_path = vault::get_vault_path()?;
-    if !vault_path.exists() {
-        anyhow::bail!(
-            "Vault not found at {}. Run 'fieldnote init' first.",
-            vault_path.display()
-        );
-    }
-
     // Load this device's Iroh secret key
     let keys_dir = vault::get_keys_dir()?;
     let key_file = keys_dir.join(LOCAL_DEVICE_KEY_FILE);
-    if !key_file.exists() {
-        anyhow::bail!(
-            "Device key not found. Run 'fieldnote init' first."
-        );
-    }
-
     let key_bytes = fs::read(&key_file)?;
     let key_array: [u8; 32] = key_bytes
         .try_into()
@@ -88,14 +74,6 @@ pub async fn listen() -> Result<()> {
 ///
 /// Future: --user parameter for user-to-user sharing
 pub async fn push(user: Option<&str>, device: Option<&str>) -> Result<()> {
-    let vault_path = vault::get_vault_path()?;
-    if !vault_path.exists() {
-        anyhow::bail!(
-            "Vault not found at {}. Run 'fieldnote init' first.",
-            vault_path.display()
-        );
-    }
-
     match (user, device) {
         (None, Some(device_name)) => {
             // Self-to-self sync: push to specified device
@@ -122,10 +100,6 @@ async fn push_to_own_device(device_name: &str) -> Result<()> {
     // Load this device's Iroh secret key
     let keys_dir = vault::get_keys_dir()?;
     let key_file = keys_dir.join(LOCAL_DEVICE_KEY_FILE);
-    if !key_file.exists() {
-        anyhow::bail!("Device key not found. Run 'fieldnote init' first.");
-    }
-
     let key_bytes = fs::read(&key_file)?;
     let key_array: [u8; 32] = key_bytes
         .try_into()

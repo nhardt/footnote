@@ -121,14 +121,6 @@ pub async fn delete(user_name: &str, device_name: &str) -> anyhow::Result<()> {
 
 /// Create a new device (primary side) - generates join URL and listens for connection
 pub async fn create_primary() -> anyhow::Result<()> {
-    let vault_path = vault::get_vault_path()?;
-    if !vault_path.exists() {
-        anyhow::bail!(
-            "Vault not found at {}. Run 'fieldnote init' first.",
-            vault_path.display()
-        );
-    }
-
     // Check if this device is primary
     if !is_primary_device()? {
         anyhow::bail!(
@@ -158,10 +150,6 @@ pub async fn create_primary() -> anyhow::Result<()> {
 
     // Load this device's Iroh secret key to create endpoint
     let this_device_key_file = keys_dir.join(LOCAL_DEVICE_KEY_FILE);
-    if !this_device_key_file.exists() {
-        anyhow::bail!("This device's key not found. Run 'fieldnote init' first.");
-    }
-
     let key_bytes = fs::read(&this_device_key_file)?;
     let key_array: [u8; 32] = key_bytes
         .try_into()

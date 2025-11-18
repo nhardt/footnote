@@ -97,6 +97,19 @@ pub enum MirrorAction {
 
 /// Execute the CLI command
 pub async fn execute(cli: Cli) -> anyhow::Result<()> {
+    let needs_vault = match &cli.command {
+        Commands::Init { .. } => false,
+        Commands::Device { action } => match action {
+            DeviceAction::Create { mode: Some(CreateMode::Remote { .. }) } => false,
+            _ => true,
+        },
+        _ => true,
+    };
+
+    if needs_vault {
+        crate::core::vault::verify_vault_layout()?;
+    }
+
     match cli.command {
         Commands::Init { device_name } => crate::core::init::initialize(device_name.as_deref()).await,
         Commands::User { action } => match action {
