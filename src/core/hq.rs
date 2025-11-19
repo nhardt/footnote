@@ -1,5 +1,6 @@
 use crate::core::crypto;
 use iroh::SecretKey;
+use serde::Serialize;
 use std::fs;
 use std::path::PathBuf;
 use uuid::Uuid;
@@ -7,6 +8,14 @@ use uuid::Uuid;
 const DEFAULT_DEVICE_NAME: &str = "primary";
 const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
 const MASTER_KEY_FILE: &str = "master_identity";
+
+#[derive(Serialize)]
+struct HqCreateOutput {
+    vault_path: String,
+    master_public_key: String,
+    device_name: String,
+    device_endpoint_id: String,
+}
 
 /// Create HQ (headquarters) - primary device and vault initialization
 pub async fn create_hq(path: Option<PathBuf>, device_name: Option<&str>) -> anyhow::Result<()> {
@@ -28,7 +37,7 @@ pub async fn create_hq(path: Option<PathBuf>, device_name: Option<&str>) -> anyh
         );
     }
 
-    println!("Creating HQ at {}", vault_path.display());
+    eprintln!("Creating HQ at {}", vault_path.display());
 
     // Create directory structure
     let fieldnotes_dir = vault_path.join(".fieldnotes");
@@ -42,13 +51,13 @@ pub async fn create_hq(path: Option<PathBuf>, device_name: Option<&str>) -> anyh
     fs::create_dir_all(&embassies_dir)?;
 
     // Generate master identity key pair
-    println!("Generating master identity key...");
+    eprintln!("Generating master identity key...");
     let (signing_key, verifying_key) = crypto::generate_identity_keypair();
 
     // Store master private key
     let master_key_file = fieldnotes_dir.join(MASTER_KEY_FILE);
     fs::write(&master_key_file, crypto::signing_key_to_hex(&signing_key))?;
-    println!("Master identity key stored at {}", master_key_file.display());
+    eprintln!("Master identity key stored at {}", master_key_file.display());
 
     // Create identity.md
     let identity_file = vault_path.join("identity.md");
@@ -66,17 +75,17 @@ Edit the nickname field to set how you present yourself to others.
         crypto::verifying_key_to_hex(&verifying_key)
     );
     fs::write(&identity_file, identity_content)?;
-    println!("Identity file created at {}", identity_file.display());
+    eprintln!("Identity file created at {}", identity_file.display());
 
     // Generate Iroh endpoint for this device
-    println!("Generating Iroh endpoint for this device...");
+    eprintln!("Generating Iroh endpoint for this device...");
     let secret_key = SecretKey::generate(&mut rand::rng());
     let public_key = secret_key.public();
 
     // Store Iroh secret key
     let key_file = fieldnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
     fs::write(&key_file, secret_key.to_bytes())?;
-    println!("Device Iroh key stored at {}", key_file.display());
+    eprintln!("Device Iroh key stored at {}", key_file.display());
 
     // Sign the device record with master key
     let timestamp = chrono::Utc::now().to_rfc3339();
@@ -107,7 +116,7 @@ This is the device file for this device.
         signature
     );
     fs::write(&device_file, device_content)?;
-    println!("Device file created and signed at {}", device_file.display());
+    eprintln!("Device file created and signed at {}", device_file.display());
 
     // Create home note
     let home_uuid = Uuid::new_v4();
@@ -125,14 +134,18 @@ Welcome to fieldnote! This is your home note.
         home_uuid
     );
     fs::write(&home_file, home_content)?;
-    println!("Home note created at {}", home_file.display());
+    eprintln!("Home note created at {}", home_file.display());
 
-    println!("\nHQ creation complete!");
-    println!("Your master identity key: {}", crypto::verifying_key_to_hex(&verifying_key));
-    println!("Your HQ device endpoint ID: {}", public_key);
-    println!("\nNext steps:");
-    println!("1. Edit {} to set your nickname", identity_file.display());
-    println!("2. Run 'fieldnote user read' to view your identity");
+    eprintln!("\nHQ creation complete!");
+
+    // Output JSON to stdout
+    let output = HqCreateOutput {
+        vault_path: vault_path.display().to_string(),
+        master_public_key: crypto::verifying_key_to_hex(&verifying_key),
+        device_name: device_name.to_string(),
+        device_endpoint_id: public_key.to_string(),
+    };
+    println!("{}", serde_json::to_string_pretty(&output)?);
 
     Ok(())
 }
