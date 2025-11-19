@@ -112,7 +112,9 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
     let needs_vault = match &cli.command {
         Commands::Hq { .. } => false,
         Commands::Device { action } => match action {
-            DeviceAction::Create { mode: Some(CreateMode::Remote { .. }) } => false,
+            DeviceAction::Create {
+                mode: Some(CreateMode::Remote { .. }),
+            } => false,
             _ => true,
         },
         _ => true,
@@ -125,20 +127,14 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
     match cli.command {
         Commands::Hq { action } => match action {
             HqAction::Create { path, device_name } => {
-                crate::core::init::create_hq(path, device_name.as_deref()).await
+                crate::core::hq::create_hq(path, device_name.as_deref()).await
             }
         },
         Commands::User { action } => match action {
-            UserAction::Create { user_name } => {
-                crate::core::user::create(&user_name).await
-            }
-            UserAction::Delete { user_name } => {
-                crate::core::user::delete(&user_name).await
-            }
+            UserAction::Create { user_name } => crate::core::user::create(&user_name).await,
+            UserAction::Delete { user_name } => crate::core::user::delete(&user_name).await,
             UserAction::Read => crate::core::user::read().await,
-            UserAction::Export { user_name } => {
-                crate::core::user::export(&user_name).await
-            }
+            UserAction::Export { user_name } => crate::core::user::export(&user_name).await,
             UserAction::Import { file_path, petname } => {
                 crate::core::user::import(&file_path, &petname).await
             }

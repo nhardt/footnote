@@ -149,7 +149,8 @@ Markdown text here. Primary use for app is to take notes here.
 fieldnote hq create
 ```
 
-This will create the HQ (headquarters) - your primary device - and initialize the on-disk directory structure.
+This will create the headquarters (HQ) on the local device and initialize the
+on-disk directory structure.
 
 #### Add a second device
 
