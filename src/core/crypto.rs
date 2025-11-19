@@ -110,3 +110,51 @@ pub fn verifying_key_from_hex(hex_str: &str) -> anyhow::Result<VerifyingKey> {
         .map_err(|_| anyhow::anyhow!("Invalid key length"))?;
     Ok(VerifyingKey::from_bytes(&key_bytes)?)
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ContactDevice {
+    pub device_name: String,
+    pub iroh_endpoint_id: String,
+    pub added_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ContactRecord {
+    pub username: String,
+    pub nickname: String,
+    pub master_public_key: String,
+    pub devices: Vec<ContactDevice>,
+    pub updated_at: String,
+    #[serde(default)]
+    pub signature: String,
+}
+
+pub fn sign_contact_record(
+    record: &ContactRecord,
+    master_key: &SigningKey,
+) -> anyhow::Result<String> {
+    let mut unsigned_record = record.clone();
+    unsigned_record.signature = String::new();
+
+    let message = serde_json::to_string(&unsigned_record)?;
+    let signature = master_key.sign(message.as_bytes());
+
+    Ok(hex::encode(signature.to_bytes()))
+}
+
+pub fn verify_contact_signature(record: &ContactRecord) -> anyhow::Result<bool> {
+    let verifying_key = verifying_key_from_hex(&record.master_public_key)?;
+
+    let mut unsigned_record = record.clone();
+    unsigned_record.signature = String::new();
+
+    let message = serde_json::to_string(&unsigned_record)?;
+
+    let signature_bytes = hex::decode(&record.signature)?;
+    let signature = Signature::from_slice(&signature_bytes)?;
+
+    match verifying_key.verify(message.as_bytes(), &signature) {
+        Ok(_) => Ok(true),
+        Err(_) => Ok(false),
+    }
+}

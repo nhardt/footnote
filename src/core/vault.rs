@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 const FIELDNOTES_DIR: &str = ".fieldnotes";
 const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
+const CONTACT_FILE: &str = "contact.json";
 const OUTPOSTS_DIR: &str = "outposts";
 const EMBASSIES_DIR: &str = "embassies";
 const NOTES_DIR: &str = "notes";
@@ -31,6 +32,11 @@ pub fn get_fieldnotes_dir() -> anyhow::Result<PathBuf> {
     Ok(get_vault_path()?.join(FIELDNOTES_DIR))
 }
 
+/// Get the contact.json file path (for "me")
+pub fn get_contact_path() -> anyhow::Result<PathBuf> {
+    Ok(get_fieldnotes_dir()?.join(CONTACT_FILE))
+}
+
 /// Get the identity.md file path (for "me")
 pub fn get_identity_path() -> anyhow::Result<PathBuf> {
     Ok(get_vault_path()?.join(IDENTITY_FILE))
@@ -57,6 +63,11 @@ pub fn get_embassy_dir(user_name: &str) -> anyhow::Result<PathBuf> {
 }
 
 /// Get the contact info file path for a specific embassy
+pub fn get_embassy_contact_path(user_name: &str) -> anyhow::Result<PathBuf> {
+    Ok(get_embassies_dir()?.join(format!("{}.json", user_name)))
+}
+
+/// Get the contact info file path for a specific embassy (old format, deprecated)
 pub fn get_embassy_info_path(user_name: &str) -> anyhow::Result<PathBuf> {
     Ok(get_embassies_dir()?.join(format!("{}_info.md", user_name)))
 }

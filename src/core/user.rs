@@ -78,145 +78,92 @@ pub async fn export(user_name: &str) -> anyhow::Result<()> {
 
 /// Export "me" user's contact information
 async fn export_me() -> anyhow::Result<()> {
-    let identity_path = vault::get_identity_path()?;
-    let outposts_dir = vault::get_outposts_dir()?;
+    let contact_path = vault::get_contact_path()?;
 
-    // Read identity
-    if !identity_path.exists() {
-        anyhow::bail!("Identity not found");
+    if !contact_path.exists() {
+        anyhow::bail!("Contact record not found. Run 'fieldnote hq create' first.");
     }
 
-    let content = fs::read_to_string(&identity_path)?;
-    let (master_public_key, nickname) = parse_identity_frontmatter(&content);
+    let content = fs::read_to_string(&contact_path)?;
+    let contact_record: crypto::ContactRecord = serde_json::from_str(&content)?;
 
-    let master_public_key = master_public_key
-        .ok_or_else(|| anyhow::anyhow!("No master public key found"))?;
-
-    // Read devices from outposts directory
-    let mut devices = Vec::new();
-    if outposts_dir.exists() {
-        for device_entry in fs::read_dir(&outposts_dir)? {
-            let device_entry = device_entry?;
-            let device_path = device_entry.path();
-
-            if device_path.extension().and_then(|s| s.to_str()) == Some("md") {
-                let content = fs::read_to_string(&device_path)?;
-                let frontmatter = extract_frontmatter(&content);
-                if let Some(fm) = frontmatter {
-                    if let Ok(parsed) = serde_yaml::from_str::<DeviceFrontmatter>(&fm) {
-                        devices.push(ExportDevice {
-                            device_name: parsed.device_name,
-                            iroh_endpoint_id: parsed.iroh_endpoint_id,
-                            authorized_by: parsed.authorized_by,
-                            timestamp: parsed.timestamp,
-                            signature: parsed.signature,
-                        });
-                    }
-                }
-            }
-        }
+    if !crypto::verify_contact_signature(&contact_record)? {
+        anyhow::bail!("Contact record signature verification failed");
     }
 
-    // Create export struct
-    let export = UserExport {
-        nickname: nickname.unwrap_or_default(),
-        master_public_key,
-        devices,
-    };
-
-    // Serialize and print
-    let yaml = serde_yaml::to_string(&export)?;
-    println!("{}", yaml);
+    println!("{}", serde_json::to_string_pretty(&contact_record)?);
 
     Ok(())
 }
 
 /// Export an embassy user's contact information
 async fn export_embassy(user_name: &str) -> anyhow::Result<()> {
-    let info_path = vault::get_embassy_info_path(user_name)?;
+    let contact_path = vault::get_embassy_contact_path(user_name)?;
 
-    if !info_path.exists() {
+    if !contact_path.exists() {
         anyhow::bail!("Embassy '{}' not found", user_name);
     }
 
-    // Read the single info file and extract the YAML frontmatter
-    let content = fs::read_to_string(&info_path)?;
-    let frontmatter = extract_frontmatter(&content)
-        .ok_or_else(|| anyhow::anyhow!("Invalid embassy info file format"))?;
+    let content = fs::read_to_string(&contact_path)?;
+    let contact_record: crypto::ContactRecord = serde_json::from_str(&content)?;
 
-    // The frontmatter should already be in UserExport format
-    let export: UserExport = serde_yaml::from_str(&frontmatter)?;
+    if !crypto::verify_contact_signature(&contact_record)? {
+        anyhow::bail!("Embassy '{}' contact signature verification failed", user_name);
+    }
 
-    // Serialize and print
-    let yaml = serde_yaml::to_string(&export)?;
-    println!("{}", yaml);
+    println!("{}", serde_json::to_string_pretty(&contact_record)?);
 
     Ok(())
 }
 
 /// Import a user's contact information
 pub async fn import(file_path: &str, petname: &str) -> anyhow::Result<()> {
-    // Read and parse the export file
     let content = fs::read_to_string(file_path)?;
-    let export: UserExport = serde_yaml::from_str(&content)?;
+    let new_contact: crypto::ContactRecord = serde_json::from_str(&content)?;
 
-    // Verify all device signatures
-    for device in &export.devices {
-        let valid = crypto::verify_device_signature(
-            &device.device_name,
-            &device.iroh_endpoint_id,
-            &device.authorized_by,
-            &device.timestamp,
-            &device.signature,
-        )?;
-
-        if !valid {
-            anyhow::bail!(
-                "Invalid signature for device '{}'. Import aborted.",
-                device.device_name
-            );
-        }
+    if !crypto::verify_contact_signature(&new_contact)? {
+        anyhow::bail!("Contact signature verification failed. Import aborted.");
     }
 
-    println!(
-        "✓ All signatures verified ({} devices)",
-        export.devices.len()
+    eprintln!(
+        "Contact signature verified ({} devices)",
+        new_contact.devices.len()
     );
 
-    // Check if embassy already exists
-    let info_path = vault::get_embassy_info_path(petname)?;
-    if info_path.exists() {
-        anyhow::bail!(
-            "Embassy '{}' already exists. Remove it first if you want to re-import.",
-            petname
+    let contact_path = vault::get_embassy_contact_path(petname)?;
+
+    if contact_path.exists() {
+        let existing_content = fs::read_to_string(&contact_path)?;
+        let existing_contact: crypto::ContactRecord = serde_json::from_str(&existing_content)?;
+
+        let new_timestamp = chrono::DateTime::parse_from_rfc3339(&new_contact.updated_at)?;
+        let existing_timestamp = chrono::DateTime::parse_from_rfc3339(&existing_contact.updated_at)?;
+
+        if new_timestamp <= existing_timestamp {
+            anyhow::bail!(
+                "Embassy '{}' already has a more recent contact record (existing: {}, new: {}). Skipping update.",
+                petname,
+                existing_contact.updated_at,
+                new_contact.updated_at
+            );
+        }
+
+        eprintln!(
+            "Updating embassy '{}' (old: {}, new: {})",
+            petname,
+            existing_contact.updated_at,
+            new_contact.updated_at
         );
     }
 
-    // Create embassy directory and notes subdirectory
-    let embassy_dir = vault::get_embassy_dir(petname)?;
-    let notes_dir = vault::get_embassy_notes_dir(petname)?;
-    fs::create_dir_all(&notes_dir)?;
+    let embassies_dir = vault::get_embassies_dir()?;
+    fs::create_dir_all(&embassies_dir)?;
 
-    // Create single info file with YAML frontmatter containing full export
-    let export_yaml = serde_yaml::to_string(&export)?;
-    let info_content = format!(
-        r#"---
-{}---
+    fs::write(&contact_path, serde_json::to_string_pretty(&new_contact)?)?;
+    eprintln!("Contact saved to {}", contact_path.display());
 
-# {}
-
-Imported contact information.
-Petname: {}
-"#,
-        export_yaml,
-        export.nickname,
-        petname
-    );
-    fs::write(&info_path, info_content)?;
-    println!("✓ Created embassy info for '{}' with {} devices", petname, export.devices.len());
-
-    println!("\n✓ Import complete!");
-    println!("Embassy '{}' added at {}", petname, embassy_dir.display());
+    eprintln!("\nImport complete!");
+    eprintln!("Embassy '{}' contact updated", petname);
 
     Ok(())
 }

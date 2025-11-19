@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use uuid::Uuid;
 
 const DEFAULT_DEVICE_NAME: &str = "primary";
+const DEFAULT_USERNAME: &str = "me";
 const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
 const MASTER_KEY_FILE: &str = "master_identity";
 
@@ -18,7 +19,12 @@ struct HqCreateOutput {
 }
 
 /// Create HQ (headquarters) - primary device and vault initialization
-pub async fn create_hq(path: Option<PathBuf>, device_name: Option<&str>) -> anyhow::Result<()> {
+pub async fn create_hq(
+    path: Option<PathBuf>,
+    username: Option<&str>,
+    device_name: Option<&str>,
+) -> anyhow::Result<()> {
+    let username = username.unwrap_or(DEFAULT_USERNAME);
     let device_name = device_name.unwrap_or(DEFAULT_DEVICE_NAME);
 
     // Determine vault path: use provided path or current directory
@@ -135,6 +141,32 @@ Welcome to fieldnote! This is your home note.
     );
     fs::write(&home_file, home_content)?;
     eprintln!("Home note created at {}", home_file.display());
+
+    // Create contact.json with initial device
+    eprintln!("Creating contact record...");
+    let contact_timestamp = chrono::Utc::now().to_rfc3339();
+
+    let contact_device = crypto::ContactDevice {
+        device_name: device_name.to_string(),
+        iroh_endpoint_id: public_key.to_string(),
+        added_at: contact_timestamp.clone(),
+    };
+
+    let mut contact_record = crypto::ContactRecord {
+        username: username.to_string(),
+        nickname: String::new(),
+        master_public_key: crypto::verifying_key_to_hex(&verifying_key),
+        devices: vec![contact_device],
+        updated_at: contact_timestamp,
+        signature: String::new(),
+    };
+
+    let signature = crypto::sign_contact_record(&contact_record, &signing_key)?;
+    contact_record.signature = signature;
+
+    let contact_path = vault_path.join(".fieldnotes").join("contact.json");
+    fs::write(&contact_path, serde_json::to_string_pretty(&contact_record)?)?;
+    eprintln!("Contact record created at {}", contact_path.display());
 
     eprintln!("\nHQ creation complete!");
 
