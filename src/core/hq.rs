@@ -63,24 +63,6 @@ pub async fn create_hq(
     fs::write(&master_key_file, crypto::signing_key_to_hex(&signing_key))?;
     eprintln!("Master identity key stored at {}", master_key_file.display());
 
-    // Create identity.md
-    let identity_file = vault_path.join("identity.md");
-    let identity_content = format!(
-        r#"---
-master_public_key: {}
-nickname: ""
----
-
-# My Identity
-
-This file contains your master identity information.
-Edit the nickname field to set how you present yourself to others.
-"#,
-        crypto::verifying_key_to_hex(&verifying_key)
-    );
-    fs::write(&identity_file, identity_content)?;
-    eprintln!("Identity file created at {}", identity_file.display());
-
     // Generate Iroh endpoint for this device
     eprintln!("Generating Iroh endpoint for this device...");
     let secret_key = SecretKey::generate(&mut rand::rng());

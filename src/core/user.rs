@@ -3,12 +3,6 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 
 #[derive(Debug, Serialize, Deserialize)]
-struct IdentityFrontmatter {
-    master_public_key: String,
-    nickname: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 struct DeviceFrontmatter {
     device_name: String,
     iroh_endpoint_id: String,
@@ -172,23 +166,22 @@ pub async fn import(file_path: &str, petname: &str) -> anyhow::Result<()> {
 pub async fn read() -> anyhow::Result<()> {
     let mut users = Vec::new();
 
-    // First, add "me" user from root-level identity.md and devices/
-    let identity_path = vault::get_identity_path()?;
-    let (master_public_key, nickname) = if identity_path.exists() {
-        let content = fs::read_to_string(&identity_path)?;
-        let identity = parse_identity_frontmatter(&content);
-        identity
-    } else {
-        (None, None)
-    };
-
-    // Read devices from contact.json
+    // Read "me" user from contact.json
     let mut me_devices = Vec::new();
+    let mut master_public_key = None;
+    let mut nickname = None;
     let contact_path = vault::get_contact_path()?;
 
     if contact_path.exists() {
         let contact_content = fs::read_to_string(&contact_path)?;
         if let Ok(contact_record) = serde_json::from_str::<crypto::ContactRecord>(&contact_content) {
+            master_public_key = Some(contact_record.master_public_key.clone());
+            nickname = if contact_record.nickname.is_empty() {
+                None
+            } else {
+                Some(contact_record.nickname.clone())
+            };
+
             for device in &contact_record.devices {
                 me_devices.push(Device {
                     name: device.device_name.clone(),
@@ -269,26 +262,6 @@ pub async fn read() -> anyhow::Result<()> {
     println!("{}", yaml);
 
     Ok(())
-}
-
-/// Parse identity frontmatter from a markdown file
-fn parse_identity_frontmatter(content: &str) -> (Option<String>, Option<String>) {
-    let frontmatter = extract_frontmatter(content);
-    if frontmatter.is_none() {
-        return (None, None);
-    }
-
-    match serde_yaml::from_str::<IdentityFrontmatter>(&frontmatter.unwrap()) {
-        Ok(parsed) => {
-            let nickname = if parsed.nickname.is_empty() {
-                None
-            } else {
-                Some(parsed.nickname)
-            };
-            (Some(parsed.master_public_key), nickname)
-        }
-        Err(_) => (None, None),
-    }
 }
 
 /// Parse device frontmatter from a markdown file and verify signature

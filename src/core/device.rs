@@ -301,22 +301,6 @@ pub async fn create_remote(connection_string: &str, device_name: &str) -> anyhow
         serde_json::to_string_pretty(&contact_record)?,
     )?;
 
-    // Create identity.md
-    let identity_file = vault_path.join("identity.md");
-    let identity_content = format!(
-        r#"---
-master_public_key: {}
-nickname: {}
----
-
-# My Identity
-
-This device joined an existing identity.
-"#,
-        contact_record.master_public_key, contact_record.nickname
-    );
-    fs::write(&identity_file, identity_content)?;
-
     // Create home note
     let home_uuid = Uuid::new_v4();
     let home_file = notes_dir.join("home.md");

@@ -5,7 +5,6 @@ const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
 const CONTACT_FILE: &str = "contact.json";
 const EMBASSIES_DIR: &str = "embassies";
 const NOTES_DIR: &str = "notes";
-const IDENTITY_FILE: &str = "identity.md";
 
 /// Get the base vault directory path by searching upward for .fieldnotes/
 pub fn get_vault_path() -> anyhow::Result<PathBuf> {
@@ -34,11 +33,6 @@ pub fn get_fieldnotes_dir() -> anyhow::Result<PathBuf> {
 /// Get the contact.json file path (for "me")
 pub fn get_contact_path() -> anyhow::Result<PathBuf> {
     Ok(get_fieldnotes_dir()?.join(CONTACT_FILE))
-}
-
-/// Get the identity.md file path (for "me")
-pub fn get_identity_path() -> anyhow::Result<PathBuf> {
-    Ok(get_vault_path()?.join(IDENTITY_FILE))
 }
 
 /// Get the notes directory path (for "me")
@@ -90,10 +84,10 @@ pub fn verify_vault_layout() -> anyhow::Result<()> {
         );
     }
 
-    let identity_path = get_identity_path()?;
-    if !identity_path.exists() {
+    let contact_path = get_contact_path()?;
+    if !contact_path.exists() {
         anyhow::bail!(
-            "Identity file not found. Run 'fieldnote hq create' first."
+            "Contact file not found. Run 'fieldnote hq create' first."
         );
     }
 
