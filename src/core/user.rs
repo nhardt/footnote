@@ -182,19 +182,21 @@ pub async fn read() -> anyhow::Result<()> {
         (None, None)
     };
 
-    let outposts_dir = vault::get_outposts_dir()?;
+    // Read devices from contact.json
     let mut me_devices = Vec::new();
+    let contact_path = vault::get_contact_path()?;
 
-    if outposts_dir.exists() {
-        for device_entry in fs::read_dir(&outposts_dir)? {
-            let device_entry = device_entry?;
-            let device_path = device_entry.path();
-
-            if device_path.extension().and_then(|s| s.to_str()) == Some("md") {
-                let content = fs::read_to_string(&device_path)?;
-                if let Some(device) = parse_device_frontmatter(&content) {
-                    me_devices.push(device);
-                }
+    if contact_path.exists() {
+        let contact_content = fs::read_to_string(&contact_path)?;
+        if let Ok(contact_record) = serde_json::from_str::<crypto::ContactRecord>(&contact_content) {
+            for device in &contact_record.devices {
+                me_devices.push(Device {
+                    name: device.device_name.clone(),
+                    endpoint_id: device.iroh_endpoint_id.clone(),
+                    authorized_by: contact_record.master_public_key.clone(),
+                    timestamp: device.added_at.clone(),
+                    signature_valid: true,
+                });
             }
         }
     }

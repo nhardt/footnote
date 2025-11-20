@@ -106,21 +106,24 @@ async fn push_to_own_device(device_name: &str) -> Result<()> {
         .map_err(|_| anyhow::anyhow!("Invalid key length"))?;
     let secret_key = SecretKey::from_bytes(&key_array);
 
-    // Look up the target device
-    let outposts_dir = vault::get_outposts_dir()?;
-    let device_file = outposts_dir.join(format!("{}.md", device_name));
+    // Look up the target device in contact.json
+    let contact_path = vault::get_contact_path()?;
+    let contact_content = fs::read_to_string(&contact_path)?;
+    let contact_record: crate::core::crypto::ContactRecord = serde_json::from_str(&contact_content)?;
 
-    if !device_file.exists() {
-        anyhow::bail!(
-            "Device '{}' not found.\n\
-             Available devices can be seen with: fieldnote user read",
-            device_name
-        );
-    }
+    let device = contact_record
+        .devices
+        .iter()
+        .find(|d| d.device_name == device_name)
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "Device '{}' not found.\n\
+                 Available devices can be seen with: fieldnote user read",
+                device_name
+            )
+        })?;
 
-    // Parse device file to get endpoint ID
-    let device_content = fs::read_to_string(&device_file)?;
-    let endpoint_id = parse_device_endpoint(&device_content)?;
+    let endpoint_id = device.iroh_endpoint_id.parse::<iroh::PublicKey>()?;
 
     println!("\n📤 Mirror Sync - Push");
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");

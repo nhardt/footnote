@@ -3,7 +3,6 @@ use std::path::PathBuf;
 const FIELDNOTES_DIR: &str = ".fieldnotes";
 const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
 const CONTACT_FILE: &str = "contact.json";
-const OUTPOSTS_DIR: &str = "outposts";
 const EMBASSIES_DIR: &str = "embassies";
 const NOTES_DIR: &str = "notes";
 const IDENTITY_FILE: &str = "identity.md";
@@ -40,11 +39,6 @@ pub fn get_contact_path() -> anyhow::Result<PathBuf> {
 /// Get the identity.md file path (for "me")
 pub fn get_identity_path() -> anyhow::Result<PathBuf> {
     Ok(get_vault_path()?.join(IDENTITY_FILE))
-}
-
-/// Get the outposts directory path (my devices)
-pub fn get_outposts_dir() -> anyhow::Result<PathBuf> {
-    Ok(get_vault_path()?.join(OUTPOSTS_DIR))
 }
 
 /// Get the notes directory path (for "me")

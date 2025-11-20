@@ -18,13 +18,7 @@ struct DeviceJoinRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct DeviceJoinResponse {
-    master_public_key: String,
-    nickname: String,
-    device_name: String,
-    iroh_endpoint_id: String,
-    authorized_by: String,
-    timestamp: String,
-    signature: String,
+    contact_json: String,
 }
 
 /// Check if the current device is a primary device
@@ -53,29 +47,20 @@ pub fn get_local_device_name() -> anyhow::Result<String> {
     let secret_key = SecretKey::from_bytes(&key_array);
     let local_public_key = secret_key.public();
 
-    let outposts_dir = vault::get_outposts_dir()?;
+    // Read contact.json to find device name
+    let contact_path = vault::get_contact_path()?;
+    let contact_content = fs::read_to_string(&contact_path)?;
+    let contact_record: crypto::ContactRecord = serde_json::from_str(&contact_content)?;
 
-    for entry in fs::read_dir(&outposts_dir)? {
-        let entry = entry?;
-        let path = entry.path();
-
-        if path.extension().and_then(|s| s.to_str()) != Some("md") {
-            continue;
-        }
-
-        let content = fs::read_to_string(&path)?;
-        if let Ok(endpoint_id) = parse_device_endpoint_id(&content) {
-            if endpoint_id == local_public_key {
-                if let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
-                    return Ok(name.to_string());
-                }
-            }
+    for device in &contact_record.devices {
+        if device.iroh_endpoint_id == local_public_key.to_string() {
+            return Ok(device.device_name.clone());
         }
     }
 
     anyhow::bail!(
-        "Could not find device file matching local public key {}. \
-         Your vault may be corrupted.",
+        "Could not find device with matching public key in contact.json.\n\
+        Local endpoint ID: {}",
         local_public_key
     )
 }
@@ -112,10 +97,7 @@ fn parse_device_endpoint_id(content: &str) -> anyhow::Result<iroh::PublicKey> {
 
 /// Delete a device
 pub async fn delete(user_name: &str, device_name: &str) -> anyhow::Result<()> {
-    println!(
-        "TODO: device::delete({}, {})",
-        user_name, device_name
-    );
+    println!("TODO: device::delete({}, {})", user_name, device_name);
     Ok(())
 }
 
@@ -138,12 +120,6 @@ pub async fn create_primary() -> anyhow::Result<()> {
 
     let master_key_hex = fs::read_to_string(&master_key_file)?;
     let signing_key = crypto::signing_key_from_hex(&master_key_hex)?;
-    let verifying_key = signing_key.verifying_key();
-
-    // Load identity to get nickname
-    let identity_path = vault::get_identity_path()?;
-    let identity_content = fs::read_to_string(&identity_path)?;
-    let nickname = parse_nickname(&identity_content)?;
 
     // Generate one-time token
     let token = Uuid::new_v4().to_string();
@@ -183,7 +159,10 @@ pub async fn create_primary() -> anyhow::Result<()> {
         let request_bytes = recv.read_to_end(10000).await.anyerr()?;
         let request: DeviceJoinRequest = serde_json::from_slice(&request_bytes)?;
 
-        println!("✓ Received join request from device '{}'", request.device_name);
+        println!(
+            "✓ Received join request from device '{}'",
+            request.device_name
+        );
 
         // Verify token
         if request.token != token {
@@ -192,26 +171,38 @@ pub async fn create_primary() -> anyhow::Result<()> {
 
         println!("✓ Token verified");
 
-        // Sign the device record
-        let timestamp = chrono::Utc::now().to_rfc3339();
-        let signature = crypto::sign_device_record(
-            &request.device_name,
-            &request.iroh_endpoint_id,
-            &signing_key,
-            &timestamp,
-        )?;
+        // Load current contact.json
+        let contact_path = vault::get_contact_path()?;
+        let contact_content = fs::read_to_string(&contact_path)?;
+        let mut contact_record: crypto::ContactRecord = serde_json::from_str(&contact_content)?;
 
-        println!("✓ Device record signed");
-
-        // Send response
-        let response = DeviceJoinResponse {
-            master_public_key: crypto::verifying_key_to_hex(&verifying_key),
-            nickname,
+        // Add new device to contact record
+        let new_device = crypto::ContactDevice {
             device_name: request.device_name.clone(),
             iroh_endpoint_id: request.iroh_endpoint_id,
-            authorized_by: crypto::verifying_key_to_hex(&verifying_key),
-            timestamp,
-            signature,
+            added_at: chrono::Utc::now().to_rfc3339(),
+        };
+
+        contact_record.devices.push(new_device);
+        contact_record.updated_at = chrono::Utc::now().to_rfc3339();
+        contact_record.signature = String::new();
+
+        // Re-sign entire contact record
+        let signature = crypto::sign_contact_record(&contact_record, &signing_key)?;
+        contact_record.signature = signature;
+
+        println!("Contact record updated and signed");
+
+        // Save updated contact.json locally
+        fs::write(
+            &contact_path,
+            serde_json::to_string_pretty(&contact_record)?,
+        )?;
+        println!("Contact record saved");
+
+        // Send complete contact record to remote device
+        let response = DeviceJoinResponse {
+            contact_json: serde_json::to_string(&contact_record)?,
         };
 
         let response_bytes = serde_json::to_vec(&response)?;
@@ -277,22 +268,36 @@ pub async fn create_remote(connection_string: &str, device_name: &str) -> anyhow
     let response_bytes = recv.read_to_end(100000).await.anyerr()?;
     let response: DeviceJoinResponse = serde_json::from_slice(&response_bytes)?;
 
-    println!("Received identity");
+    println!("Received contact record");
+
+    // Parse and verify contact record
+    let contact_record: crypto::ContactRecord = serde_json::from_str(&response.contact_json)?;
+
+    if !crypto::verify_contact_signature(&contact_record)? {
+        anyhow::bail!("Contact signature verification failed");
+    }
+
+    println!("Contact signature verified");
 
     // Create vault directory structure
     let fieldnotes_dir = vault::get_fieldnotes_dir()?;
-    let outposts_dir = vault::get_outposts_dir()?;
     let notes_dir = vault::get_notes_dir()?;
     let embassies_dir = vault::get_embassies_dir()?;
 
     fs::create_dir_all(&fieldnotes_dir)?;
-    fs::create_dir_all(&outposts_dir)?;
     fs::create_dir_all(&notes_dir)?;
     fs::create_dir_all(&embassies_dir)?;
 
     // Store Iroh secret key
     let key_file = fieldnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
     fs::write(&key_file, secret_key.to_bytes())?;
+
+    // Store contact.json
+    let contact_path = fieldnotes_dir.join("contact.json");
+    fs::write(
+        &contact_path,
+        serde_json::to_string_pretty(&contact_record)?,
+    )?;
 
     // Create identity.md
     let identity_file = vault::get_identity_path()?;
@@ -306,30 +311,9 @@ nickname: {}
 
 This device joined an existing identity.
 "#,
-        response.master_public_key, response.nickname
+        contact_record.master_public_key, contact_record.nickname
     );
     fs::write(&identity_file, identity_content)?;
-
-    // Create device file
-    let device_file = outposts_dir.join(format!("{}.md", device_name));
-    let device_content = format!(
-        r#"---
-device_name: {}
-iroh_endpoint_id: {}
-authorized_by: {}
-timestamp: {}
-signature: {}
----
-
-This device joined via authorization.
-"#,
-        response.device_name,
-        response.iroh_endpoint_id,
-        response.authorized_by,
-        response.timestamp,
-        response.signature
-    );
-    fs::write(&device_file, device_content)?;
 
     // Create home note
     let home_uuid = Uuid::new_v4();
@@ -349,9 +333,10 @@ Welcome to fieldnote on {}!
     fs::write(&home_file, home_content)?;
 
     println!("\nJoin complete!");
-    println!("Identity: {}", response.nickname);
-    println!("Master key: {}", response.master_public_key);
+    println!("Identity: {}", contact_record.nickname);
+    println!("Master key: {}", contact_record.master_public_key);
     println!("Device: {}", device_name);
+    println!("Devices in contact: {}", contact_record.devices.len());
     println!("Vault created at: {}", vault_path.display());
 
     conn.close(0u8.into(), b"done");

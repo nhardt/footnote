@@ -28,7 +28,6 @@ test -f .fieldnotes/this_device || { echo "ERROR: this_device key not found"; ex
 test -f .fieldnotes/master_identity || { echo "ERROR: master_identity not found"; exit 1; }
 test -f .fieldnotes/contact.json || { echo "ERROR: contact.json not found"; exit 1; }
 test -f identity.md || { echo "ERROR: identity.md not found"; exit 1; }
-test -f outposts/alice-desktop.md || { echo "ERROR: device file not found"; exit 1; }
 
 # Verify contact.json content
 CONTACT_JSON=$(cat .fieldnotes/contact.json)

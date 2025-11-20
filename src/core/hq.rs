@@ -47,12 +47,10 @@ pub async fn create_hq(
 
     // Create directory structure
     let fieldnotes_dir = vault_path.join(".fieldnotes");
-    let outposts_dir = vault_path.join("outposts");
     let notes_dir = vault_path.join("notes");
     let embassies_dir = vault_path.join("embassies");
 
     fs::create_dir_all(&fieldnotes_dir)?;
-    fs::create_dir_all(&outposts_dir)?;
     fs::create_dir_all(&notes_dir)?;
     fs::create_dir_all(&embassies_dir)?;
 
@@ -92,37 +90,6 @@ Edit the nickname field to set how you present yourself to others.
     let key_file = fieldnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
     fs::write(&key_file, secret_key.to_bytes())?;
     eprintln!("Device Iroh key stored at {}", key_file.display());
-
-    // Sign the device record with master key
-    let timestamp = chrono::Utc::now().to_rfc3339();
-    let signature = crypto::sign_device_record(
-        device_name,
-        &public_key.to_string(),
-        &signing_key,
-        &timestamp,
-    )?;
-
-    // Create device markdown file with signature
-    let device_file = outposts_dir.join(format!("{}.md", device_name));
-    let device_content = format!(
-        r#"---
-device_name: {}
-iroh_endpoint_id: {}
-authorized_by: {}
-timestamp: {}
-signature: {}
----
-
-This is the device file for this device.
-"#,
-        device_name,
-        public_key,
-        crypto::verifying_key_to_hex(&verifying_key),
-        timestamp,
-        signature
-    );
-    fs::write(&device_file, device_content)?;
-    eprintln!("Device file created and signed at {}", device_file.display());
 
     // Create home note
     let home_uuid = Uuid::new_v4();

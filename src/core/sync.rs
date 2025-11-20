@@ -4,7 +4,6 @@ use n0_error::StdResultExt;
 use serde::Deserialize;
 use std::fs;
 use std::path::{Path, PathBuf};
-use walkdir::WalkDir;
 
 use super::{crypto, manifest, vault};
 
@@ -32,69 +31,23 @@ struct IdentityFrontmatter {
 ///
 /// Returns the device name if found and verified, or an error
 async fn verify_device_same_user(endpoint_id: &iroh::PublicKey) -> Result<String> {
-    let outposts_dir = vault::get_outposts_dir()?;
+    // Load contact.json
+    let contact_path = vault::get_contact_path()?;
+    let contact_content = fs::read_to_string(&contact_path)
+        .context("Failed to read contact.json")?;
+    let contact_record: crypto::ContactRecord = serde_json::from_str(&contact_content)
+        .context("Failed to parse contact.json")?;
 
-    // Load our own master public key
-    let identity_path = vault::get_identity_path()?;
-    let identity_content = fs::read_to_string(&identity_path)
-        .context("Failed to read identity.md")?;
-    let local_identity: IdentityFrontmatter = parse_frontmatter(&identity_content)
-        .context("Failed to parse local identity")?;
-
-    // Search through all device files
-    for entry in WalkDir::new(&outposts_dir)
-        .max_depth(1)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
-        let path = entry.path();
-        if !path.is_file() || path.extension().and_then(|s| s.to_str()) != Some("md") {
-            continue;
-        }
-
-        // Parse device frontmatter
-        let content = match fs::read_to_string(path) {
-            Ok(c) => c,
-            Err(_) => continue,
-        };
-
-        let device: DeviceFrontmatter = match parse_frontmatter(&content) {
-            Ok(d) => d,
-            Err(_) => continue,
-        };
-
-        // Check if this is the device we're looking for
-        if device.iroh_endpoint_id == endpoint_id.to_string() {
-            // Verify the device signature
-            let signature_valid = crypto::verify_device_signature(
-                &device.device_name,
-                &device.iroh_endpoint_id,
-                &device.authorized_by,
-                &device.timestamp,
-                &device.signature,
-            )?;
-
-            if !signature_valid {
-                anyhow::bail!(
-                    "Device signature verification failed for {}",
-                    device.device_name
-                );
+    // Search through all devices in contact record
+    for device in &contact_record.devices {
+        if let Ok(device_endpoint_id) = device.iroh_endpoint_id.parse::<iroh::PublicKey>() {
+            if &device_endpoint_id == endpoint_id {
+                return Ok(device.device_name.clone());
             }
-
-            // Verify the device was authorized by the same master key (same user)
-            if device.authorized_by != local_identity.master_public_key {
-                anyhow::bail!(
-                    "Device {} belongs to a different user (authorized by {})",
-                    device.device_name,
-                    device.authorized_by
-                );
-            }
-
-            return Ok(device.device_name);
         }
     }
 
-    anyhow::bail!("Device not found for endpoint {}", endpoint_id)
+    anyhow::bail!("Device {} not found in contact record", endpoint_id)
 }
 
 /// Parse YAML frontmatter from markdown content
