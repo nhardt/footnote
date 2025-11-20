@@ -220,9 +220,11 @@ pub async fn create_primary() -> anyhow::Result<()> {
 
 /// Create a new device (remote side) - joins using connection URL from primary
 pub async fn create_remote(connection_string: &str, device_name: &str) -> anyhow::Result<()> {
-    // Check if vault already exists
-    let vault_path = vault::get_vault_path()?;
-    if vault_path.exists() {
+    // Check if vault already exists in current directory
+    let vault_path = std::env::current_dir()
+        .map_err(|_| anyhow::anyhow!("Failed to get current directory"))?;
+    let fieldnotes_check = vault_path.join(".fieldnotes");
+    if fieldnotes_check.exists() {
         anyhow::bail!(
             "Vault already exists at {}. Remove it first if you want to join as a new device.",
             vault_path.display()
@@ -279,10 +281,10 @@ pub async fn create_remote(connection_string: &str, device_name: &str) -> anyhow
 
     println!("Contact signature verified");
 
-    // Create vault directory structure
-    let fieldnotes_dir = vault::get_fieldnotes_dir()?;
-    let notes_dir = vault::get_notes_dir()?;
-    let embassies_dir = vault::get_embassies_dir()?;
+    // Create vault directory structure in current directory
+    let fieldnotes_dir = vault_path.join(".fieldnotes");
+    let notes_dir = vault_path.join("notes");
+    let embassies_dir = vault_path.join("embassies");
 
     fs::create_dir_all(&fieldnotes_dir)?;
     fs::create_dir_all(&notes_dir)?;
@@ -300,7 +302,7 @@ pub async fn create_remote(connection_string: &str, device_name: &str) -> anyhow
     )?;
 
     // Create identity.md
-    let identity_file = vault::get_identity_path()?;
+    let identity_file = vault_path.join("identity.md");
     let identity_content = format!(
         r#"---
 master_public_key: {}
