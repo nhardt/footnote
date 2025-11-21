@@ -65,36 +65,6 @@ pub fn get_local_device_name() -> anyhow::Result<String> {
     )
 }
 
-fn parse_device_endpoint_id(content: &str) -> anyhow::Result<iroh::PublicKey> {
-    if !content.starts_with("---\n") && !content.starts_with("---\r\n") {
-        anyhow::bail!("Invalid device file format");
-    }
-
-    let rest = if content.starts_with("---\r\n") {
-        &content[5..]
-    } else {
-        &content[4..]
-    };
-
-    let end_pos = rest
-        .find("\n---\n")
-        .or_else(|| rest.find("\r\n---\r\n"))
-        .ok_or_else(|| anyhow::anyhow!("Frontmatter not properly closed"))?;
-
-    let frontmatter = &rest[..end_pos];
-
-    for line in frontmatter.lines() {
-        if let Some(stripped) = line.trim().strip_prefix("iroh_endpoint_id:") {
-            let endpoint_str = stripped.trim().trim_matches('"');
-            return endpoint_str
-                .parse()
-                .map_err(|_| anyhow::anyhow!("Invalid endpoint ID"));
-        }
-    }
-
-    anyhow::bail!("iroh_endpoint_id not found in device file")
-}
-
 /// Delete a device
 pub async fn delete(user_name: &str, device_name: &str) -> anyhow::Result<()> {
     println!("TODO: device::delete({}, {})", user_name, device_name);
@@ -221,8 +191,8 @@ pub async fn create_primary() -> anyhow::Result<()> {
 /// Create a new device (remote side) - joins using connection URL from primary
 pub async fn create_remote(connection_string: &str, device_name: &str) -> anyhow::Result<()> {
     // Check if vault already exists in current directory
-    let vault_path = std::env::current_dir()
-        .map_err(|_| anyhow::anyhow!("Failed to get current directory"))?;
+    let vault_path =
+        std::env::current_dir().map_err(|_| anyhow::anyhow!("Failed to get current directory"))?;
     let fieldnotes_check = vault_path.join(".fieldnotes");
     if fieldnotes_check.exists() {
         anyhow::bail!(
@@ -360,40 +330,4 @@ fn parse_connection_string(conn_str: &str) -> anyhow::Result<(iroh::PublicKey, S
         .to_string();
 
     Ok((endpoint_id, token))
-}
-
-fn parse_nickname(content: &str) -> anyhow::Result<String> {
-    let mut lines = content.lines();
-
-    // Check for opening ---
-    if lines.next().map(|l| l.trim()) != Some("---") {
-        return Ok(String::new());
-    }
-
-    // Parse YAML frontmatter
-    let mut frontmatter_lines = Vec::new();
-    for line in lines {
-        if line.trim() == "---" {
-            break;
-        }
-        frontmatter_lines.push(line);
-    }
-
-    let frontmatter = frontmatter_lines.join("\n");
-
-    // Simple nickname extraction
-    for line in frontmatter.lines() {
-        if line.trim().starts_with("nickname:") {
-            let nickname = line
-                .trim()
-                .strip_prefix("nickname:")
-                .unwrap_or("")
-                .trim()
-                .trim_matches('"')
-                .to_string();
-            return Ok(nickname);
-        }
-    }
-
-    Ok(String::new())
 }

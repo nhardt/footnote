@@ -1,7 +1,6 @@
 use anyhow::{Context, Result};
 use iroh::endpoint::{Connection, RecvStream, SendStream};
 use n0_error::StdResultExt;
-use serde::Deserialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -9,23 +8,6 @@ use super::{crypto, manifest, vault};
 
 /// ALPN protocol identifier for mirror sync
 pub const ALPN_MIRROR: &[u8] = b"fieldnote/mirror";
-
-/// Device frontmatter loaded from device markdown files
-#[derive(Debug, Deserialize)]
-struct DeviceFrontmatter {
-    device_name: String,
-    iroh_endpoint_id: String,
-    authorized_by: String,
-    timestamp: String,
-    signature: String,
-}
-
-/// Identity frontmatter loaded from identity.md
-#[derive(Debug, Deserialize)]
-struct IdentityFrontmatter {
-    master_public_key: String,
-    nickname: String,
-}
 
 /// Look up a device by its endpoint ID and verify it belongs to the same user
 ///
@@ -48,28 +30,6 @@ async fn verify_device_same_user(endpoint_id: &iroh::PublicKey) -> Result<String
     }
 
     anyhow::bail!("Device {} not found in contact record", endpoint_id)
-}
-
-/// Parse YAML frontmatter from markdown content
-fn parse_frontmatter<T: for<'de> Deserialize<'de>>(content: &str) -> Result<T> {
-    // Find frontmatter between --- delimiters
-    if !content.starts_with("---\n") && !content.starts_with("---\r\n") {
-        anyhow::bail!("No frontmatter found");
-    }
-
-    let rest = if content.starts_with("---\r\n") {
-        &content[5..]
-    } else {
-        &content[4..]
-    };
-
-    let end_pos = rest
-        .find("\n---\n")
-        .or_else(|| rest.find("\r\n---\r\n"))
-        .ok_or_else(|| anyhow::anyhow!("Frontmatter not properly closed"))?;
-
-    let yaml_str = &rest[..end_pos];
-    serde_yaml::from_str(yaml_str).context("Failed to parse YAML frontmatter")
 }
 
 /// Handle an incoming sync connection

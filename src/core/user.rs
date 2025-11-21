@@ -1,15 +1,6 @@
 use crate::core::{crypto, vault};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::fs;
-
-#[derive(Debug, Serialize, Deserialize)]
-struct DeviceFrontmatter {
-    device_name: String,
-    iroh_endpoint_id: String,
-    authorized_by: String,
-    timestamp: String,
-    signature: String,
-}
 
 #[derive(Debug, Serialize)]
 struct Device {
@@ -31,22 +22,6 @@ struct User {
 #[derive(Debug, Serialize)]
 struct UsersOutput {
     users: Vec<User>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct ExportDevice {
-    device_name: String,
-    iroh_endpoint_id: String,
-    authorized_by: String,
-    timestamp: String,
-    signature: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct UserExport {
-    nickname: String,
-    master_public_key: String,
-    devices: Vec<ExportDevice>,
 }
 
 /// Create a new user
@@ -201,55 +176,46 @@ pub async fn read() -> anyhow::Result<()> {
         devices: me_devices,
     });
 
-    // Scan embassies/ directory for embassy info files
+    // Scan embassies/ directory for embassy contact files
     let embassies_dir = vault::get_embassies_dir()?;
     if embassies_dir.exists() {
         for entry in fs::read_dir(&embassies_dir)? {
             let entry = entry?;
             let path = entry.path();
 
-            // Look for *_info.md files
-            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("md") {
-                let filename = path.file_stem().unwrap().to_string_lossy();
-                if filename.ends_with("_info") {
-                    // Extract user name from filename (remove _info suffix)
-                    let user_name = filename.strip_suffix("_info").unwrap().to_string();
+            // Look for *.json files
+            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("json") {
+                let user_name = path.file_stem().unwrap().to_string_lossy().to_string();
 
-                    // Read and parse the info file
-                    let content = fs::read_to_string(&path)?;
-                    let frontmatter = extract_frontmatter(&content);
+                // Read and parse the contact record
+                let content = fs::read_to_string(&path)?;
+                if let Ok(contact_record) = serde_json::from_str::<crypto::ContactRecord>(&content) {
+                    // Verify signature
+                    let signature_valid = crypto::verify_contact_signature(&contact_record).unwrap_or(false);
 
-                    if let Some(fm) = frontmatter {
-                        // Parse the UserExport struct from frontmatter
-                        if let Ok(export) = serde_yaml::from_str::<UserExport>(&fm) {
-                            // Convert devices to Device struct
-                            let mut devices = Vec::new();
-                            for device in &export.devices {
-                                let signature_valid = crypto::verify_device_signature(
-                                    &device.device_name,
-                                    &device.iroh_endpoint_id,
-                                    &device.authorized_by,
-                                    &device.timestamp,
-                                    &device.signature,
-                                )
-                                .unwrap_or(false);
-
-                                devices.push(Device {
-                                    name: device.device_name.clone(),
-                                    endpoint_id: device.iroh_endpoint_id.clone(),
-                                    authorized_by: device.authorized_by.clone(),
-                                    timestamp: device.timestamp.clone(),
-                                    signature_valid,
-                                });
-                            }
-
-                            users.push(User {
-                                name: user_name,
-                                master_public_key: Some(export.master_public_key),
-                                nickname: Some(export.nickname),
-                                devices,
+                    if signature_valid {
+                        // Convert devices to Device struct
+                        let mut devices = Vec::new();
+                        for device in &contact_record.devices {
+                            devices.push(Device {
+                                name: device.device_name.clone(),
+                                endpoint_id: device.iroh_endpoint_id.clone(),
+                                authorized_by: contact_record.master_public_key.clone(),
+                                timestamp: device.added_at.clone(),
+                                signature_valid: true,
                             });
                         }
+
+                        users.push(User {
+                            name: user_name,
+                            master_public_key: Some(contact_record.master_public_key),
+                            nickname: if contact_record.nickname.is_empty() {
+                                None
+                            } else {
+                                Some(contact_record.nickname)
+                            },
+                            devices,
+                        });
                     }
                 }
             }
@@ -262,50 +228,4 @@ pub async fn read() -> anyhow::Result<()> {
     println!("{}", yaml);
 
     Ok(())
-}
-
-/// Parse device frontmatter from a markdown file and verify signature
-fn parse_device_frontmatter(content: &str) -> Option<Device> {
-    let frontmatter = extract_frontmatter(content)?;
-
-    let parsed: DeviceFrontmatter = serde_yaml::from_str(&frontmatter).ok()?;
-
-    // Verify the signature
-    let signature_valid = crypto::verify_device_signature(
-        &parsed.device_name,
-        &parsed.iroh_endpoint_id,
-        &parsed.authorized_by,
-        &parsed.timestamp,
-        &parsed.signature,
-    )
-    .unwrap_or(false);
-
-    Some(Device {
-        name: parsed.device_name,
-        endpoint_id: parsed.iroh_endpoint_id,
-        authorized_by: parsed.authorized_by,
-        timestamp: parsed.timestamp,
-        signature_valid,
-    })
-}
-
-/// Extract YAML frontmatter from markdown content
-fn extract_frontmatter(content: &str) -> Option<String> {
-    let mut lines = content.lines();
-
-    // Check for opening ---
-    if lines.next()?.trim() != "---" {
-        return None;
-    }
-
-    // Collect lines until closing ---
-    let mut frontmatter_lines = Vec::new();
-    for line in lines {
-        if line.trim() == "---" {
-            break;
-        }
-        frontmatter_lines.push(line);
-    }
-
-    Some(frontmatter_lines.join("\n"))
 }

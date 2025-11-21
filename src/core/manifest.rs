@@ -115,13 +115,12 @@ pub fn create_manifest(notes_dir: &Path) -> Result<Manifest> {
             .to_path_buf();
 
         // Parse frontmatter
-        let frontmatter = note::get_frontmatter(path).with_context(|| {
-            format!("Failed to parse frontmatter for {}", path.display())
-        })?;
+        let frontmatter = note::get_frontmatter(path)
+            .with_context(|| format!("Failed to parse frontmatter for {}", path.display()))?;
 
         // Compute file hash
-        let hash = hash_file(path)
-            .with_context(|| format!("Failed to hash file {}", path.display()))?;
+        let hash =
+            hash_file(path).with_context(|| format!("Failed to hash file {}", path.display()))?;
 
         let entry = ManifestEntry {
             path: relative_path,
@@ -190,7 +189,7 @@ mod tests {
 
     #[test]
     fn test_diff_manifests_new_file() {
-        let mut local = Manifest::new();
+        let local = Manifest::new();
         let mut remote = Manifest::new();
 
         let uuid = Uuid::new_v4();

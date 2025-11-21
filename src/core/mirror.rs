@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use iroh::{Endpoint, SecretKey};
 use std::fs;
 
@@ -109,7 +109,8 @@ async fn push_to_own_device(device_name: &str) -> Result<()> {
     // Look up the target device in contact.json
     let contact_path = vault::get_contact_path()?;
     let contact_content = fs::read_to_string(&contact_path)?;
-    let contact_record: crate::core::crypto::ContactRecord = serde_json::from_str(&contact_content)?;
+    let contact_record: crate::core::crypto::ContactRecord =
+        serde_json::from_str(&contact_content)?;
 
     let device = contact_record
         .devices
@@ -138,37 +139,4 @@ async fn push_to_own_device(device_name: &str) -> Result<()> {
     sync::push_to_device(&notes_dir, endpoint_id, secret_key).await?;
 
     Ok(())
-}
-
-/// Parse the endpoint ID from device frontmatter
-fn parse_device_endpoint(content: &str) -> Result<iroh::PublicKey> {
-    // Simple frontmatter parsing
-    if !content.starts_with("---\n") && !content.starts_with("---\r\n") {
-        anyhow::bail!("Invalid device file format");
-    }
-
-    let rest = if content.starts_with("---\r\n") {
-        &content[5..]
-    } else {
-        &content[4..]
-    };
-
-    let end_pos = rest
-        .find("\n---\n")
-        .or_else(|| rest.find("\r\n---\r\n"))
-        .ok_or_else(|| anyhow::anyhow!("Frontmatter not properly closed"))?;
-
-    let frontmatter = &rest[..end_pos];
-
-    // Extract iroh_endpoint_id field
-    for line in frontmatter.lines() {
-        if let Some(stripped) = line.trim().strip_prefix("iroh_endpoint_id:") {
-            let endpoint_str = stripped.trim().trim_matches('"');
-            return endpoint_str
-                .parse()
-                .context("Invalid endpoint ID format");
-        }
-    }
-
-    anyhow::bail!("iroh_endpoint_id not found in device file")
 }
