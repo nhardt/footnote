@@ -1,38 +1,39 @@
 use std::path::PathBuf;
 
-const FIELDNOTES_DIR: &str = ".fieldnotes";
+const FOOTNOTES_DIR: &str = ".footnotes";
 const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
 const CONTACT_FILE: &str = "contact.json";
-const EMBASSIES_DIR: &str = "embassies";
+const CONTACTS_DIR: &str = "contacts";
+const TRUSTED_SOURCES_DIR: &str = "footnotes";
 const NOTES_DIR: &str = "notes";
 
-/// Get the base vault directory path by searching upward for .fieldnotes/
+/// Get the base vault directory path by searching upward for .footnotes/
 pub fn get_vault_path() -> anyhow::Result<PathBuf> {
     let mut current_dir = std::env::current_dir()
         .map_err(|_| anyhow::anyhow!("Failed to get current directory"))?;
 
     loop {
-        let fieldnotes_dir = current_dir.join(FIELDNOTES_DIR);
-        if fieldnotes_dir.exists() && fieldnotes_dir.is_dir() {
+        let footnotes_dir = current_dir.join(FOOTNOTES_DIR);
+        if footnotes_dir.exists() && footnotes_dir.is_dir() {
             return Ok(current_dir);
         }
 
         if !current_dir.pop() {
             anyhow::bail!(
-                "No fieldnote vault found. Run 'fieldnote hq create' to initialize a vault."
+                "No footnote vault found. Run 'footnote init' to initialize a vault."
             );
         }
     }
 }
 
-/// Get the .fieldnotes directory path
-pub fn get_fieldnotes_dir() -> anyhow::Result<PathBuf> {
-    Ok(get_vault_path()?.join(FIELDNOTES_DIR))
+/// Get the .footnotes directory path
+pub fn get_footnotes_dir() -> anyhow::Result<PathBuf> {
+    Ok(get_vault_path()?.join(FOOTNOTES_DIR))
 }
 
 /// Get the contact.json file path (for "me")
 pub fn get_contact_path() -> anyhow::Result<PathBuf> {
-    Ok(get_fieldnotes_dir()?.join(CONTACT_FILE))
+    Ok(get_footnotes_dir()?.join(CONTACT_FILE))
 }
 
 /// Get the notes directory path (for "me")
@@ -40,54 +41,49 @@ pub fn get_notes_dir() -> anyhow::Result<PathBuf> {
     Ok(get_vault_path()?.join(NOTES_DIR))
 }
 
-/// Get the embassies directory path (other users)
-pub fn get_embassies_dir() -> anyhow::Result<PathBuf> {
-    Ok(get_vault_path()?.join(EMBASSIES_DIR))
+/// Get the contacts directory path (inside .footnotes)
+pub fn get_contacts_dir() -> anyhow::Result<PathBuf> {
+    Ok(get_footnotes_dir()?.join(CONTACTS_DIR))
 }
 
-/// Get the directory path for a specific embassy (user)
-pub fn get_embassy_dir(user_name: &str) -> anyhow::Result<PathBuf> {
-    Ok(get_embassies_dir()?.join(user_name))
+/// Get the contact info file path for a specific trusted user
+pub fn get_contact_file_path(petname: &str) -> anyhow::Result<PathBuf> {
+    Ok(get_contacts_dir()?.join(format!("{}.json", petname)))
 }
 
-/// Get the contact info file path for a specific embassy
-pub fn get_embassy_contact_path(user_name: &str) -> anyhow::Result<PathBuf> {
-    Ok(get_embassies_dir()?.join(format!("{}.json", user_name)))
+/// Get the footnotes directory path (trusted users' shared notes)
+pub fn get_trusted_sources_dir() -> anyhow::Result<PathBuf> {
+    Ok(get_vault_path()?.join(TRUSTED_SOURCES_DIR))
 }
 
-/// Get the contact info file path for a specific embassy (old format, deprecated)
-pub fn get_embassy_info_path(user_name: &str) -> anyhow::Result<PathBuf> {
-    Ok(get_embassies_dir()?.join(format!("{}_info.md", user_name)))
-}
-
-/// Get the notes directory path for a specific embassy
-pub fn get_embassy_notes_dir(user_name: &str) -> anyhow::Result<PathBuf> {
-    Ok(get_embassy_dir(user_name)?.join(NOTES_DIR))
+/// Get the directory path for a specific trusted user
+pub fn get_trusted_user_dir(petname: &str) -> anyhow::Result<PathBuf> {
+    Ok(get_trusted_sources_dir()?.join(petname))
 }
 
 /// Verify that the vault has been initialized with required structure
 pub fn verify_vault_layout() -> anyhow::Result<()> {
     let vault_path = get_vault_path()?;
-    let fieldnotes_dir = get_fieldnotes_dir()?;
+    let footnotes_dir = get_footnotes_dir()?;
 
-    if !fieldnotes_dir.exists() {
+    if !footnotes_dir.exists() {
         anyhow::bail!(
-            "Vault not properly initialized at {}. Run 'fieldnote hq create' first.",
+            "Vault not properly initialized at {}. Run 'footnote init' first.",
             vault_path.display()
         );
     }
 
-    let local_device_key = fieldnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
+    let local_device_key = footnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
     if !local_device_key.exists() {
         anyhow::bail!(
-            "Device key not found. Run 'fieldnote hq create' first."
+            "Device key not found. Run 'footnote init' first."
         );
     }
 
     let contact_path = get_contact_path()?;
     if !contact_path.exists() {
         anyhow::bail!(
-            "Contact file not found. Run 'fieldnote hq create' first."
+            "Contact file not found. Run 'footnote init' first."
         );
     }
 

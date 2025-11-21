@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use uuid::Uuid;
 
-const ALPN_DEVICE_AUTH: &[u8] = b"fieldnote/device-auth";
+const ALPN_DEVICE_AUTH: &[u8] = b"footnote/device-auth";
 const MASTER_KEY_FILE: &str = "master_identity";
 const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
 
@@ -23,19 +23,19 @@ struct DeviceJoinResponse {
 
 /// Check if the current device is a primary device
 fn is_primary_device() -> anyhow::Result<bool> {
-    let fieldnotes_dir = vault::get_fieldnotes_dir()?;
-    let master_key_file = fieldnotes_dir.join(MASTER_KEY_FILE);
+    let footnotes_dir = vault::get_footnotes_dir()?;
+    let master_key_file = footnotes_dir.join(MASTER_KEY_FILE);
     Ok(master_key_file.exists())
 }
 
 /// Get the local device name by matching the public key
 pub fn get_local_device_name() -> anyhow::Result<String> {
-    let fieldnotes_dir = vault::get_fieldnotes_dir()?;
-    let key_file = fieldnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
+    let footnotes_dir = vault::get_footnotes_dir()?;
+    let key_file = footnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
 
     if !key_file.exists() {
         anyhow::bail!(
-            "Local device key not found at {}. Run 'fieldnote init' first.",
+            "Local device key not found at {}. Run 'footnote init' first.",
             key_file.display()
         );
     }
@@ -82,10 +82,10 @@ pub async fn create_primary() -> anyhow::Result<()> {
     }
 
     // Load master identity key
-    let fieldnotes_dir = vault::get_fieldnotes_dir()?;
-    let master_key_file = fieldnotes_dir.join(MASTER_KEY_FILE);
+    let footnotes_dir = vault::get_footnotes_dir()?;
+    let master_key_file = footnotes_dir.join(MASTER_KEY_FILE);
     if !master_key_file.exists() {
-        anyhow::bail!("Master identity key not found. Run 'fieldnote init' first.");
+        anyhow::bail!("Master identity key not found. Run 'footnote init' first.");
     }
 
     let master_key_hex = fs::read_to_string(&master_key_file)?;
@@ -95,7 +95,7 @@ pub async fn create_primary() -> anyhow::Result<()> {
     let token = Uuid::new_v4().to_string();
 
     // Load this device's Iroh secret key to create endpoint
-    let this_device_key_file = fieldnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
+    let this_device_key_file = footnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
     let key_bytes = fs::read(&this_device_key_file)?;
     let key_array: [u8; 32] = key_bytes
         .try_into()
@@ -193,8 +193,8 @@ pub async fn create_remote(connection_string: &str, device_name: &str) -> anyhow
     // Check if vault already exists in current directory
     let vault_path =
         std::env::current_dir().map_err(|_| anyhow::anyhow!("Failed to get current directory"))?;
-    let fieldnotes_check = vault_path.join(".fieldnotes");
-    if fieldnotes_check.exists() {
+    let footnotes_check = vault_path.join(".footnotes");
+    if footnotes_check.exists() {
         anyhow::bail!(
             "Vault already exists at {}. Remove it first if you want to join as a new device.",
             vault_path.display()
@@ -252,20 +252,22 @@ pub async fn create_remote(connection_string: &str, device_name: &str) -> anyhow
     println!("Contact signature verified");
 
     // Create vault directory structure in current directory
-    let fieldnotes_dir = vault_path.join(".fieldnotes");
+    let footnotes_dir = vault_path.join(".footnotes");
+    let contacts_dir = footnotes_dir.join("contacts");
     let notes_dir = vault_path.join("notes");
-    let embassies_dir = vault_path.join("embassies");
+    let trusted_sources_dir = vault_path.join("footnotes");
 
-    fs::create_dir_all(&fieldnotes_dir)?;
+    fs::create_dir_all(&footnotes_dir)?;
+    fs::create_dir_all(&contacts_dir)?;
     fs::create_dir_all(&notes_dir)?;
-    fs::create_dir_all(&embassies_dir)?;
+    fs::create_dir_all(&trusted_sources_dir)?;
 
     // Store Iroh secret key
-    let key_file = fieldnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
+    let key_file = footnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
     fs::write(&key_file, secret_key.to_bytes())?;
 
     // Store contact.json
-    let contact_path = fieldnotes_dir.join("contact.json");
+    let contact_path = footnotes_dir.join("contact.json");
     fs::write(
         &contact_path,
         serde_json::to_string_pretty(&contact_record)?,
@@ -282,7 +284,7 @@ share_with: []
 
 # Home
 
-Welcome to fieldnote on {}!
+Welcome to footnote on {}!
 "#,
         home_uuid, device_name
     );

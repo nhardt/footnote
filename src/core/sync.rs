@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use super::{crypto, manifest, vault};
 
 /// ALPN protocol identifier for mirror sync
-pub const ALPN_MIRROR: &[u8] = b"fieldnote/mirror";
+pub const ALPN_MIRROR: &[u8] = b"footnote/mirror";
 
 /// Look up a device by its endpoint ID and verify it belongs to the same user
 ///

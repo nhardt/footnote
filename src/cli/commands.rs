@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "fieldnote")]
+#[command(name = "footnote")]
 #[command(about = "A CLI tool for p2p sync and share", long_about = None)]
 pub struct Cli {
     #[command(subcommand)]
@@ -10,10 +10,26 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// HQ (headquarters) commands
-    Hq {
-        #[command(subcommand)]
-        action: HqAction,
+    /// Initialize vault and create primary device
+    Init {
+        /// Path to create vault (defaults to current directory)
+        path: Option<std::path::PathBuf>,
+
+        /// Username for this identity (optional)
+        #[arg(long)]
+        username: Option<String>,
+
+        /// Name for this device (optional)
+        #[arg(long)]
+        device_name: Option<String>,
+    },
+    /// Trust a user by importing their contact information
+    Trust {
+        /// Path to the contact file to import
+        file_path: String,
+        /// Petname for this user (what you call them locally)
+        #[arg(long)]
+        petname: String,
     },
     /// User management commands
     User {
@@ -33,23 +49,6 @@ pub enum Commands {
 }
 
 #[derive(Subcommand)]
-pub enum HqAction {
-    /// Create HQ (primary device) and initialize vault structure
-    Create {
-        /// Path to create vault (defaults to current directory)
-        path: Option<std::path::PathBuf>,
-
-        /// Username for this identity (optional)
-        #[arg(long)]
-        username: Option<String>,
-
-        /// Name for this device (optional)
-        #[arg(long)]
-        device_name: Option<String>,
-    },
-}
-
-#[derive(Subcommand)]
 pub enum UserAction {
     /// Create a new user
     Create { user_name: String },
@@ -59,14 +58,6 @@ pub enum UserAction {
     Read,
     /// Export a user's contact information
     Export { user_name: String },
-    /// Import a user's contact information
-    Import {
-        /// Path to the exported user file
-        file_path: String,
-        /// Petname for this user (what you call them locally)
-        #[arg(long)]
-        petname: String,
-    },
 }
 
 #[derive(Subcommand)]
@@ -100,6 +91,14 @@ pub enum CreateMode {
 pub enum MirrorAction {
     /// Listen for incoming mirror connections
     Listen,
+    /// Connect from a remote device using a connection URL
+    From {
+        /// Connection URL from primary device
+        remote_url: String,
+        /// Name for this device
+        #[arg(long)]
+        device_name: String,
+    },
     /// Push mirror data
     Push {
         /// Optional user name
@@ -114,7 +113,11 @@ pub enum MirrorAction {
 /// Execute the CLI command
 pub async fn execute(cli: Cli) -> anyhow::Result<()> {
     let needs_vault = match &cli.command {
-        Commands::Hq { .. } => false,
+        Commands::Init { .. } => false,
+        Commands::Mirror { action } => match action {
+            MirrorAction::From { .. } => false,
+            _ => true,
+        },
         Commands::Device { action } => match action {
             DeviceAction::Create {
                 mode: Some(CreateMode::Remote { .. }),
@@ -129,19 +132,17 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
     }
 
     match cli.command {
-        Commands::Hq { action } => match action {
-            HqAction::Create { path, username, device_name } => {
-                crate::core::hq::create_hq(path, username.as_deref(), device_name.as_deref()).await
-            }
-        },
+        Commands::Init { path, username, device_name } => {
+            crate::core::init::init(path, username.as_deref(), device_name.as_deref()).await
+        }
+        Commands::Trust { file_path, petname } => {
+            crate::core::user::import(&file_path, &petname).await
+        }
         Commands::User { action } => match action {
             UserAction::Create { user_name } => crate::core::user::create(&user_name).await,
             UserAction::Delete { user_name } => crate::core::user::delete(&user_name).await,
             UserAction::Read => crate::core::user::read().await,
             UserAction::Export { user_name } => crate::core::user::export(&user_name).await,
-            UserAction::Import { file_path, petname } => {
-                crate::core::user::import(&file_path, &petname).await
-            }
         },
         Commands::Device { action } => match action {
             DeviceAction::Delete {
@@ -164,6 +165,9 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
         },
         Commands::Mirror { action } => match action {
             MirrorAction::Listen => crate::core::mirror::listen().await,
+            MirrorAction::From { remote_url, device_name } => {
+                crate::core::device::create_remote(&remote_url, &device_name).await
+            }
             MirrorAction::Push { user, device } => {
                 crate::core::mirror::push(user.as_deref(), device.as_deref()).await
             }

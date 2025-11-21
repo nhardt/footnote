@@ -2,13 +2,13 @@
 set -e
 
 # Cleanup and setup
-rm -rf /tmp/fieldnotest
-mkdir -p /tmp/fieldnotest
-cd /tmp/fieldnotest
+rm -rf /tmp/footnotetest
+mkdir -p /tmp/footnotetest
+cd /tmp/footnotetest
 
-# Create Alice HQ and capture JSON output
-mkdir alice-hq && cd alice-hq
-OUTPUT=$(fieldnote hq create --device-name alice-desktop)
+# Create Alice vault and capture JSON output
+mkdir alice-vault && cd alice-vault
+OUTPUT=$(footnote init --device-name alice-desktop)
 
 # Parse JSON with jq
 VAULT_PATH=$(echo "$OUTPUT" | jq -r '.vault_path')
@@ -23,13 +23,13 @@ echo "Device name: $DEVICE_NAME"
 echo "Endpoint ID: $ENDPOINT_ID"
 
 # Verify files exist
-test -d .fieldnotes || { echo "ERROR: .fieldnotes not found"; exit 1; }
-test -f .fieldnotes/this_device || { echo "ERROR: this_device key not found"; exit 1; }
-test -f .fieldnotes/master_identity || { echo "ERROR: master_identity not found"; exit 1; }
-test -f .fieldnotes/contact.json || { echo "ERROR: contact.json not found"; exit 1; }
+test -d .footnotes || { echo "ERROR: .footnotes not found"; exit 1; }
+test -f .footnotes/this_device || { echo "ERROR: this_device key not found"; exit 1; }
+test -f .footnotes/master_identity || { echo "ERROR: master_identity not found"; exit 1; }
+test -f .footnotes/contact.json || { echo "ERROR: contact.json not found"; exit 1; }
 
 # Verify contact.json content
-CONTACT_JSON=$(cat .fieldnotes/contact.json)
+CONTACT_JSON=$(cat .footnotes/contact.json)
 CONTACT_USERNAME=$(echo "$CONTACT_JSON" | jq -r '.username')
 CONTACT_SIGNATURE=$(echo "$CONTACT_JSON" | jq -r '.signature')
 CONTACT_DEVICES=$(echo "$CONTACT_JSON" | jq '.devices | length')
@@ -42,4 +42,4 @@ echo "Contact devices: $CONTACT_DEVICES"
 test -n "$CONTACT_SIGNATURE" || { echo "ERROR: contact signature is empty"; exit 1; }
 test "$CONTACT_DEVICES" -eq 1 || { echo "ERROR: expected 1 device, got $CONTACT_DEVICES"; exit 1; }
 
-echo "HQ create test passed!"
+echo "Init test passed!"

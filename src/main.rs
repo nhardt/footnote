@@ -1,5 +1,5 @@
 use clap::Parser;
-use fieldnote::cli::commands::{Cli, execute};
+use footnote::cli::commands::{Cli, execute};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

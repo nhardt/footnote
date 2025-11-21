@@ -12,8 +12,8 @@ const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
 /// Only accepts connections from devices belonging to the same user (verified via signatures).
 pub async fn listen() -> Result<()> {
     // Load this device's Iroh secret key
-    let fieldnotes_dir = vault::get_fieldnotes_dir()?;
-    let key_file = fieldnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
+    let footnotes_dir = vault::get_footnotes_dir()?;
+    let key_file = footnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
     let key_bytes = fs::read(&key_file)?;
     let key_array: [u8; 32] = key_bytes
         .try_into()
@@ -82,14 +82,14 @@ pub async fn push(user: Option<&str>, device: Option<&str>) -> Result<()> {
         (None, None) => {
             anyhow::bail!(
                 "Please specify a device to push to using --device\n\
-                 Example: fieldnote mirror push --device laptop"
+                 Example: footnote mirror push --device laptop"
             );
         }
         (Some(_user_name), _) => {
             anyhow::bail!(
                 "User-to-user sharing is not yet implemented.\n\
                  For now, only self-to-self sync is supported.\n\
-                 Use: fieldnote mirror push --device <device_name>"
+                 Use: footnote mirror push --device <device_name>"
             );
         }
     }
@@ -98,8 +98,8 @@ pub async fn push(user: Option<&str>, device: Option<&str>) -> Result<()> {
 /// Push to one of the user's own devices (self-to-self sync)
 async fn push_to_own_device(device_name: &str) -> Result<()> {
     // Load this device's Iroh secret key
-    let fieldnotes_dir = vault::get_fieldnotes_dir()?;
-    let key_file = fieldnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
+    let footnotes_dir = vault::get_footnotes_dir()?;
+    let key_file = footnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
     let key_bytes = fs::read(&key_file)?;
     let key_array: [u8; 32] = key_bytes
         .try_into()
@@ -119,7 +119,7 @@ async fn push_to_own_device(device_name: &str) -> Result<()> {
         .ok_or_else(|| {
             anyhow::anyhow!(
                 "Device '{}' not found.\n\
-                 Available devices can be seen with: fieldnote user read",
+                 Available devices can be seen with: footnote user read",
                 device_name
             )
         })?;

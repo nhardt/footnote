@@ -41,7 +41,7 @@ pub async fn export(user_name: &str) -> anyhow::Result<()> {
     if user_name == "me" {
         return export_me().await;
     } else {
-        return export_embassy(user_name).await;
+        return export_trusted_user(user_name).await;
     }
 }
 
@@ -50,7 +50,7 @@ async fn export_me() -> anyhow::Result<()> {
     let contact_path = vault::get_contact_path()?;
 
     if !contact_path.exists() {
-        anyhow::bail!("Contact record not found. Run 'fieldnote hq create' first.");
+        anyhow::bail!("Contact record not found. Run 'footnote init' first.");
     }
 
     let content = fs::read_to_string(&contact_path)?;
@@ -65,19 +65,19 @@ async fn export_me() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Export an embassy user's contact information
-async fn export_embassy(user_name: &str) -> anyhow::Result<()> {
-    let contact_path = vault::get_embassy_contact_path(user_name)?;
+/// Export a trusted user's contact information
+async fn export_trusted_user(petname: &str) -> anyhow::Result<()> {
+    let contact_path = vault::get_contact_file_path(petname)?;
 
     if !contact_path.exists() {
-        anyhow::bail!("Embassy '{}' not found", user_name);
+        anyhow::bail!("Trusted user '{}' not found", petname);
     }
 
     let content = fs::read_to_string(&contact_path)?;
     let contact_record: crypto::ContactRecord = serde_json::from_str(&content)?;
 
     if !crypto::verify_contact_signature(&contact_record)? {
-        anyhow::bail!("Embassy '{}' contact signature verification failed", user_name);
+        anyhow::bail!("Trusted user '{}' contact signature verification failed", petname);
     }
 
     println!("{}", serde_json::to_string_pretty(&contact_record)?);
@@ -99,7 +99,7 @@ pub async fn import(file_path: &str, petname: &str) -> anyhow::Result<()> {
         new_contact.devices.len()
     );
 
-    let contact_path = vault::get_embassy_contact_path(petname)?;
+    let contact_path = vault::get_contact_file_path(petname)?;
 
     if contact_path.exists() {
         let existing_content = fs::read_to_string(&contact_path)?;
@@ -110,7 +110,7 @@ pub async fn import(file_path: &str, petname: &str) -> anyhow::Result<()> {
 
         if new_timestamp <= existing_timestamp {
             anyhow::bail!(
-                "Embassy '{}' already has a more recent contact record (existing: {}, new: {}). Skipping update.",
+                "Trusted user '{}' already has a more recent contact record (existing: {}, new: {}). Skipping update.",
                 petname,
                 existing_contact.updated_at,
                 new_contact.updated_at
@@ -118,21 +118,24 @@ pub async fn import(file_path: &str, petname: &str) -> anyhow::Result<()> {
         }
 
         eprintln!(
-            "Updating embassy '{}' (old: {}, new: {})",
+            "Updating trusted user '{}' (old: {}, new: {})",
             petname,
             existing_contact.updated_at,
             new_contact.updated_at
         );
     }
 
-    let embassies_dir = vault::get_embassies_dir()?;
-    fs::create_dir_all(&embassies_dir)?;
+    // Ensure contacts directory and trusted sources directory exist
+    let contacts_dir = vault::get_contacts_dir()?;
+    let trusted_user_dir = vault::get_trusted_user_dir(petname)?;
+    fs::create_dir_all(&contacts_dir)?;
+    fs::create_dir_all(&trusted_user_dir)?;
 
     fs::write(&contact_path, serde_json::to_string_pretty(&new_contact)?)?;
     eprintln!("Contact saved to {}", contact_path.display());
 
     eprintln!("\nImport complete!");
-    eprintln!("Embassy '{}' contact updated", petname);
+    eprintln!("Trusted user '{}' contact updated", petname);
 
     Ok(())
 }
@@ -176,16 +179,16 @@ pub async fn read() -> anyhow::Result<()> {
         devices: me_devices,
     });
 
-    // Scan embassies/ directory for embassy contact files
-    let embassies_dir = vault::get_embassies_dir()?;
-    if embassies_dir.exists() {
-        for entry in fs::read_dir(&embassies_dir)? {
+    // Scan .footnotes/contacts/ directory for trusted user contact files
+    let contacts_dir = vault::get_contacts_dir()?;
+    if contacts_dir.exists() {
+        for entry in fs::read_dir(&contacts_dir)? {
             let entry = entry?;
             let path = entry.path();
 
             // Look for *.json files
             if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("json") {
-                let user_name = path.file_stem().unwrap().to_string_lossy().to_string();
+                let petname = path.file_stem().unwrap().to_string_lossy().to_string();
 
                 // Read and parse the contact record
                 let content = fs::read_to_string(&path)?;
@@ -207,7 +210,7 @@ pub async fn read() -> anyhow::Result<()> {
                         }
 
                         users.push(User {
-                            name: user_name,
+                            name: petname,
                             master_public_key: Some(contact_record.master_public_key),
                             nickname: if contact_record.nickname.is_empty() {
                                 None

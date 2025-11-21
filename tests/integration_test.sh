@@ -2,27 +2,27 @@
 set -e  # Exit on any error
 
 # Cleanup and setup
-rm -rf /tmp/fieldnotest
-mkdir -p /tmp/fieldnotest
-cd /tmp/fieldnotest
+rm -rf /tmp/footnotetest
+mkdir -p /tmp/footnotetest
+cd /tmp/footnotetest
 
-# Alice HQ
-mkdir alice-hq && cd alice-hq
-fieldnote hq create --device-name alice-desktop
-fieldnote user read
+# Alice primary device
+mkdir alice-primary && cd alice-primary
+footnote init --device-name alice-desktop
+footnote user read
 cd ..
 
-# Bob HQ
-mkdir bob-hq && cd bob-hq
-fieldnote hq create --device-name bob-desktop
-fieldnote user read
+# Bob primary device
+mkdir bob-primary && cd bob-primary
+footnote init --device-name bob-desktop
+footnote user read
 cd ..
 
 # Test export/import (offline contact sharing)
-cd alice-hq
-fieldnote user export me > ../alice-contact.yaml
-cd ../bob-hq
-fieldnote user import ../alice-contact.yaml --petname alice
-fieldnote user read  # Should show alice in embassies
+cd alice-primary
+footnote user export me > ../alice-contact.yaml
+cd ../bob-primary
+footnote trust ../alice-contact.yaml --petname alice
+footnote user read  # Should show alice in trusted users
 
 echo "Basic test passed!"
