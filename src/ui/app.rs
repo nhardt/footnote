@@ -14,12 +14,21 @@ enum VaultStatus {
     Error(String),
 }
 
+#[derive(Clone, PartialEq)]
+struct OpenFile {
+    path: PathBuf,
+    filename: String,
+    content: String,
+    share_with: Vec<String>,
+}
+
 #[component]
 pub fn App() -> Element {
     let mut current_screen = use_signal(|| Screen::Editor);
     let mut vault_status = use_signal(|| VaultStatus::Initializing);
+    let mut open_file = use_signal(|| None::<OpenFile>);
 
-    // Initialize vault on first render
+    // Initialize vault and load home.md on first render
     use_effect(move || {
         spawn(async move {
             let home_dir = match dirs::home_dir() {
@@ -34,19 +43,37 @@ pub fn App() -> Element {
 
             // Check if vault already exists
             let footnotes_dir = vault_path.join(".footnotes");
-            if footnotes_dir.exists() {
-                vault_status.set(VaultStatus::Ready(vault_path));
-                return;
+            if !footnotes_dir.exists() {
+                // Initialize new vault
+                match crate::core::init::init(
+                    Some(vault_path.clone()),
+                    Some("me"),
+                    Some("primary")
+                ).await {
+                    Ok(_) => {},
+                    Err(e) => {
+                        vault_status.set(VaultStatus::Error(format!("Failed to initialize vault: {}", e)));
+                        return;
+                    }
+                }
             }
 
-            // Initialize new vault
-            match crate::core::init::init(
-                Some(vault_path.clone()),
-                Some("me"),
-                Some("primary")
-            ).await {
-                Ok(_) => vault_status.set(VaultStatus::Ready(vault_path)),
-                Err(e) => vault_status.set(VaultStatus::Error(format!("Failed to initialize vault: {}", e))),
+            vault_status.set(VaultStatus::Ready(vault_path.clone()));
+
+            // Load home.md
+            let home_path = vault_path.join("notes").join("home.md");
+            match crate::core::note::parse_note(&home_path) {
+                Ok(note) => {
+                    open_file.set(Some(OpenFile {
+                        path: home_path.clone(),
+                        filename: "home.md".to_string(),
+                        content: note.content,
+                        share_with: note.frontmatter.share_with,
+                    }));
+                },
+                Err(e) => {
+                    vault_status.set(VaultStatus::Error(format!("Failed to load home.md: {}", e)));
+                }
             }
         });
     });
@@ -93,7 +120,7 @@ pub fn App() -> Element {
                     div { class: "flex-1 overflow-auto",
                         match current_screen() {
                             Screen::Editor => rsx! {
-                                EditorScreen {}
+                                EditorScreen { open_file }
                             },
                             Screen::Contacts => rsx! {
                                 ContactsScreen {}
@@ -107,41 +134,54 @@ pub fn App() -> Element {
 }
 
 #[component]
-fn EditorScreen() -> Element {
-    let mut doc_title = use_signal(|| String::new());
-    let mut content = use_signal(|| String::new());
+fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
+    let file = open_file.read();
 
-    rsx! {
-        div { class: "max-w-4xl mx-auto p-6 space-y-4",
-            // Document title
-            div {
-                label { class: "block text-sm font-medium text-gray-700 mb-2", "Document Title" }
-                input {
-                    r#type: "text",
-                    class: "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500",
-                    placeholder: "Untitled",
-                    value: "{doc_title}",
-                    oninput: move |evt| doc_title.set(evt.value()),
+    if let Some(ref file_data) = *file {
+        let filename = &file_data.filename;
+        let content = &file_data.content;
+        let share_with = &file_data.share_with;
+
+        rsx! {
+            div { class: "max-w-4xl mx-auto p-6 space-y-4",
+                // Document title/filename
+                div {
+                    label { class: "block text-sm font-medium text-gray-700 mb-2", "Document" }
+                    div { class: "px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900 font-mono",
+                        "{filename}"
+                    }
+                }
+
+                // Share with
+                div {
+                    label { class: "block text-sm font-medium text-gray-700 mb-2", "Share With" }
+                    div { class: "px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500",
+                        {
+                            if share_with.is_empty() {
+                                "[ no contacts ]".to_string()
+                            } else {
+                                share_with.join(", ")
+                            }
+                        }
+                    }
+                }
+
+                // Text editor
+                div {
+                    label { class: "block text-sm font-medium text-gray-700 mb-2", "Content" }
+                    textarea {
+                        class: "w-full h-96 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono",
+                        placeholder: "Start writing...",
+                        value: "{content}",
+                        readonly: true,
+                    }
                 }
             }
-
-            // Share with
-            div {
-                label { class: "block text-sm font-medium text-gray-700 mb-2", "Share With" }
-                div { class: "px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500",
-                    "[ list of contacts ]"
-                }
-            }
-
-            // Text editor
-            div {
-                label { class: "block text-sm font-medium text-gray-700 mb-2", "Content" }
-                textarea {
-                    class: "w-full h-96 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono",
-                    placeholder: "Start writing...",
-                    value: "{content}",
-                    oninput: move |evt| content.set(evt.value()),
-                }
+        }
+    } else {
+        rsx! {
+            div { class: "max-w-4xl mx-auto p-6",
+                div { class: "text-center text-gray-500", "Loading..." }
             }
         }
     }
