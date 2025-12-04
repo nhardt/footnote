@@ -274,8 +274,57 @@ fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                             SimpleMarkdown {
                                 content: edited_content(),
                                 on_internal_link_click: move |href: String| {
-                                    // TODO: Handle link click - open/create file
-                                    println!("Link clicked: {}", href);
+                                    let vault_path = match dirs::home_dir() {
+                                        Some(dir) => dir.join("footnotes"),
+                                        None => return,
+                                    };
+
+                                    let file_path = vault_path.join("notes").join(&href);
+                                    let mut open_file = open_file.clone();
+                                    let mut editor_mode = editor_mode.clone();
+
+                                    spawn(async move {
+                                        // Check if file exists
+                                        if !file_path.exists() {
+                                            // Create new file with basic frontmatter
+                                            let uuid = uuid::Uuid::new_v4();
+                                            let new_content = format!(
+                                                r#"---
+uuid: {}
+modified: {}
+share_with: []
+---
+
+# {}
+"#,
+                                                uuid,
+                                                chrono::Utc::now().to_rfc3339(),
+                                                href.trim_end_matches(".md")
+                                            );
+
+                                            if let Err(e) = std::fs::write(&file_path, new_content) {
+                                                eprintln!("Failed to create file: {}", e);
+                                                return;
+                                            }
+                                        }
+
+                                        // Load the file
+                                        match crate::core::note::parse_note(&file_path) {
+                                            Ok(note) => {
+                                                open_file.set(Some(OpenFile {
+                                                    path: file_path.clone(),
+                                                    filename: href.clone(),
+                                                    content: note.content,
+                                                    share_with: note.frontmatter.share_with,
+                                                }));
+                                                // Switch to view mode
+                                                editor_mode.set(EditorMode::View);
+                                            }
+                                            Err(e) => {
+                                                eprintln!("Failed to load file: {}", e);
+                                            }
+                                        }
+                                    });
                                 }
                             }
                         }
