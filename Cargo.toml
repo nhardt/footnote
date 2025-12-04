@@ -26,17 +26,11 @@ walkdir = "2.5.0"
 dioxus = { version = "0.7.1", features = [] }
 
 [features]
-default = ["ui-desktop"]
+default = ["desktop"]
+web = ["dioxus/web"]
+desktop = ["dioxus/desktop"]
+mobile = ["dioxus/mobile"]
 cli = []
-
-ui-web = ["dioxus/web"]
-ui-desktop = ["dioxus/desktop"]
-ui-mobile = ["dioxus/mobile"]
-
-[[bin]]
-name = "footnote"
-path = "src/main.rs"
-required-features = ["ui-desktop"]
 
 [[bin]]
 name = "footnote-cli"
