@@ -199,9 +199,9 @@ fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
         let share_with = file_data.share_with.clone();
 
         rsx! {
-            div { class: "max-w-4xl mx-auto p-6 space-y-4",
+            div { class: "max-w-4xl mx-auto p-6 h-full flex flex-col gap-4",
                 // Document title/filename and save button
-                div { class: "flex items-end justify-between gap-4",
+                div { class: "flex items-end justify-between gap-4 flex-shrink-0",
                     div { class: "flex-1",
                         label { class: "block text-sm font-medium text-gray-700 mb-2", "Document" }
                         div { class: "px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900 font-mono",
@@ -223,7 +223,7 @@ fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                 }
 
                 // Share with
-                div {
+                div { class: "flex-shrink-0",
                     label { class: "block text-sm font-medium text-gray-700 mb-2", "Share With" }
                     div { class: "px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500",
                         {
@@ -237,10 +237,10 @@ fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                 }
 
                 // Text editor
-                div {
-                    label { class: "block text-sm font-medium text-gray-700 mb-2", "Content" }
+                div { class: "flex-1 flex flex-col min-h-0",
+                    label { class: "block text-sm font-medium text-gray-700 mb-2 flex-shrink-0", "Content" }
                     textarea {
-                        class: "w-full h-96 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono",
+                        class: "flex-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono resize-none",
                         placeholder: "Start writing...",
                         value: "{edited_content}",
                         oninput: move |evt| edited_content.set(evt.value()),
