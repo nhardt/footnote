@@ -25,12 +25,10 @@ uuid = { version = "1.11", features = ["v4", "serde"] }
 walkdir = "2.5.0"
 dioxus = { version = "0.7.1", features = [] }
 
-# dioxus
 [features]
-default = ["cli"]
+default = ["ui-desktop"]
 cli = []
 
-ui = []
 ui-web = ["dioxus/web"]
 ui-desktop = ["dioxus/desktop"]
 ui-mobile = ["dioxus/mobile"]
@@ -38,8 +36,9 @@ ui-mobile = ["dioxus/mobile"]
 [[bin]]
 name = "footnote"
 path = "src/main.rs"
+required-features = ["ui-desktop"]
 
 [[bin]]
-name = "footnote-ui"
-path = "src/bin/ui.rs"
-required-features = ["ui"]
+name = "footnote-cli"
+path = "src/bin/cli.rs"
+required-features = ["cli"]

@@ -1,5 +1,3 @@
-#![cfg(feature = "ui")]
-
 mod app;
 
 pub fn launch() {
