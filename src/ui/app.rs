@@ -1,4 +1,5 @@
 use dioxus::prelude::*;
+use std::path::PathBuf;
 
 #[derive(Clone, Copy, PartialEq)]
 enum Screen {
@@ -6,39 +7,99 @@ enum Screen {
     Contacts,
 }
 
+#[derive(Clone, PartialEq)]
+enum VaultStatus {
+    Initializing,
+    Ready(PathBuf),
+    Error(String),
+}
+
 #[component]
 pub fn App() -> Element {
     let mut current_screen = use_signal(|| Screen::Editor);
+    let mut vault_status = use_signal(|| VaultStatus::Initializing);
+
+    // Initialize vault on first render
+    use_effect(move || {
+        spawn(async move {
+            let home_dir = match dirs::home_dir() {
+                Some(dir) => dir,
+                None => {
+                    vault_status.set(VaultStatus::Error("Could not find home directory".to_string()));
+                    return;
+                }
+            };
+
+            let vault_path = home_dir.join("footnotes");
+
+            // Check if vault already exists
+            let footnotes_dir = vault_path.join(".footnotes");
+            if footnotes_dir.exists() {
+                vault_status.set(VaultStatus::Ready(vault_path));
+                return;
+            }
+
+            // Initialize new vault
+            match crate::core::init::init(
+                Some(vault_path.clone()),
+                Some("me"),
+                Some("primary")
+            ).await {
+                Ok(_) => vault_status.set(VaultStatus::Ready(vault_path)),
+                Err(e) => vault_status.set(VaultStatus::Error(format!("Failed to initialize vault: {}", e))),
+            }
+        });
+    });
 
     rsx! {
         document::Stylesheet { href: asset!("/assets/tailwind.css") }
 
         div { class: "h-screen flex flex-col bg-gray-50",
-            // Navigation bar
-            nav { class: "bg-white border-b border-gray-200 px-4 py-3",
-                div { class: "flex gap-4",
-                    button {
-                        class: if current_screen() == Screen::Editor { "px-4 py-2 font-medium text-blue-600 border-b-2 border-blue-600" } else { "px-4 py-2 font-medium text-gray-600 hover:text-gray-900" },
-                        onclick: move |_| current_screen.set(Screen::Editor),
-                        "Editor"
+            match vault_status() {
+                VaultStatus::Initializing => rsx! {
+                    div { class: "flex items-center justify-center h-full",
+                        div { class: "text-center",
+                            div { class: "text-lg font-medium text-gray-700", "Initializing vault..." }
+                            div { class: "text-sm text-gray-500 mt-2", "Setting up ~/footnotes/" }
+                        }
                     }
-                    button {
-                        class: if current_screen() == Screen::Contacts { "px-4 py-2 font-medium text-blue-600 border-b-2 border-blue-600" } else { "px-4 py-2 font-medium text-gray-600 hover:text-gray-900" },
-                        onclick: move |_| current_screen.set(Screen::Contacts),
-                        "Contacts"
+                },
+                VaultStatus::Error(ref error) => rsx! {
+                    div { class: "flex items-center justify-center h-full",
+                        div { class: "text-center max-w-md",
+                            div { class: "text-lg font-medium text-red-600", "Error" }
+                            div { class: "text-sm text-gray-700 mt-2", "{error}" }
+                        }
                     }
-                }
-            }
+                },
+                VaultStatus::Ready(ref _path) => rsx! {
+                    // Navigation bar
+                    nav { class: "bg-white border-b border-gray-200 px-4 py-3",
+                        div { class: "flex gap-4",
+                            button {
+                                class: if current_screen() == Screen::Editor { "px-4 py-2 font-medium text-blue-600 border-b-2 border-blue-600" } else { "px-4 py-2 font-medium text-gray-600 hover:text-gray-900" },
+                                onclick: move |_| current_screen.set(Screen::Editor),
+                                "Editor"
+                            }
+                            button {
+                                class: if current_screen() == Screen::Contacts { "px-4 py-2 font-medium text-blue-600 border-b-2 border-blue-600" } else { "px-4 py-2 font-medium text-gray-600 hover:text-gray-900" },
+                                onclick: move |_| current_screen.set(Screen::Contacts),
+                                "Contacts"
+                            }
+                        }
+                    }
 
-            // Main content area
-            div { class: "flex-1 overflow-auto",
-                match current_screen() {
-                    Screen::Editor => rsx! {
-                        EditorScreen {}
-                    },
-                    Screen::Contacts => rsx! {
-                        ContactsScreen {}
-                    },
+                    // Main content area
+                    div { class: "flex-1 overflow-auto",
+                        match current_screen() {
+                            Screen::Editor => rsx! {
+                                EditorScreen {}
+                            },
+                            Screen::Contacts => rsx! {
+                                ContactsScreen {}
+                            },
+                        }
+                    }
                 }
             }
         }
