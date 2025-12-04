@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use std::path::PathBuf;
+use crate::ui::markdown::SimpleMarkdown;
 
 #[derive(Clone, Copy, PartialEq)]
 enum Screen {
@@ -133,11 +134,18 @@ pub fn App() -> Element {
     }
 }
 
+#[derive(Clone, Copy, PartialEq)]
+enum EditorMode {
+    View,
+    Edit,
+}
+
 #[component]
 fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
     let mut edited_content = use_signal(|| String::new());
     let save_status = use_signal(|| String::new());
     let mut trigger_save = use_signal(|| false);
+    let mut editor_mode = use_signal(|| EditorMode::View);
 
     // Initialize edited_content when file loads
     use_effect(move || {
@@ -200,7 +208,7 @@ fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
 
         rsx! {
             div { class: "max-w-4xl mx-auto p-6 h-full flex flex-col gap-4",
-                // Document title/filename and save button
+                // Document title/filename and buttons
                 div { class: "flex items-end justify-between gap-4 flex-shrink-0",
                     div { class: "flex-1",
                         label { class: "block text-sm font-medium text-gray-700 mb-2", "Document" }
@@ -208,13 +216,35 @@ fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                             "{filename}"
                         }
                     }
-                    div { class: "flex flex-col items-end gap-2",
+                    div { class: "flex items-center gap-2",
+                        // View/Edit toggle
                         button {
-                            class: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500",
-                            onclick: move |_| {
-                                trigger_save.set(true);
+                            class: if editor_mode() == EditorMode::View {
+                                "px-4 py-2 bg-gray-200 text-gray-700 rounded-md"
+                            } else {
+                                "px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
                             },
-                            "Save"
+                            onclick: move |_| editor_mode.set(EditorMode::View),
+                            "View"
+                        }
+                        button {
+                            class: if editor_mode() == EditorMode::Edit {
+                                "px-4 py-2 bg-gray-200 text-gray-700 rounded-md"
+                            } else {
+                                "px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                            },
+                            onclick: move |_| editor_mode.set(EditorMode::Edit),
+                            "Edit"
+                        }
+                        // Save button (only visible in edit mode)
+                        if editor_mode() == EditorMode::Edit {
+                            button {
+                                class: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500",
+                                onclick: move |_| {
+                                    trigger_save.set(true);
+                                },
+                                "Save"
+                            }
                         }
                         if !save_status().is_empty() {
                             div { class: "text-sm text-gray-600", "{save_status}" }
@@ -236,20 +266,34 @@ fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                     }
                 }
 
-                // Text editor
+                // Content area (view or edit mode)
                 div { class: "flex-1 flex flex-col min-h-0",
-                    label { class: "block text-sm font-medium text-gray-700 mb-2 flex-shrink-0", "Content" }
-                    textarea {
-                        class: "flex-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono resize-none",
-                        placeholder: "Start writing...",
-                        value: "{edited_content}",
-                        oninput: move |evt| edited_content.set(evt.value()),
-                        onkeydown: move |evt| {
-                            if (evt.modifiers().ctrl() || evt.modifiers().meta()) && evt.key() == Key::Character("s".to_string()) {
-                                evt.prevent_default();
-                                trigger_save.set(true);
+                    if editor_mode() == EditorMode::View {
+                        // View mode: render markdown
+                        div { class: "flex-1 overflow-auto border border-gray-300 rounded-md bg-white",
+                            SimpleMarkdown {
+                                content: edited_content(),
+                                on_internal_link_click: move |href: String| {
+                                    // TODO: Handle link click - open/create file
+                                    println!("Link clicked: {}", href);
+                                }
                             }
-                        },
+                        }
+                    } else {
+                        // Edit mode: show textarea
+                        label { class: "block text-sm font-medium text-gray-700 mb-2 flex-shrink-0", "Content" }
+                        textarea {
+                            class: "flex-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono resize-none",
+                            placeholder: "Start writing...",
+                            value: "{edited_content}",
+                            oninput: move |evt| edited_content.set(evt.value()),
+                            onkeydown: move |evt| {
+                                if (evt.modifiers().ctrl() || evt.modifiers().meta()) && evt.key() == Key::Character("s".to_string()) {
+                                    evt.prevent_default();
+                                    trigger_save.set(true);
+                                }
+                            },
+                        }
                     }
                 }
             }
