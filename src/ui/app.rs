@@ -135,20 +135,83 @@ pub fn App() -> Element {
 
 #[component]
 fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
+    let mut edited_content = use_signal(|| String::new());
+    let save_status = use_signal(|| String::new());
+
+    // Initialize edited_content when file loads
+    use_effect(move || {
+        if let Some(ref file_data) = *open_file.read() {
+            edited_content.set(file_data.content.clone());
+        }
+    });
+
     let file = open_file.read();
 
     if let Some(ref file_data) = *file {
-        let filename = &file_data.filename;
-        let content = &file_data.content;
-        let share_with = &file_data.share_with;
+        let filename = file_data.filename.clone();
+        let file_path = file_data.path.clone();
+        let share_with = file_data.share_with.clone();
 
         rsx! {
             div { class: "max-w-4xl mx-auto p-6 space-y-4",
-                // Document title/filename
-                div {
-                    label { class: "block text-sm font-medium text-gray-700 mb-2", "Document" }
-                    div { class: "px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900 font-mono",
-                        "{filename}"
+                // Document title/filename and save button
+                div { class: "flex items-end justify-between gap-4",
+                    div { class: "flex-1",
+                        label { class: "block text-sm font-medium text-gray-700 mb-2", "Document" }
+                        div { class: "px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900 font-mono",
+                            "{filename}"
+                        }
+                    }
+                    div { class: "flex flex-col items-end gap-2",
+                        button {
+                            class: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500",
+                            onclick: move |_| {
+                                let content = edited_content();
+                                let path = file_path.clone();
+                                let mut open_file = open_file.clone();
+                                let mut save_status = save_status.clone();
+
+                                spawn(async move {
+                                    save_status.set("Saving...".to_string());
+
+                                    // Parse existing note to get frontmatter
+                                    match crate::core::note::parse_note(&path) {
+                                        Ok(mut note) => {
+                                            // Update content and modified timestamp
+                                            note.content = content.clone();
+                                            note.frontmatter.modified = chrono::Utc::now();
+
+                                            // Serialize and save
+                                            match crate::core::note::serialize_note(&note) {
+                                                Ok(serialized) => {
+                                                    match std::fs::write(&path, serialized) {
+                                                        Ok(_) => {
+                                                            save_status.set("Saved!".to_string());
+
+                                                            // Update the open_file state
+                                                            if let Some(mut file) = open_file.write().as_mut() {
+                                                                file.content = content;
+                                                            }
+
+                                                            // Clear status after 2 seconds
+                                                            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                                                            save_status.set(String::new());
+                                                        }
+                                                        Err(e) => save_status.set(format!("Error: {}", e)),
+                                                    }
+                                                }
+                                                Err(e) => save_status.set(format!("Error: {}", e)),
+                                            }
+                                        }
+                                        Err(e) => save_status.set(format!("Error: {}", e)),
+                                    }
+                                });
+                            },
+                            "Save"
+                        }
+                        if !save_status().is_empty() {
+                            div { class: "text-sm text-gray-600", "{save_status}" }
+                        }
                     }
                 }
 
@@ -172,8 +235,8 @@ fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                     textarea {
                         class: "w-full h-96 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono",
                         placeholder: "Start writing...",
-                        value: "{content}",
-                        readonly: true,
+                        value: "{edited_content}",
+                        oninput: move |evt| edited_content.set(evt.value()),
                     }
                 }
             }
