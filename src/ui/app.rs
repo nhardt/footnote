@@ -137,11 +137,57 @@ pub fn App() -> Element {
 fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
     let mut edited_content = use_signal(|| String::new());
     let save_status = use_signal(|| String::new());
+    let mut trigger_save = use_signal(|| false);
 
     // Initialize edited_content when file loads
     use_effect(move || {
         if let Some(ref file_data) = *open_file.read() {
             edited_content.set(file_data.content.clone());
+        }
+    });
+
+    // Handle save when triggered
+    use_effect(move || {
+        if trigger_save() {
+            trigger_save.set(false);
+
+            if let Some(ref file_data) = *open_file.read() {
+                let content = edited_content();
+                let path = file_data.path.clone();
+                let mut open_file = open_file.clone();
+                let mut save_status = save_status.clone();
+
+                spawn(async move {
+                    save_status.set("Saving...".to_string());
+
+                    match crate::core::note::parse_note(&path) {
+                        Ok(mut note) => {
+                            note.content = content.clone();
+                            note.frontmatter.modified = chrono::Utc::now();
+
+                            match crate::core::note::serialize_note(&note) {
+                                Ok(serialized) => {
+                                    match std::fs::write(&path, serialized) {
+                                        Ok(_) => {
+                                            save_status.set("Saved!".to_string());
+
+                                            if let Some(mut file) = open_file.write().as_mut() {
+                                                file.content = content;
+                                            }
+
+                                            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                                            save_status.set(String::new());
+                                        }
+                                        Err(e) => save_status.set(format!("Error: {}", e)),
+                                    }
+                                }
+                                Err(e) => save_status.set(format!("Error: {}", e)),
+                            }
+                        }
+                        Err(e) => save_status.set(format!("Error: {}", e)),
+                    }
+                });
+            }
         }
     });
 
@@ -166,46 +212,7 @@ fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                         button {
                             class: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500",
                             onclick: move |_| {
-                                let content = edited_content();
-                                let path = file_path.clone();
-                                let mut open_file = open_file.clone();
-                                let mut save_status = save_status.clone();
-
-                                spawn(async move {
-                                    save_status.set("Saving...".to_string());
-
-                                    // Parse existing note to get frontmatter
-                                    match crate::core::note::parse_note(&path) {
-                                        Ok(mut note) => {
-                                            // Update content and modified timestamp
-                                            note.content = content.clone();
-                                            note.frontmatter.modified = chrono::Utc::now();
-
-                                            // Serialize and save
-                                            match crate::core::note::serialize_note(&note) {
-                                                Ok(serialized) => {
-                                                    match std::fs::write(&path, serialized) {
-                                                        Ok(_) => {
-                                                            save_status.set("Saved!".to_string());
-
-                                                            // Update the open_file state
-                                                            if let Some(mut file) = open_file.write().as_mut() {
-                                                                file.content = content;
-                                                            }
-
-                                                            // Clear status after 2 seconds
-                                                            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-                                                            save_status.set(String::new());
-                                                        }
-                                                        Err(e) => save_status.set(format!("Error: {}", e)),
-                                                    }
-                                                }
-                                                Err(e) => save_status.set(format!("Error: {}", e)),
-                                            }
-                                        }
-                                        Err(e) => save_status.set(format!("Error: {}", e)),
-                                    }
-                                });
+                                trigger_save.set(true);
                             },
                             "Save"
                         }
@@ -237,6 +244,12 @@ fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                         placeholder: "Start writing...",
                         value: "{edited_content}",
                         oninput: move |evt| edited_content.set(evt.value()),
+                        onkeydown: move |evt| {
+                            if (evt.modifiers().ctrl() || evt.modifiers().meta()) && evt.key() == Key::Character("s".to_string()) {
+                                evt.prevent_default();
+                                trigger_save.set(true);
+                            }
+                        },
                     }
                 }
             }
