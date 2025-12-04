@@ -5,3 +5,6 @@
 
 pub mod cli;
 pub mod core;
+
+#[cfg(feature = "ui")]
+pub mod ui;
