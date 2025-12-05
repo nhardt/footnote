@@ -475,13 +475,24 @@ share_with: []
     }
 }
 
+#[derive(Clone, PartialEq)]
+enum DeviceAddState {
+    Idle,
+    WaitingForConnection { join_url: String },
+    Success,
+    Error(String),
+}
+
 #[component]
 fn ContactsScreen() -> Element {
     let mut self_contact = use_signal(|| None::<crate::core::crypto::ContactRecord>);
     let mut trusted_contacts = use_signal(|| Vec::<(String, crate::core::crypto::ContactRecord)>::new());
+    let mut device_add_state = use_signal(|| DeviceAddState::Idle);
+    let mut reload_trigger = use_signal(|| 0);
 
-    // Load contacts on mount
+    // Load contacts on mount and when reload_trigger changes
     use_effect(move || {
+        let _ = reload_trigger(); // Subscribe to changes
         spawn(async move {
             let vault_path = match dirs::home_dir() {
                 Some(dir) => dir.join("footnotes").join(".footnotes"),
@@ -522,7 +533,39 @@ fn ContactsScreen() -> Element {
         div { class: "max-w-4xl mx-auto p-6",
             // Me section
             div { class: "mb-8",
-                h2 { class: "text-xl font-bold mb-4", "Me" }
+                div { class: "flex items-center justify-between mb-4",
+                    h2 { class: "text-xl font-bold", "Me" }
+                    if matches!(device_add_state(), DeviceAddState::Idle) {
+                        button {
+                            class: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700",
+                            onclick: move |_| {
+                                let mut device_add_state = device_add_state.clone();
+                                let mut reload_trigger = reload_trigger.clone();
+
+                                spawn(async move {
+                                    match crate::core::device::create_primary().await {
+                                        Ok(_) => {
+                                            device_add_state.set(DeviceAddState::Success);
+                                            // Reload contacts
+                                            reload_trigger.set(reload_trigger() + 1);
+                                        }
+                                        Err(e) => {
+                                            device_add_state.set(DeviceAddState::Error(e.to_string()));
+                                        }
+                                    }
+                                });
+
+                                // We can't easily extract the URL from create_primary
+                                // For now, set a placeholder state
+                                device_add_state.set(DeviceAddState::WaitingForConnection {
+                                    join_url: "Generating...".to_string()
+                                });
+                            },
+                            "Add Device"
+                        }
+                    }
+                }
+
                 if let Some(ref contact) = *self_contact.read() {
                     div { class: "bg-blue-50 border border-blue-200 rounded-md p-4",
                         div { class: "font-semibold", "{contact.username}" }
@@ -532,6 +575,44 @@ fn ContactsScreen() -> Element {
                     }
                 } else {
                     div { class: "text-gray-500 italic", "Loading..." }
+                }
+
+                // Device pairing UI
+                match device_add_state() {
+                    DeviceAddState::WaitingForConnection { ref join_url } => rsx! {
+                        div { class: "mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md",
+                            div { class: "font-semibold mb-2", "Waiting for device..." }
+                            div { class: "text-sm mb-2", "Copy this URL to your new device:" }
+                            div { class: "font-mono text-xs bg-white p-2 rounded border break-all",
+                                "{join_url}"
+                            }
+                            div { class: "text-sm text-gray-600 mt-2 italic",
+                                "Listening for connection... (check console for URL)"
+                            }
+                        }
+                    },
+                    DeviceAddState::Success => rsx! {
+                        div { class: "mt-4 p-4 bg-green-50 border border-green-200 rounded-md",
+                            div { class: "font-semibold", "✓ Device added successfully!" }
+                            button {
+                                class: "mt-2 text-sm text-blue-600 hover:underline",
+                                onclick: move |_| device_add_state.set(DeviceAddState::Idle),
+                                "Done"
+                            }
+                        }
+                    },
+                    DeviceAddState::Error(ref error) => rsx! {
+                        div { class: "mt-4 p-4 bg-red-50 border border-red-200 rounded-md",
+                            div { class: "font-semibold text-red-700", "Error" }
+                            div { class: "text-sm mt-1", "{error}" }
+                            button {
+                                class: "mt-2 text-sm text-blue-600 hover:underline",
+                                onclick: move |_| device_add_state.set(DeviceAddState::Idle),
+                                "Try Again"
+                            }
+                        }
+                    },
+                    DeviceAddState::Idle => rsx! {},
                 }
             }
 
