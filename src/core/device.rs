@@ -273,20 +273,21 @@ pub async fn create_remote(connection_string: &str, device_name: &str) -> anyhow
         serde_json::to_string_pretty(&contact_record)?,
     )?;
 
-    // Create home note
+    // Create device-specific home note
     let home_uuid = Uuid::new_v4();
-    let home_file = notes_dir.join("home.md");
+    let home_filename = format!("home-{}.md", device_name);
+    let home_file = notes_dir.join(&home_filename);
     let home_content = format!(
         r#"---
 uuid: {}
 share_with: []
 ---
 
-# Home
+# Home ({})
 
 Welcome to footnote on {}!
 "#,
-        home_uuid, device_name
+        home_uuid, device_name, device_name
     );
     fs::write(&home_file, home_content)?;
 

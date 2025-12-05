@@ -75,20 +75,21 @@ pub async fn init(
     fs::write(&key_file, secret_key.to_bytes())?;
     eprintln!("Device Iroh key stored at {}", key_file.display());
 
-    // Create home note
+    // Create device-specific home note
     let home_uuid = Uuid::new_v4();
-    let home_file = notes_dir.join("home.md");
+    let home_filename = format!("home-{}.md", device_name);
+    let home_file = notes_dir.join(&home_filename);
     let home_content = format!(
         r#"---
 uuid: {}
 share_with: []
 ---
 
-# Home
+# Home ({})
 
 Welcome to footnote! This is your home note.
 "#,
-        home_uuid
+        home_uuid, device_name
     );
     fs::write(&home_file, home_content)?;
     eprintln!("Home note created at {}", home_file.display());
