@@ -5,7 +5,6 @@
 
 pub mod core;
 pub mod ui;
-pub mod platform;
 
 #[cfg(feature = "cli")]
 pub mod cli;

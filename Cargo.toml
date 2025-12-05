@@ -28,9 +28,6 @@ uuid = { version = "1.11", features = ["v4", "serde"] }
 walkdir = "2.5.0"
 dioxus = { version = "0.7.1", features = [] }
 
-[target.'cfg(not(target_family = "wasm"))'.dependencies]
-rfd = "0.15"
-
 [features]
 default = ["desktop"]
 web = ["dioxus/web"]
