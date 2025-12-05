@@ -46,6 +46,11 @@ pub enum Commands {
         #[command(subcommand)]
         action: MirrorAction,
     },
+    /// Share documents with a trusted user
+    Share {
+        /// Petname of the user to share with (or omit to share with all)
+        petname: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -172,5 +177,8 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
                 crate::core::mirror::push(user.as_deref(), device.as_deref()).await
             }
         },
+        Commands::Share { petname } => {
+            crate::core::mirror::share(petname.as_deref()).await
+        }
     }
 }

@@ -9,40 +9,73 @@ use super::{crypto, manifest, vault};
 /// ALPN protocol identifier for mirror sync
 pub const ALPN_MIRROR: &[u8] = b"footnote/mirror";
 
-/// Look up a device by its endpoint ID and verify it belongs to the same user
+/// Identify who a device belongs to
 ///
-/// Returns the device name if found and verified, or an error
-async fn verify_device_same_user(endpoint_id: &iroh::PublicKey) -> Result<String> {
-    // Load contact.json
+/// Returns either ("me", device_name) for same-user devices
+/// or ("user", petname) for trusted user devices
+async fn identify_device(endpoint_id: &iroh::PublicKey) -> Result<(String, String)> {
+    // First check if it's one of my devices
     let contact_path = vault::get_contact_path()?;
     let contact_content = fs::read_to_string(&contact_path)
         .context("Failed to read contact.json")?;
     let contact_record: crypto::ContactRecord = serde_json::from_str(&contact_content)
         .context("Failed to parse contact.json")?;
 
-    // Search through all devices in contact record
+    // Search through my devices
     for device in &contact_record.devices {
         if let Ok(device_endpoint_id) = device.iroh_endpoint_id.parse::<iroh::PublicKey>() {
             if &device_endpoint_id == endpoint_id {
-                return Ok(device.device_name.clone());
+                return Ok(("me".to_string(), device.device_name.clone()));
             }
         }
     }
 
-    anyhow::bail!("Device {} not found in contact record", endpoint_id)
+    // Check if it's a trusted user's device
+    let contacts_dir = vault::get_contacts_dir()?;
+    if contacts_dir.exists() {
+        for entry in fs::read_dir(&contacts_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+
+            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("json") {
+                let petname = path.file_stem().unwrap().to_string_lossy().to_string();
+                let content = fs::read_to_string(&path)?;
+
+                if let Ok(user_contact) = serde_json::from_str::<crypto::ContactRecord>(&content) {
+                    for device in &user_contact.devices {
+                        if let Ok(device_endpoint_id) = device.iroh_endpoint_id.parse::<iroh::PublicKey>() {
+                            if &device_endpoint_id == endpoint_id {
+                                return Ok(("user".to_string(), petname.clone()));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    anyhow::bail!("Device {} not found (not a known device or trusted user)", endpoint_id)
 }
 
 /// Handle an incoming sync connection
 pub async fn handle_sync_accept(connection: Connection, local_notes_dir: &Path) -> Result<()> {
     let remote_endpoint_id = connection.remote_id();
 
-    // Verify the remote device belongs to the same user
-    let remote_device_name = verify_device_same_user(&remote_endpoint_id).await?;
+    // Identify the remote device (either same user or trusted user)
+    let (device_type, identifier) = identify_device(&remote_endpoint_id).await?;
 
-    println!(
-        "Receiving sync from {} ({})",
-        remote_device_name, remote_endpoint_id
-    );
+    // Determine target directory based on device type
+    let target_dir = if device_type == "me" {
+        // Mirror sync from my own device -> notes/
+        println!("Receiving mirror sync from {} ({})", identifier, remote_endpoint_id);
+        local_notes_dir.to_path_buf()
+    } else {
+        // Share from trusted user -> footnotes/{petname}/
+        println!("Receiving shared documents from {} ({})", identifier, remote_endpoint_id);
+        let footnotes_dir = vault::get_trusted_user_dir(&identifier)?;
+        fs::create_dir_all(&footnotes_dir)?;
+        footnotes_dir
+    };
 
     // Open bidirectional stream
     let (mut send, mut recv) = connection.accept_bi().await.anyerr()?;
@@ -68,7 +101,7 @@ pub async fn handle_sync_accept(connection: Connection, local_notes_dir: &Path) 
     );
 
     // Create local manifest
-    let local_manifest = manifest::create_manifest(local_notes_dir)
+    let local_manifest = manifest::create_manifest(&target_dir)
         .context("Failed to create local manifest")?;
 
     // Diff: find files that need to be synced
@@ -107,13 +140,13 @@ pub async fn handle_sync_accept(connection: Connection, local_notes_dir: &Path) 
             .anyerr()?;
 
         // Write file to disk
-        let full_path = local_notes_dir.join(&file_to_sync.path);
+        let full_path = target_dir.join(&file_to_sync.path);
         if let Some(parent) = full_path.parent() {
             fs::create_dir_all(parent)?;
         }
         fs::write(&full_path, file_contents)?;
 
-        println!("✓ Synced: {} ({})", path_str, file_to_sync.reason_str());
+        println!("  Synced: {} ({})", path_str, file_to_sync.reason_str());
     }
 
     // Send EOF signal (0-length path)
