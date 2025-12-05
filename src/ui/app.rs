@@ -477,9 +477,84 @@ share_with: []
 
 #[component]
 fn ContactsScreen() -> Element {
+    let mut self_contact = use_signal(|| None::<crate::core::crypto::ContactRecord>);
+    let mut trusted_contacts = use_signal(|| Vec::<(String, crate::core::crypto::ContactRecord)>::new());
+
+    // Load contacts on mount
+    use_effect(move || {
+        spawn(async move {
+            let vault_path = match dirs::home_dir() {
+                Some(dir) => dir.join("footnotes").join(".footnotes"),
+                None => return,
+            };
+
+            // Load self contact
+            let self_path = vault_path.join("contact.json");
+            if let Ok(content) = std::fs::read_to_string(&self_path) {
+                if let Ok(contact) = serde_json::from_str::<crate::core::crypto::ContactRecord>(&content) {
+                    self_contact.set(Some(contact));
+                }
+            }
+
+            // Load trusted contacts
+            let contacts_dir = vault_path.join("contacts");
+            if let Ok(entries) = std::fs::read_dir(contacts_dir) {
+                let mut contacts = Vec::new();
+                for entry in entries.flatten() {
+                    if let Ok(file_name) = entry.file_name().into_string() {
+                        if file_name.ends_with(".json") {
+                            if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                                if let Ok(contact) = serde_json::from_str::<crate::core::crypto::ContactRecord>(&content) {
+                                    let petname = file_name.trim_end_matches(".json").to_string();
+                                    contacts.push((petname, contact));
+                                }
+                            }
+                        }
+                    }
+                }
+                contacts.sort_by(|a, b| a.0.cmp(&b.0));
+                trusted_contacts.set(contacts);
+            }
+        });
+    });
+
     rsx! {
         div { class: "max-w-4xl mx-auto p-6",
-            div { class: "text-center text-gray-500 text-lg", "[ Contacts Placeholder ]" }
+            // Me section
+            div { class: "mb-8",
+                h2 { class: "text-xl font-bold mb-4", "Me" }
+                if let Some(ref contact) = *self_contact.read() {
+                    div { class: "bg-blue-50 border border-blue-200 rounded-md p-4",
+                        div { class: "font-semibold", "{contact.username}" }
+                        div { class: "text-sm text-gray-600 mt-1",
+                            "{contact.devices.len()} device(s)"
+                        }
+                    }
+                } else {
+                    div { class: "text-gray-500 italic", "Loading..." }
+                }
+            }
+
+            // Contacts section
+            div {
+                h2 { class: "text-xl font-bold mb-4", "Contacts" }
+                if trusted_contacts().is_empty() {
+                    div { class: "text-gray-500 italic", "No contacts yet" }
+                } else {
+                    div { class: "space-y-2",
+                        for (petname, contact) in trusted_contacts().iter() {
+                            div {
+                                key: "{petname}",
+                                class: "bg-white border border-gray-200 rounded-md p-4 hover:border-gray-300",
+                                div { class: "font-semibold", "{petname}" }
+                                div { class: "text-sm text-gray-600 mt-1",
+                                    "username: {contact.username}"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
