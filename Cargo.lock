@@ -2154,8 +2154,10 @@ dependencies = [
  "fuzzy-matcher",
  "hex",
  "iroh",
+ "jni",
  "n0-error",
  "n0-future",
+ "ndk-context",
  "pulldown-cmark",
  "rand 0.9.2",
  "rand_core 0.6.4",
@@ -2163,6 +2165,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "tokio",
+ "tracing",
  "uuid",
  "walkdir",
 ]

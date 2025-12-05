@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use crate::ui::markdown::SimpleMarkdown;
 use fuzzy_matcher::FuzzyMatcher;
 use fuzzy_matcher::skim::SkimMatcherV2;
+use tracing;
 
 #[derive(Clone, Copy, PartialEq)]
 enum Screen {
@@ -136,9 +137,20 @@ pub fn App() -> Element {
 #[component]
 fn DirectoryBrowserScreen(mut vault_status: Signal<VaultStatus>, action: &'static str) -> Element {
     let mut current_path = use_signal(|| {
-        dirs::home_dir().unwrap_or_else(|| PathBuf::from("/"))
+        match crate::platform::get_app_dir() {
+            Ok(path) => {
+                tracing::info!("Directory browser starting at: {}", path.display());
+                path
+            }
+            Err(e) => {
+                tracing::error!("Failed to get app directory: {}", e);
+                PathBuf::from("/")
+            }
+        }
     });
     let mut folders = use_signal(|| Vec::<PathBuf>::new());
+    let mut new_folder_name = use_signal(|| String::new());
+    let mut show_new_folder_input = use_signal(|| false);
 
     // Load folders whenever current_path changes
     use_effect(move || {
@@ -178,6 +190,38 @@ fn DirectoryBrowserScreen(mut vault_status: Signal<VaultStatus>, action: &'stati
         vault_status.set(VaultStatus::VaultNeeded);
     };
 
+    let handle_create_folder = move |_| {
+        if new_folder_name().trim().is_empty() {
+            return;
+        }
+
+        let folder_name = new_folder_name().trim().to_string();
+        let new_path = current_path().join(&folder_name);
+
+        tracing::info!("Attempting to create directory: {}", new_path.display());
+
+        if let Err(e) = std::fs::create_dir(&new_path) {
+            tracing::error!("Failed to create directory {}: {} (kind: {:?}, errno: {:?})",
+                new_path.display(), e, e.kind(), e.raw_os_error());
+            // TODO: Show error to user
+            return;
+        }
+
+        tracing::info!("Successfully created directory: {}", new_path.display());
+
+        // Navigate into the newly created folder
+        current_path.set(new_path);
+        new_folder_name.set(String::new());
+        show_new_folder_input.set(false);
+    };
+
+    let handle_toggle_new_folder = move |_| {
+        show_new_folder_input.set(!show_new_folder_input());
+        if show_new_folder_input() {
+            new_folder_name.set(String::new());
+        }
+    };
+
     rsx! {
         div { class: "flex items-center justify-center h-full p-4",
             div { class: "max-w-2xl w-full bg-white rounded-lg shadow-lg",
@@ -196,6 +240,33 @@ fn DirectoryBrowserScreen(mut vault_status: Signal<VaultStatus>, action: &'stati
                                 class: "px-3 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50",
                                 onclick: handle_go_up,
                                 "↑ Up"
+                            }
+                            button {
+                                class: "px-3 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50",
+                                onclick: handle_toggle_new_folder,
+                                "+ Folder"
+                            }
+                        }
+                    }
+
+                    if show_new_folder_input() {
+                        div { class: "mb-4",
+                            label { class: "block text-sm font-medium text-gray-700 mb-2", "New Folder Name" }
+                            div { class: "flex gap-2",
+                                input {
+                                    r#type: "text",
+                                    class: "flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500",
+                                    placeholder: "folder-name",
+                                    value: "{new_folder_name}",
+                                    oninput: move |evt| new_folder_name.set(evt.value()),
+                                    autofocus: true,
+                                }
+                                button {
+                                    class: "px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed",
+                                    disabled: new_folder_name().trim().is_empty(),
+                                    onclick: handle_create_folder,
+                                    "Create"
+                                }
                             }
                         }
                     }
