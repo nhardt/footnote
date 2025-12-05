@@ -81,12 +81,7 @@ pub fn App() -> Element {
                     CreateVaultScreen { vault_status, vault_path: vault_path.clone() }
                 },
                 VaultStatus::Opening { ref vault_path } => rsx! {
-                    div { class: "flex items-center justify-center h-full",
-                        div { class: "text-center",
-                            div { class: "text-lg font-medium text-gray-700", "Opening vault..." }
-                            div { class: "text-sm text-gray-500 mt-2", "{vault_path.display()}" }
-                        }
-                    }
+                    OpenVaultScreen { vault_status, vault_path: vault_path.clone() }
                 },
                 VaultStatus::Joining { ref vault_path, .. } => rsx! {
                     div { class: "flex items-center justify-center h-full",
@@ -242,6 +237,83 @@ fn DirectoryBrowserScreen(mut vault_status: Signal<VaultStatus>, action: &'stati
                         "{action} Here"
                     }
                 }
+            }
+        }
+    }
+}
+
+#[component]
+fn OpenVaultScreen(mut vault_status: Signal<VaultStatus>, vault_path: PathBuf) -> Element {
+    let vault_path_display = vault_path.display().to_string();
+
+    // Auto-open vault on mount
+    use_effect(move || {
+        let vault_path = vault_path.clone();
+        let mut vault_status = vault_status.clone();
+
+        spawn(async move {
+            // Validate this is a vault directory
+            let footnotes_dir = vault_path.join(".footnotes");
+            if !footnotes_dir.exists() {
+                vault_status.set(VaultStatus::Error(
+                    format!("Not a valid vault: {} (missing .footnotes directory)", vault_path.display())
+                ));
+                return;
+            }
+
+            // Set the vault as working directory
+            if let Err(e) = std::env::set_current_dir(&vault_path) {
+                vault_status.set(VaultStatus::Error(format!("Failed to set working directory: {}", e)));
+                return;
+            }
+
+            // Get the local device name
+            let device_name = match crate::core::device::get_local_device_name() {
+                Ok(name) => name,
+                Err(e) => {
+                    vault_status.set(VaultStatus::Error(format!("Failed to get device name: {}", e)));
+                    return;
+                }
+            };
+
+            // Check for device-specific home file, create if it doesn't exist
+            let home_filename = format!("home-{}.md", device_name);
+            let home_path = vault_path.join("notes").join(&home_filename);
+
+            if !home_path.exists() {
+                // Create device-specific home file
+                let uuid = uuid::Uuid::new_v4();
+                let home_content = format!(
+                    r#"---
+uuid: {}
+modified: {}
+share_with: []
+---
+
+# Home ({})
+
+Welcome to footnote! This is your home note.
+"#,
+                    uuid,
+                    chrono::Utc::now().to_rfc3339(),
+                    device_name
+                );
+
+                if let Err(e) = std::fs::write(&home_path, home_content) {
+                    vault_status.set(VaultStatus::Error(format!("Failed to create home file: {}", e)));
+                    return;
+                }
+            }
+
+            vault_status.set(VaultStatus::Ready(vault_path));
+        });
+    });
+
+    rsx! {
+        div { class: "flex items-center justify-center h-full",
+            div { class: "text-center",
+                div { class: "text-lg font-medium text-gray-700", "Opening vault..." }
+                div { class: "text-sm text-gray-500 mt-2", "{vault_path_display}" }
             }
         }
     }
