@@ -5,6 +5,27 @@ use fuzzy_matcher::FuzzyMatcher;
 use fuzzy_matcher::skim::SkimMatcherV2;
 use tracing;
 
+#[derive(Clone, Copy)]
+struct VaultContext {
+    vault_path: Signal<Option<PathBuf>>,
+}
+
+impl VaultContext {
+    fn new() -> Self {
+        Self {
+            vault_path: Signal::new(None),
+        }
+    }
+
+    fn set_vault(&mut self, path: PathBuf) {
+        self.vault_path.set(Some(path));
+    }
+
+    fn get_vault(&self) -> Option<PathBuf> {
+        self.vault_path.cloned()
+    }
+}
+
 #[derive(Clone, Copy, PartialEq)]
 enum Screen {
     Editor,
@@ -19,7 +40,6 @@ enum VaultStatus {
     Creating { vault_path: PathBuf },
     Opening { vault_path: PathBuf },
     Joining { vault_path: PathBuf, connect_url: String },
-    Ready(PathBuf),
     Error(String),
 }
 
@@ -37,10 +57,12 @@ pub fn App() -> Element {
     let vault_status = use_signal(|| VaultStatus::VaultNeeded);
     let mut open_file = use_signal(|| None::<OpenFile>);
 
-    // Load home file when vault becomes ready
+    use_context_provider(|| VaultContext::new());
+    let vault_ctx = use_context::<VaultContext>();
+
+    // Load home file when vault context changes
     use_effect(move || {
-        if let VaultStatus::Ready(ref vault_path) = *vault_status.read() {
-            let vault_path = vault_path.clone();
+        if let Some(vault_path) = vault_ctx.get_vault() {
             spawn(async move {
                 // Get the local device name to load correct home file
                 let device_name = match crate::core::device::get_local_device_name() {
@@ -68,66 +90,67 @@ pub fn App() -> Element {
         document::Stylesheet { href: asset!("/assets/tailwind.css") }
 
         div { class: "h-screen flex flex-col bg-gray-50",
-            match vault_status() {
-                VaultStatus::VaultNeeded => rsx! {
-                    VaultNeededScreen { vault_status }
-                },
-                VaultStatus::BrowsingToCreate => rsx! {
-                    DirectoryBrowserScreen { vault_status, action: "Create" }
-                },
-                VaultStatus::BrowsingToOpen => rsx! {
-                    DirectoryBrowserScreen { vault_status, action: "Open" }
-                },
-                VaultStatus::Creating { ref vault_path } => rsx! {
-                    CreateVaultScreen { vault_status, vault_path: vault_path.clone() }
-                },
-                VaultStatus::Opening { ref vault_path } => rsx! {
-                    OpenVaultScreen { vault_status, vault_path: vault_path.clone() }
-                },
-                VaultStatus::Joining { ref vault_path, .. } => rsx! {
-                    div { class: "flex items-center justify-center h-full",
-                        div { class: "text-center",
-                            div { class: "text-lg font-medium text-gray-700", "Joining vault..." }
-                            div { class: "text-sm text-gray-500 mt-2", "{vault_path.display()}" }
+            if vault_ctx.get_vault().is_some() {
+                // Navigation bar
+                nav { class: "bg-white border-b border-gray-200 px-4 py-3",
+                    div { class: "flex gap-4",
+                        button {
+                            class: if current_screen() == Screen::Editor { "px-4 py-2 font-medium text-blue-600 border-b-2 border-blue-600" } else { "px-4 py-2 font-medium text-gray-600 hover:text-gray-900" },
+                            onclick: move |_| current_screen.set(Screen::Editor),
+                            "Editor"
+                        }
+                        button {
+                            class: if current_screen() == Screen::Contacts { "px-4 py-2 font-medium text-blue-600 border-b-2 border-blue-600" } else { "px-4 py-2 font-medium text-gray-600 hover:text-gray-900" },
+                            onclick: move |_| current_screen.set(Screen::Contacts),
+                            "Contacts"
                         }
                     }
-                },
-                VaultStatus::Error(ref error) => rsx! {
-                    div { class: "flex items-center justify-center h-full",
-                        div { class: "text-center max-w-md",
-                            div { class: "text-lg font-medium text-red-600", "Error" }
-                            div { class: "text-sm text-gray-700 mt-2", "{error}" }
-                        }
-                    }
-                },
-                VaultStatus::Ready(ref _path) => rsx! {
-                    // Navigation bar
-                    nav { class: "bg-white border-b border-gray-200 px-4 py-3",
-                        div { class: "flex gap-4",
-                            button {
-                                class: if current_screen() == Screen::Editor { "px-4 py-2 font-medium text-blue-600 border-b-2 border-blue-600" } else { "px-4 py-2 font-medium text-gray-600 hover:text-gray-900" },
-                                onclick: move |_| current_screen.set(Screen::Editor),
-                                "Editor"
-                            }
-                            button {
-                                class: if current_screen() == Screen::Contacts { "px-4 py-2 font-medium text-blue-600 border-b-2 border-blue-600" } else { "px-4 py-2 font-medium text-gray-600 hover:text-gray-900" },
-                                onclick: move |_| current_screen.set(Screen::Contacts),
-                                "Contacts"
-                            }
-                        }
-                    }
+                }
 
-                    // Main content area
-                    div { class: "flex-1 overflow-auto",
-                        match current_screen() {
-                            Screen::Editor => rsx! {
-                                EditorScreen { open_file }
-                            },
-                            Screen::Contacts => rsx! {
-                                ContactsScreen {}
-                            },
-                        }
+                // Main content area
+                div { class: "flex-1 overflow-auto",
+                    match current_screen() {
+                        Screen::Editor => rsx! {
+                            EditorScreen { open_file }
+                        },
+                        Screen::Contacts => rsx! {
+                            ContactsScreen {}
+                        },
                     }
+                }
+            } else {
+                match vault_status() {
+                    VaultStatus::VaultNeeded => rsx! {
+                        VaultNeededScreen { vault_status }
+                    },
+                    VaultStatus::BrowsingToCreate => rsx! {
+                        DirectoryBrowserScreen { vault_status, action: "Create" }
+                    },
+                    VaultStatus::BrowsingToOpen => rsx! {
+                        DirectoryBrowserScreen { vault_status, action: "Open" }
+                    },
+                    VaultStatus::Creating { ref vault_path } => rsx! {
+                        CreateVaultScreen { vault_status, vault_path: vault_path.clone() }
+                    },
+                    VaultStatus::Opening { ref vault_path } => rsx! {
+                        OpenVaultScreen { vault_status, vault_path: vault_path.clone() }
+                    },
+                    VaultStatus::Joining { ref vault_path, .. } => rsx! {
+                        div { class: "flex items-center justify-center h-full",
+                            div { class: "text-center",
+                                div { class: "text-lg font-medium text-gray-700", "Joining vault..." }
+                                div { class: "text-sm text-gray-500 mt-2", "{vault_path.display()}" }
+                            }
+                        }
+                    },
+                    VaultStatus::Error(ref error) => rsx! {
+                        div { class: "flex items-center justify-center h-full",
+                            div { class: "text-center max-w-md",
+                                div { class: "text-lg font-medium text-red-600", "Error" }
+                                div { class: "text-sm text-gray-700 mt-2", "{error}" }
+                            }
+                        }
+                    },
                 }
             }
         }
@@ -316,11 +339,13 @@ fn DirectoryBrowserScreen(mut vault_status: Signal<VaultStatus>, action: &'stati
 #[component]
 fn OpenVaultScreen(mut vault_status: Signal<VaultStatus>, vault_path: PathBuf) -> Element {
     let vault_path_display = vault_path.display().to_string();
+    let vault_ctx = use_context::<VaultContext>();
 
     // Auto-open vault on mount
     use_effect(move || {
         let vault_path = vault_path.clone();
         let mut vault_status = vault_status.clone();
+        let mut vault_ctx = vault_ctx.clone();
 
         spawn(async move {
             // Validate this is a vault directory
@@ -376,7 +401,8 @@ Welcome to footnote! This is your home note.
                 }
             }
 
-            vault_status.set(VaultStatus::Ready(vault_path));
+            vault_ctx.set_vault(vault_path);
+            vault_status.set(VaultStatus::VaultNeeded);
         });
     });
 
@@ -394,6 +420,7 @@ Welcome to footnote! This is your home note.
 fn CreateVaultScreen(mut vault_status: Signal<VaultStatus>, vault_path: PathBuf) -> Element {
     let mut device_name = use_signal(|| String::new());
     let vault_path_display = vault_path.display().to_string();
+    let vault_ctx = use_context::<VaultContext>();
 
     let handle_create = move |_| {
         if device_name().trim().is_empty() {
@@ -403,6 +430,7 @@ fn CreateVaultScreen(mut vault_status: Signal<VaultStatus>, vault_path: PathBuf)
         let device = device_name().trim().to_string();
         let vault_path = vault_path.clone();
         let mut vault_status = vault_status.clone();
+        let mut vault_ctx = vault_ctx.clone();
 
         spawn(async move {
             match crate::core::init::init(
@@ -417,7 +445,8 @@ fn CreateVaultScreen(mut vault_status: Signal<VaultStatus>, vault_path: PathBuf)
                         return;
                     }
 
-                    vault_status.set(VaultStatus::Ready(vault_path));
+                    vault_ctx.set_vault(vault_path);
+                    vault_status.set(VaultStatus::VaultNeeded);
                 },
                 Err(e) => {
                     vault_status.set(VaultStatus::Error(format!("Failed to initialize vault: {}", e)));
@@ -528,6 +557,7 @@ fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
     let mut all_files = use_signal(|| Vec::<String>::new());
     let mut picker_input = use_signal(|| String::new());
     let mut show_dropdown = use_signal(|| false);
+    let vault_ctx = use_context::<VaultContext>();
 
     // Initialize edited_content when file loads
     use_effect(move || {
@@ -538,9 +568,10 @@ fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
 
     // Scan notes directory for all markdown files on mount
     use_effect(move || {
+        let vault_ctx = vault_ctx.clone();
         spawn(async move {
-            let vault_path = match dirs::home_dir() {
-                Some(dir) => dir.join("footnotes").join("notes"),
+            let vault_path = match vault_ctx.get_vault() {
+                Some(path) => path.join("notes"),
                 None => return,
             };
 
@@ -664,8 +695,8 @@ fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                                             key: "{file}",
                                             class: "px-3 py-2 hover:bg-blue-50 cursor-pointer",
                                             onclick: move |_| {
-                                                let vault_path = match dirs::home_dir() {
-                                                    Some(dir) => dir.join("footnotes").join("notes"),
+                                                let vault_path = match vault_ctx.get_vault() {
+                                                    Some(path) => path.join("notes"),
                                                     None => return,
                                                 };
                                                 let file_path = vault_path.join(&file);
@@ -769,8 +800,8 @@ fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                             SimpleMarkdown {
                                 content: edited_content(),
                                 on_internal_link_click: move |href: String| {
-                                    let vault_path = match dirs::home_dir() {
-                                        Some(dir) => dir.join("footnotes"),
+                                    let vault_path = match vault_ctx.get_vault() {
+                                        Some(path) => path,
                                         None => return,
                                     };
 
@@ -868,13 +899,15 @@ fn ContactsScreen() -> Element {
     let mut trusted_contacts = use_signal(|| Vec::<(String, crate::core::crypto::ContactRecord)>::new());
     let mut device_add_state = use_signal(|| DeviceAddState::Idle);
     let reload_trigger = use_signal(|| 0);
+    let vault_ctx = use_context::<VaultContext>();
 
     // Load contacts on mount and when reload_trigger changes
     use_effect(move || {
         let _ = reload_trigger(); // Subscribe to changes
+        let vault_ctx = vault_ctx.clone();
         spawn(async move {
-            let vault_path = match dirs::home_dir() {
-                Some(dir) => dir.join("footnotes").join(".footnotes"),
+            let vault_path = match vault_ctx.get_vault() {
+                Some(path) => path.join(".footnotes"),
                 None => return,
             };
 
