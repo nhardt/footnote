@@ -156,8 +156,37 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
             } => crate::core::device::delete(&user_name, &device_name).await,
             DeviceAction::Create { mode } => match mode {
                 None => {
-                    // Primary device: generate join URL
-                    crate::core::device::create_primary().await
+                    // Primary device: generate join URL and handle events
+                    let mut rx = crate::core::device::create_primary().await?;
+
+                    while let Some(event) = rx.recv().await {
+                        match event {
+                            crate::core::device::DeviceAuthEvent::Listening { join_url } => {
+                                println!("\n🔐 Device Authorization");
+                                println!("Copy this URL to your new device:");
+                                println!("  {}", join_url);
+                                println!("\nWaiting for device to connect...");
+                            }
+                            crate::core::device::DeviceAuthEvent::Connecting => {
+                                println!("✓ Device connecting...");
+                            }
+                            crate::core::device::DeviceAuthEvent::ReceivedRequest { device_name } => {
+                                println!("✓ Received request from: {}", device_name);
+                            }
+                            crate::core::device::DeviceAuthEvent::Verifying => {
+                                println!("✓ Verifying...");
+                            }
+                            crate::core::device::DeviceAuthEvent::Success { device_name } => {
+                                println!("✓ Success! Device '{}' has been authorized", device_name);
+                                break;
+                            }
+                            crate::core::device::DeviceAuthEvent::Error(err) => {
+                                println!("✗ Error: {}", err);
+                                break;
+                            }
+                        }
+                    }
+                    Ok(())
                 }
                 Some(CreateMode::Remote {
                     remote_url,

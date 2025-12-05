@@ -673,8 +673,11 @@ share_with: []
 #[derive(Clone, PartialEq)]
 enum DeviceAddState {
     Idle,
-    WaitingForConnection { join_url: String },
-    Success,
+    Listening { join_url: String },
+    Connecting,
+    ReceivedRequest { device_name: String },
+    Verifying,
+    Success { device_name: String },
     Error(String),
 }
 
@@ -739,21 +742,39 @@ fn ContactsScreen() -> Element {
 
                                 spawn(async move {
                                     match crate::core::device::create_primary().await {
-                                        Ok(_) => {
-                                            device_add_state.set(DeviceAddState::Success);
-                                            // Reload contacts
-                                            reload_trigger.set(reload_trigger() + 1);
+                                        Ok(mut rx) => {
+                                            // Consume events from the channel
+                                            while let Some(event) = rx.recv().await {
+                                                match event {
+                                                    crate::core::device::DeviceAuthEvent::Listening { join_url } => {
+                                                        device_add_state.set(DeviceAddState::Listening { join_url });
+                                                    }
+                                                    crate::core::device::DeviceAuthEvent::Connecting => {
+                                                        device_add_state.set(DeviceAddState::Connecting);
+                                                    }
+                                                    crate::core::device::DeviceAuthEvent::ReceivedRequest { device_name } => {
+                                                        device_add_state.set(DeviceAddState::ReceivedRequest { device_name });
+                                                    }
+                                                    crate::core::device::DeviceAuthEvent::Verifying => {
+                                                        device_add_state.set(DeviceAddState::Verifying);
+                                                    }
+                                                    crate::core::device::DeviceAuthEvent::Success { device_name } => {
+                                                        device_add_state.set(DeviceAddState::Success { device_name });
+                                                        // Reload contacts
+                                                        reload_trigger.set(reload_trigger() + 1);
+                                                        break;
+                                                    }
+                                                    crate::core::device::DeviceAuthEvent::Error(err) => {
+                                                        device_add_state.set(DeviceAddState::Error(err));
+                                                        break;
+                                                    }
+                                                }
+                                            }
                                         }
                                         Err(e) => {
                                             device_add_state.set(DeviceAddState::Error(e.to_string()));
                                         }
                                     }
-                                });
-
-                                // We can't easily extract the URL from create_primary
-                                // For now, set a placeholder state
-                                device_add_state.set(DeviceAddState::WaitingForConnection {
-                                    join_url: "Generating...".to_string()
                                 });
                             },
                             "Add Device"
@@ -774,21 +795,36 @@ fn ContactsScreen() -> Element {
 
                 // Device pairing UI
                 match device_add_state() {
-                    DeviceAddState::WaitingForConnection { ref join_url } => rsx! {
+                    DeviceAddState::Listening { ref join_url } => rsx! {
                         div { class: "mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md",
-                            div { class: "font-semibold mb-2", "Waiting for device..." }
+                            div { class: "font-semibold mb-2", "🔐 Waiting for device..." }
                             div { class: "text-sm mb-2", "Copy this URL to your new device:" }
                             div { class: "font-mono text-xs bg-white p-2 rounded border break-all",
                                 "{join_url}"
                             }
                             div { class: "text-sm text-gray-600 mt-2 italic",
-                                "Listening for connection... (check console for URL)"
+                                "Listening for connection..."
                             }
                         }
                     },
-                    DeviceAddState::Success => rsx! {
+                    DeviceAddState::Connecting => rsx! {
+                        div { class: "mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md",
+                            div { class: "font-semibold", "✓ Device connecting..." }
+                        }
+                    },
+                    DeviceAddState::ReceivedRequest { ref device_name } => rsx! {
+                        div { class: "mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md",
+                            div { class: "font-semibold", "✓ Received request from: {device_name}" }
+                        }
+                    },
+                    DeviceAddState::Verifying => rsx! {
+                        div { class: "mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md",
+                            div { class: "font-semibold", "✓ Verifying..." }
+                        }
+                    },
+                    DeviceAddState::Success { ref device_name } => rsx! {
                         div { class: "mt-4 p-4 bg-green-50 border border-green-200 rounded-md",
-                            div { class: "font-semibold", "✓ Device added successfully!" }
+                            div { class: "font-semibold", "✓ Device '{device_name}' added successfully!" }
                             button {
                                 class: "mt-2 text-sm text-blue-600 hover:underline",
                                 onclick: move |_| device_add_state.set(DeviceAddState::Idle),
@@ -798,7 +834,7 @@ fn ContactsScreen() -> Element {
                     },
                     DeviceAddState::Error(ref error) => rsx! {
                         div { class: "mt-4 p-4 bg-red-50 border border-red-200 rounded-md",
-                            div { class: "font-semibold text-red-700", "Error" }
+                            div { class: "font-semibold text-red-700", "✗ Error" }
                             div { class: "text-sm mt-1", "{error}" }
                             button {
                                 class: "mt-2 text-sm text-blue-600 hover:underline",

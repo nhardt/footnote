@@ -3,11 +3,22 @@ use iroh::{Endpoint, SecretKey};
 use n0_error::StdResultExt;
 use serde::{Deserialize, Serialize};
 use std::fs;
+use tokio::sync::mpsc::{self, Receiver};
 use uuid::Uuid;
 
 const ALPN_DEVICE_AUTH: &[u8] = b"footnote/device-auth";
 const MASTER_KEY_FILE: &str = "master_identity";
 const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
+
+#[derive(Debug, Clone)]
+pub enum DeviceAuthEvent {
+    Listening { join_url: String },
+    Connecting,
+    ReceivedRequest { device_name: String },
+    Verifying,
+    Success { device_name: String },
+    Error(String),
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct DeviceJoinRequest {
@@ -72,7 +83,8 @@ pub async fn delete(user_name: &str, device_name: &str) -> anyhow::Result<()> {
 }
 
 /// Create a new device (primary side) - generates join URL and listens for connection
-pub async fn create_primary() -> anyhow::Result<()> {
+pub async fn create_primary() -> anyhow::Result<Receiver<DeviceAuthEvent>> {
+    let (tx, rx) = mpsc::channel(32);
     // Check if this device is primary
     if !is_primary_device()? {
         anyhow::bail!(
@@ -110,82 +122,86 @@ pub async fn create_primary() -> anyhow::Result<()> {
         .await?;
 
     let endpoint_id = secret_key.public();
+    let join_url = format!("iroh://{}?token={}", endpoint_id, token);
 
-    println!("\n🔐 Device Authorization");
-    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    println!("Listening for new device...");
-    println!("\nCopy this to your new device:");
-    println!("  iroh://{}?token={}", endpoint_id, token);
-    println!("\nWaiting for connection...");
-    println!("(Press Ctrl+C to cancel)");
+    // Send initial listening event with URL
+    let _ = tx.send(DeviceAuthEvent::Listening { join_url: join_url.clone() }).await;
 
-    // Wait for connection
-    if let Some(incoming) = endpoint.accept().await {
-        println!("\n✓ Device connecting...");
-        let conn = incoming.accept()?.await?;
-        let (mut send, mut recv) = conn.accept_bi().await.anyerr()?;
+    // Spawn background task to handle connection
+    tokio::spawn(async move {
+        // Wait for connection
+        if let Some(incoming) = endpoint.accept().await {
+            let _ = tx.send(DeviceAuthEvent::Connecting).await;
 
-        // Read join request
-        let request_bytes = recv.read_to_end(10000).await.anyerr()?;
-        let request: DeviceJoinRequest = serde_json::from_slice(&request_bytes)?;
+            match async {
+                let conn = incoming.accept()?.await?;
+                let (mut send, mut recv) = conn.accept_bi().await.anyerr()?;
 
-        println!(
-            "✓ Received join request from device '{}'",
-            request.device_name
-        );
+                // Read join request
+                let request_bytes = recv.read_to_end(10000).await.anyerr()?;
+                let request: DeviceJoinRequest = serde_json::from_slice(&request_bytes)?;
 
-        // Verify token
-        if request.token != token {
-            anyhow::bail!("Invalid token. Authorization failed.");
+                let _ = tx.send(DeviceAuthEvent::ReceivedRequest {
+                    device_name: request.device_name.clone()
+                }).await;
+
+                // Verify token
+                if request.token != token {
+                    anyhow::bail!("Invalid token. Authorization failed.");
+                }
+
+                let _ = tx.send(DeviceAuthEvent::Verifying).await;
+
+                // Load current contact.json
+                let contact_path = vault::get_contact_path()?;
+                let contact_content = fs::read_to_string(&contact_path)?;
+                let mut contact_record: crypto::ContactRecord = serde_json::from_str(&contact_content)?;
+
+                // Add new device to contact record
+                let new_device = crypto::ContactDevice {
+                    device_name: request.device_name.clone(),
+                    iroh_endpoint_id: request.iroh_endpoint_id,
+                    added_at: chrono::Utc::now().to_rfc3339(),
+                };
+
+                contact_record.devices.push(new_device);
+                contact_record.updated_at = chrono::Utc::now().to_rfc3339();
+                contact_record.signature = String::new();
+
+                // Re-sign entire contact record
+                let signature = crypto::sign_contact_record(&contact_record, &signing_key)?;
+                contact_record.signature = signature;
+
+                // Save updated contact.json locally
+                fs::write(
+                    &contact_path,
+                    serde_json::to_string_pretty(&contact_record)?,
+                )?;
+
+                // Send complete contact record to remote device
+                let response = DeviceJoinResponse {
+                    contact_json: serde_json::to_string(&contact_record)?,
+                };
+
+                let response_bytes = serde_json::to_vec(&response)?;
+                send.write_all(&response_bytes).await.anyerr()?;
+                send.finish().anyerr()?;
+
+                conn.closed().await;
+
+                Ok::<_, anyhow::Error>(request.device_name.clone())
+            }.await {
+                Ok(device_name) => {
+                    let _ = tx.send(DeviceAuthEvent::Success { device_name }).await;
+                }
+                Err(e) => {
+                    let _ = tx.send(DeviceAuthEvent::Error(e.to_string())).await;
+                }
+            }
         }
+    });
 
-        println!("✓ Token verified");
-
-        // Load current contact.json
-        let contact_path = vault::get_contact_path()?;
-        let contact_content = fs::read_to_string(&contact_path)?;
-        let mut contact_record: crypto::ContactRecord = serde_json::from_str(&contact_content)?;
-
-        // Add new device to contact record
-        let new_device = crypto::ContactDevice {
-            device_name: request.device_name.clone(),
-            iroh_endpoint_id: request.iroh_endpoint_id,
-            added_at: chrono::Utc::now().to_rfc3339(),
-        };
-
-        contact_record.devices.push(new_device);
-        contact_record.updated_at = chrono::Utc::now().to_rfc3339();
-        contact_record.signature = String::new();
-
-        // Re-sign entire contact record
-        let signature = crypto::sign_contact_record(&contact_record, &signing_key)?;
-        contact_record.signature = signature;
-
-        println!("Contact record updated and signed");
-
-        // Save updated contact.json locally
-        fs::write(
-            &contact_path,
-            serde_json::to_string_pretty(&contact_record)?,
-        )?;
-        println!("Contact record saved");
-
-        // Send complete contact record to remote device
-        let response = DeviceJoinResponse {
-            contact_json: serde_json::to_string(&contact_record)?,
-        };
-
-        let response_bytes = serde_json::to_vec(&response)?;
-        send.write_all(&response_bytes).await.anyerr()?;
-        send.finish().anyerr()?;
-
-        println!("✓ Authorization complete!");
-        println!("\nDevice '{}' has been authorized", request.device_name);
-
-        conn.closed().await;
-    }
-
-    Ok(())
+    Ok(rx)
 }
 
 /// Create a new device (remote side) - joins using connection URL from primary
