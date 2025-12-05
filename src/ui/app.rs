@@ -12,10 +12,7 @@ enum Screen {
 
 #[derive(Clone, PartialEq)]
 enum VaultStatus {
-    Initializing,
-    NeedsSetup,
-    SettingUpPrimary { device_name: String },
-    SettingUpSecondary { device_name: String, connect_url: String },
+    VaultNeeded,
     Ready(PathBuf),
     Error(String),
 }
@@ -31,99 +28,16 @@ struct OpenFile {
 #[component]
 pub fn App() -> Element {
     let mut current_screen = use_signal(|| Screen::Editor);
-    let mut vault_status = use_signal(|| VaultStatus::Initializing);
-    let mut open_file = use_signal(|| None::<OpenFile>);
-    let reload_trigger = use_signal(|| 0);
-
-    // Initialize vault and load home file on first render or when reload_trigger changes
-    use_effect(move || {
-        let _ = reload_trigger(); // Watch for changes
-        spawn(async move {
-            let home_dir = match dirs::home_dir() {
-                Some(dir) => dir,
-                None => {
-                    vault_status.set(VaultStatus::Error("Could not find home directory".to_string()));
-                    return;
-                }
-            };
-
-            let vault_path = home_dir.join("footnotes");
-
-            // Check if vault already exists
-            let footnotes_dir = vault_path.join(".footnotes");
-            if !footnotes_dir.exists() {
-                // Need setup - show setup screen
-                vault_status.set(VaultStatus::NeedsSetup);
-                return;
-            }
-
-            // Set the vault as working directory for the entire app
-            if let Err(e) = std::env::set_current_dir(&vault_path) {
-                vault_status.set(VaultStatus::Error(format!("Failed to set working directory: {}", e)));
-                return;
-            }
-
-            // Get the local device name to load correct home file
-            let device_name = match crate::core::device::get_local_device_name() {
-                Ok(name) => name,
-                Err(e) => {
-                    vault_status.set(VaultStatus::Error(format!("Failed to get device name: {}", e)));
-                    return;
-                }
-            };
-
-            vault_status.set(VaultStatus::Ready(vault_path.clone()));
-
-            // Load device-specific home file
-            let home_filename = format!("home-{}.md", device_name);
-            let home_path = vault_path.join("notes").join(&home_filename);
-            match crate::core::note::parse_note(&home_path) {
-                Ok(note) => {
-                    open_file.set(Some(OpenFile {
-                        path: home_path.clone(),
-                        filename: home_filename,
-                        content: note.content,
-                        share_with: note.frontmatter.share_with,
-                    }));
-                },
-                Err(e) => {
-                    vault_status.set(VaultStatus::Error(format!("Failed to load {}: {}", home_filename, e)));
-                }
-            }
-        });
-    });
+    let vault_status = use_signal(|| VaultStatus::VaultNeeded);
+    let open_file = use_signal(|| None::<OpenFile>);
 
     rsx! {
         document::Stylesheet { href: asset!("/assets/tailwind.css") }
 
         div { class: "h-screen flex flex-col bg-gray-50",
             match vault_status() {
-                VaultStatus::Initializing => rsx! {
-                    div { class: "flex items-center justify-center h-full",
-                        div { class: "text-center",
-                            div { class: "text-lg font-medium text-gray-700", "Initializing vault..." }
-                            div { class: "text-sm text-gray-500 mt-2", "Setting up ~/footnotes/" }
-                        }
-                    }
-                },
-                VaultStatus::NeedsSetup => rsx! {
-                    SetupScreen { vault_status, reload_trigger }
-                },
-                VaultStatus::SettingUpPrimary { ref device_name } => rsx! {
-                    div { class: "flex items-center justify-center h-full",
-                        div { class: "text-center",
-                            div { class: "text-lg font-medium text-gray-700", "Setting up primary device..." }
-                            div { class: "text-sm text-gray-500 mt-2", "Device: {device_name}" }
-                        }
-                    }
-                },
-                VaultStatus::SettingUpSecondary { ref device_name, .. } => rsx! {
-                    div { class: "flex items-center justify-center h-full",
-                        div { class: "text-center",
-                            div { class: "text-lg font-medium text-gray-700", "Connecting to existing vault..." }
-                            div { class: "text-sm text-gray-500 mt-2", "Device: {device_name}" }
-                        }
-                    }
+                VaultStatus::VaultNeeded => rsx! {
+                    VaultNeededScreen { vault_status }
                 },
                 VaultStatus::Error(ref error) => rsx! {
                     div { class: "flex items-center justify-center h-full",
@@ -167,106 +81,18 @@ pub fn App() -> Element {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
-enum SetupMode {
-    ChooseMode,
-    ConnectToExisting,
-}
-
 #[component]
-fn SetupScreen(vault_status: Signal<VaultStatus>, reload_trigger: Signal<i32>) -> Element {
-    let mut device_name = use_signal(|| String::new());
-    let mut connect_url = use_signal(|| String::new());
-    let mut setup_mode = use_signal(|| SetupMode::ChooseMode);
-
-    let handle_primary = move |_| {
-        if device_name().trim().is_empty() {
-            return;
-        }
-        let device = device_name().trim().to_string();
-        let mut vault_status = vault_status.clone();
-        let mut reload_trigger = reload_trigger.clone();
-
-        vault_status.set(VaultStatus::SettingUpPrimary {
-            device_name: device.clone(),
-        });
-
-        spawn(async move {
-            let home_dir = match dirs::home_dir() {
-                Some(dir) => dir,
-                None => {
-                    vault_status.set(VaultStatus::Error("Could not find home directory".to_string()));
-                    return;
-                }
-            };
-
-            let vault_path = home_dir.join("footnotes");
-
-            match crate::core::init::init(
-                Some(vault_path.clone()),
-                Some("me"),
-                Some(&device)
-            ).await {
-                Ok(_) => {
-                    // Trigger reload by incrementing reload_trigger
-                    vault_status.set(VaultStatus::Initializing);
-                    reload_trigger.set(reload_trigger() + 1);
-                },
-                Err(e) => {
-                    vault_status.set(VaultStatus::Error(format!("Failed to initialize: {}", e)));
-                }
-            }
-        });
+fn VaultNeededScreen(vault_status: Signal<VaultStatus>) -> Element {
+    let handle_create = move |_| {
+        // TODO: Implement create flow
     };
 
-    let handle_secondary = move |_| {
-        if device_name().trim().is_empty() || connect_url().trim().is_empty() {
-            return;
-        }
-        let device = device_name().trim().to_string();
-        let url = connect_url().trim().to_string();
-        let mut vault_status = vault_status.clone();
-        let mut reload_trigger = reload_trigger.clone();
+    let handle_join = move |_| {
+        // TODO: Implement join flow
+    };
 
-        vault_status.set(VaultStatus::SettingUpSecondary {
-            device_name: device.clone(),
-            connect_url: url.clone(),
-        });
-
-        spawn(async move {
-            let home_dir = match dirs::home_dir() {
-                Some(dir) => dir,
-                None => {
-                    vault_status.set(VaultStatus::Error("Could not find home directory".to_string()));
-                    return;
-                }
-            };
-
-            let vault_path = home_dir.join("footnotes");
-
-            // Create the footnotes directory first
-            if let Err(e) = std::fs::create_dir_all(&vault_path) {
-                vault_status.set(VaultStatus::Error(format!("Failed to create directory: {}", e)));
-                return;
-            }
-
-            // Change to that directory before running create_remote
-            if let Err(e) = std::env::set_current_dir(&vault_path) {
-                vault_status.set(VaultStatus::Error(format!("Failed to set working directory: {}", e)));
-                return;
-            }
-
-            match crate::core::device::create_remote(&url, &device).await {
-                Ok(_) => {
-                    // Trigger reload by incrementing reload_trigger
-                    vault_status.set(VaultStatus::Initializing);
-                    reload_trigger.set(reload_trigger() + 1);
-                },
-                Err(e) => {
-                    vault_status.set(VaultStatus::Error(format!("Failed to connect: {}", e)));
-                }
-            }
-        });
+    let handle_open = move |_| {
+        // TODO: Implement open flow
     };
 
     rsx! {
@@ -274,57 +100,21 @@ fn SetupScreen(vault_status: Signal<VaultStatus>, reload_trigger: Signal<i32>) -
             div { class: "max-w-md w-full p-8 bg-white rounded-lg shadow-lg",
                 h1 { class: "text-2xl font-bold mb-6 text-center", "Welcome to Footnote" }
 
-                div { class: "mb-6",
-                    label { class: "block text-sm font-medium text-gray-700 mb-2", "Device Name" }
-                    input {
-                        r#type: "text",
-                        class: "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500",
-                        placeholder: "e.g., laptop, desktop, phone",
-                        value: "{device_name}",
-                        oninput: move |evt| device_name.set(evt.value()),
+                div { class: "space-y-3",
+                    button {
+                        class: "w-full px-4 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium",
+                        onclick: handle_create,
+                        "Create"
                     }
-                }
-
-                if setup_mode() == SetupMode::ChooseMode {
-                    div { class: "space-y-3",
-                        button {
-                            class: "w-full px-4 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed",
-                            disabled: device_name().trim().is_empty(),
-                            onclick: handle_primary,
-                            "Primary Device"
-                        }
-                        button {
-                            class: "w-full px-4 py-3 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 font-medium disabled:bg-gray-100 disabled:cursor-not-allowed",
-                            disabled: device_name().trim().is_empty(),
-                            onclick: move |_| setup_mode.set(SetupMode::ConnectToExisting),
-                            "Connect to Existing"
-                        }
+                    button {
+                        class: "w-full px-4 py-3 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 font-medium",
+                        onclick: handle_join,
+                        "Join"
                     }
-                } else {
-                    div { class: "space-y-4",
-                        div {
-                            label { class: "block text-sm font-medium text-gray-700 mb-2", "Connect URL" }
-                            input {
-                                r#type: "text",
-                                class: "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm",
-                                placeholder: "iroh://...",
-                                value: "{connect_url}",
-                                oninput: move |evt| connect_url.set(evt.value()),
-                            }
-                        }
-                        div { class: "flex gap-2",
-                            button {
-                                class: "flex-1 px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50",
-                                onclick: move |_| setup_mode.set(SetupMode::ChooseMode),
-                                "Back"
-                            }
-                            button {
-                                class: "flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed",
-                                disabled: connect_url().trim().is_empty(),
-                                onclick: handle_secondary,
-                                "Connect"
-                            }
-                        }
+                    button {
+                        class: "w-full px-4 py-3 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 font-medium",
+                        onclick: handle_open,
+                        "Open"
                     }
                 }
             }
