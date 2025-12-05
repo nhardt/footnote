@@ -61,6 +61,12 @@ pub fn App() -> Element {
                 }
             }
 
+            // Set the vault as working directory for the entire app
+            if let Err(e) = std::env::set_current_dir(&vault_path) {
+                vault_status.set(VaultStatus::Error(format!("Failed to set working directory: {}", e)));
+                return;
+            }
+
             vault_status.set(VaultStatus::Ready(vault_path.clone()));
 
             // Load home.md
