@@ -39,7 +39,10 @@ pub struct NoteFrontmatter {
     #[serde(default = "generate_uuid")]
     pub uuid: Uuid,
 
-    #[serde(default = "default_vector_time")]
+    #[serde(
+        default = "default_vector_time",
+        deserialize_with = "deserialize_vector_time_with_fallback"
+    )]
     pub modified: VectorTime,
 
     #[serde(default)]
@@ -52,6 +55,22 @@ fn generate_uuid() -> Uuid {
 
 fn default_vector_time() -> VectorTime {
     VectorTime::default()
+}
+
+/// Custom deserializer for VectorTime that falls back to current timestamp on error
+fn deserialize_vector_time_with_fallback<'de, D>(deserializer: D) -> Result<VectorTime, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+    // Try to deserialize as i64
+    match i64::deserialize(deserializer) {
+        Ok(timestamp) => Ok(VectorTime(timestamp)),
+        Err(_) => {
+            // Fall back to current timestamp
+            Ok(VectorTime::default())
+        }
+    }
 }
 
 impl Default for NoteFrontmatter {
@@ -214,5 +233,64 @@ This is the content.
         assert!(serialized.starts_with("---\n"));
         assert!(serialized.contains("uuid:"));
         assert!(serialized.contains("# Content"));
+    }
+
+    #[test]
+    fn test_parse_note_with_invalid_modified_field() {
+        let content = r#"---
+uuid: 550e8400-e29b-41d4-a716-446655440000
+modified: "invalid-timestamp"
+share_with: []
+---
+# Test Note
+
+This note has an invalid modified timestamp.
+"#;
+
+        let note = parse_note_from_string(content).unwrap();
+        // Should have valid frontmatter with defaulted timestamp
+        assert_eq!(note.frontmatter.uuid.to_string(), "550e8400-e29b-41d4-a716-446655440000");
+        // modified should be a valid VectorTime (current timestamp)
+        assert!(note.frontmatter.modified.as_i64() > 0);
+        assert_eq!(note.content, "# Test Note\n\nThis note has an invalid modified timestamp.\n");
+    }
+
+    #[test]
+    fn test_parse_note_with_datetime_string_modified() {
+        // Test that old DateTime RFC3339 strings gracefully fall back to current timestamp
+        let content = r#"---
+uuid: 550e8400-e29b-41d4-a716-446655440000
+modified: 2024-01-15T10:30:00Z
+share_with: []
+---
+# Old Note
+
+This note has a DateTime string in the modified field.
+"#;
+
+        let note = parse_note_from_string(content).unwrap();
+        // Should parse without error
+        assert_eq!(note.frontmatter.uuid.to_string(), "550e8400-e29b-41d4-a716-446655440000");
+        // modified should be a valid VectorTime (falls back to current timestamp)
+        assert!(note.frontmatter.modified.as_i64() > 0);
+    }
+
+    #[test]
+    fn test_parse_note_with_missing_modified_field() {
+        // Test that missing modified field uses default
+        let content = r#"---
+uuid: 550e8400-e29b-41d4-a716-446655440000
+share_with: []
+---
+# Note Without Modified
+
+This note has no modified field.
+"#;
+
+        let note = parse_note_from_string(content).unwrap();
+        // Should parse without error
+        assert_eq!(note.frontmatter.uuid.to_string(), "550e8400-e29b-41d4-a716-446655440000");
+        // modified should be a valid VectorTime (default)
+        assert!(note.frontmatter.modified.as_i64() > 0);
     }
 }
