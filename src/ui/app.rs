@@ -1211,6 +1211,14 @@ fn ContactsScreen() -> Element {
 }
 
 #[derive(Clone, PartialEq)]
+enum ListenStatus {
+    Idle,
+    Listening { endpoint_id: String },
+    Received { from: String, endpoint_id: String },
+    Error(String),
+}
+
+#[derive(Clone, PartialEq)]
 enum SyncStatus {
     Idle,
     Syncing { device_name: String },
@@ -1223,6 +1231,8 @@ fn SyncScreen() -> Element {
     let mut self_contact = use_signal(|| None::<crate::core::crypto::ContactRecord>);
     let mut trusted_contacts = use_signal(|| Vec::<(String, crate::core::crypto::ContactRecord)>::new());
     let sync_status = use_signal(|| SyncStatus::Idle);
+    let mut listen_status = use_signal(|| ListenStatus::Idle);
+    let mut cancel_token = use_signal(|| None::<tokio_util::sync::CancellationToken>);
     let vault_ctx = use_context::<VaultContext>();
 
     // Load contacts on mount
@@ -1410,6 +1420,116 @@ fn SyncScreen() -> Element {
                     }
                 } else {
                     div { class: "text-gray-500 italic", "Loading..." }
+                }
+            }
+
+            // Receive Sync section
+            div { class: "mb-8",
+                h2 { class: "text-xl font-bold mb-4", "Receive Sync" }
+                div { class: "bg-white border border-gray-200 rounded-md p-4",
+                    div { class: "flex items-center justify-between",
+                        div { class: "flex-1",
+                            div { class: "font-semibold", "Accept sync from other devices" }
+                            div { class: "text-sm text-gray-600 mt-1",
+                                match listen_status() {
+                                    ListenStatus::Idle => "Not listening".to_string(),
+                                    ListenStatus::Listening { ref endpoint_id } => {
+                                        format!("Listening on: {}...", &endpoint_id[..16.min(endpoint_id.len())])
+                                    }
+                                    ListenStatus::Received { ref from, .. } => {
+                                        format!("Recently received sync from: {}", from)
+                                    }
+                                    ListenStatus::Error(ref e) => format!("Error: {}", e),
+                                }
+                            }
+                        }
+                        if matches!(listen_status(), ListenStatus::Listening { .. } | ListenStatus::Received { .. }) {
+                            button {
+                                class: "px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700",
+                                onclick: move |_| {
+                                    // Stop listening
+                                    if let Some(token) = cancel_token() {
+                                        token.cancel();
+                                        cancel_token.set(None);
+                                        listen_status.set(ListenStatus::Idle);
+                                    }
+                                },
+                                "Stop Listening"
+                            }
+                        } else {
+                            button {
+                                class: "px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-300",
+                                disabled: matches!(listen_status(), ListenStatus::Error(_)),
+                                onclick: move |_| {
+                                    let mut listen_status = listen_status.clone();
+                                    let mut cancel_token = cancel_token.clone();
+
+                                    spawn(async move {
+                                        match crate::core::mirror::listen_background().await {
+                                            Ok((mut rx, token)) => {
+                                                cancel_token.set(Some(token));
+
+                                                // Consume events from the channel
+                                                while let Some(event) = rx.recv().await {
+                                                    match event {
+                                                        crate::core::mirror::ListenEvent::Started { endpoint_id } => {
+                                                            listen_status.set(ListenStatus::Listening { endpoint_id: endpoint_id.clone() });
+                                                        }
+                                                        crate::core::mirror::ListenEvent::Received { from } => {
+                                                            // Keep the endpoint_id when showing received status
+                                                            if let ListenStatus::Listening { endpoint_id } = listen_status() {
+                                                                listen_status.set(ListenStatus::Received {
+                                                                    from: from.clone(),
+                                                                    endpoint_id: endpoint_id.clone()
+                                                                });
+
+                                                                // Reset to listening after 3 seconds
+                                                                let mut listen_status = listen_status.clone();
+                                                                let endpoint_id_copy = endpoint_id.clone();
+                                                                spawn(async move {
+                                                                    tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+                                                                    if matches!(listen_status(), ListenStatus::Received { .. }) {
+                                                                        listen_status.set(ListenStatus::Listening { endpoint_id: endpoint_id_copy });
+                                                                    }
+                                                                });
+                                                            }
+                                                        }
+                                                        crate::core::mirror::ListenEvent::Stopped => {
+                                                            listen_status.set(ListenStatus::Idle);
+                                                            cancel_token.set(None);
+                                                            break;
+                                                        }
+                                                        crate::core::mirror::ListenEvent::Error(err) => {
+                                                            listen_status.set(ListenStatus::Error(err));
+                                                            cancel_token.set(None);
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            Err(e) => {
+                                                listen_status.set(ListenStatus::Error(e.to_string()));
+                                            }
+                                        }
+                                    });
+                                },
+                                "Start Listening"
+                            }
+                        }
+                    }
+
+                    // Show recent sync info
+                    if let ListenStatus::Received { ref from, .. } = listen_status() {
+                        div { class: "mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700",
+                            "Received sync from {from}"
+                        }
+                    }
+
+                    if let ListenStatus::Error(ref e) = listen_status() {
+                        div { class: "mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700",
+                            "Error: {e}"
+                        }
+                    }
                 }
             }
 

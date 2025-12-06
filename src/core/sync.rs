@@ -13,7 +13,7 @@ pub const ALPN_MIRROR: &[u8] = b"footnote/mirror";
 ///
 /// Returns either ("me", device_name) for same-user devices
 /// or ("user", petname) for trusted user devices
-async fn identify_device(endpoint_id: &iroh::PublicKey) -> Result<(String, String)> {
+pub async fn identify_device(endpoint_id: &iroh::PublicKey) -> Result<(String, String)> {
     // First check if it's one of my devices
     let contact_path = vault::get_contact_path()?;
     let contact_content = fs::read_to_string(&contact_path)
