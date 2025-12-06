@@ -34,6 +34,7 @@ impl VaultContext {
 enum Screen {
     Editor,
     Contacts,
+    Sync,
 }
 
 #[derive(Clone, PartialEq)]
@@ -110,6 +111,11 @@ pub fn App() -> Element {
                                 onclick: move |_| current_screen.set(Screen::Contacts),
                                 "Contacts"
                             }
+                            button {
+                                class: if current_screen() == Screen::Sync { "px-4 py-2 font-medium text-blue-600 border-b-2 border-blue-600" } else { "px-4 py-2 font-medium text-gray-600 hover:text-gray-900" },
+                                onclick: move |_| current_screen.set(Screen::Sync),
+                                "Sync"
+                            }
                         }
                         button {
                             class: "px-4 py-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50",
@@ -132,6 +138,9 @@ pub fn App() -> Element {
                         },
                         Screen::Contacts => rsx! {
                             ContactsScreen {}
+                        },
+                        Screen::Sync => rsx! {
+                            SyncScreen {}
                         },
                     }
                 }
@@ -400,6 +409,7 @@ fn OpenVaultScreen(mut vault_status: Signal<VaultStatus>, vault_path: PathBuf) -
             if !home_path.exists() {
                 // Create device-specific home file
                 let uuid = uuid::Uuid::new_v4();
+                let vector_time = crate::core::note::VectorTime::default();
                 let home_content = format!(
                     r#"---
 uuid: {}
@@ -412,7 +422,7 @@ share_with: []
 Welcome to footnote! This is your home note.
 "#,
                     uuid,
-                    chrono::Utc::now().to_rfc3339(),
+                    vector_time.as_i64(),
                     device_name
                 );
 
@@ -721,7 +731,7 @@ fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                     match crate::core::note::parse_note(&path) {
                         Ok(mut note) => {
                             note.content = content.clone();
-                            note.frontmatter.modified = chrono::Utc::now();
+                            note.frontmatter.modified = crate::core::note::VectorTime::new(Some(note.frontmatter.modified.clone()));
 
                             match crate::core::note::serialize_note(&note) {
                                 Ok(serialized) => {
@@ -928,6 +938,7 @@ fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                                         if !file_path.exists() {
                                             // Create new file with basic frontmatter
                                             let uuid = uuid::Uuid::new_v4();
+                                            let vector_time = crate::core::note::VectorTime::default();
                                             let new_content = format!(
                                                 r#"---
 uuid: {}
@@ -938,7 +949,7 @@ share_with: []
 # {}
 "#,
                                                 uuid,
-                                                chrono::Utc::now().to_rfc3339(),
+                                                vector_time.as_i64(),
                                                 href.trim_end_matches(".md")
                                             );
 
@@ -1189,6 +1200,250 @@ fn ContactsScreen() -> Element {
                                 div { class: "font-semibold", "{petname}" }
                                 div { class: "text-sm text-gray-600 mt-1",
                                     "username: {contact.username}"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[derive(Clone, PartialEq)]
+enum SyncStatus {
+    Idle,
+    Syncing { device_name: String },
+    Success { device_name: String },
+    Error { device_name: String, error: String },
+}
+
+#[component]
+fn SyncScreen() -> Element {
+    let mut self_contact = use_signal(|| None::<crate::core::crypto::ContactRecord>);
+    let mut trusted_contacts = use_signal(|| Vec::<(String, crate::core::crypto::ContactRecord)>::new());
+    let sync_status = use_signal(|| SyncStatus::Idle);
+    let vault_ctx = use_context::<VaultContext>();
+
+    // Load contacts on mount
+    use_effect(move || {
+        let vault_ctx = vault_ctx.clone();
+        spawn(async move {
+            let vault_path = match vault_ctx.get_vault() {
+                Some(path) => path.join(".footnotes"),
+                None => return,
+            };
+
+            // Load self contact
+            let self_path = vault_path.join("contact.json");
+            if let Ok(content) = std::fs::read_to_string(&self_path) {
+                if let Ok(contact) = serde_json::from_str::<crate::core::crypto::ContactRecord>(&content) {
+                    self_contact.set(Some(contact));
+                }
+            }
+
+            // Load trusted contacts
+            let contacts_dir = vault_path.join("contacts");
+            if let Ok(entries) = std::fs::read_dir(contacts_dir) {
+                let mut contacts = Vec::new();
+                for entry in entries.flatten() {
+                    if let Ok(file_name) = entry.file_name().into_string() {
+                        if file_name.ends_with(".json") {
+                            if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                                if let Ok(contact) = serde_json::from_str::<crate::core::crypto::ContactRecord>(&content) {
+                                    let petname = file_name.trim_end_matches(".json").to_string();
+                                    contacts.push((petname, contact));
+                                }
+                            }
+                        }
+                    }
+                }
+                contacts.sort_by(|a, b| a.0.cmp(&b.0));
+                trusted_contacts.set(contacts);
+            }
+        });
+    });
+
+    rsx! {
+        div { class: "max-w-4xl mx-auto p-6",
+            h1 { class: "text-2xl font-bold mb-6", "Device Sync" }
+
+            // Me section
+            div { class: "mb-8",
+                h2 { class: "text-xl font-bold mb-4", "My Devices" }
+                if let Some(ref contact) = *self_contact.read() {
+                    div { class: "space-y-2",
+                        for device in contact.devices.iter() {
+                            {
+                                let device_name = device.device_name.clone();
+                                let endpoint_id = device.iroh_endpoint_id.clone();
+                                let is_current = match crate::core::device::get_local_device_name() {
+                                    Ok(name) => name == device_name,
+                                    Err(_) => false,
+                                };
+
+                                rsx! {
+                                    div {
+                                        key: "{endpoint_id}",
+                                        class: "bg-white border border-gray-200 rounded-md p-4",
+                                        div { class: "flex items-center justify-between",
+                                            div { class: "flex-1",
+                                                div { class: "font-semibold",
+                                                    "{device_name}"
+                                                    if is_current {
+                                                        span { class: "ml-2 text-xs text-green-600 font-normal", "(this device)" }
+                                                    }
+                                                }
+                                                div { class: "text-sm text-gray-600 mt-1 font-mono text-xs truncate",
+                                                    "ID: {endpoint_id}"
+                                                }
+                                                div { class: "text-sm text-gray-500 mt-1",
+                                                    match sync_status() {
+                                                        SyncStatus::Idle => "Ready to sync".to_string(),
+                                                        SyncStatus::Syncing { device_name: ref syncing_device } if syncing_device == &device_name => "Syncing...".to_string(),
+                                                        SyncStatus::Success { device_name: ref success_device } if success_device == &device_name => "Last sync: just now".to_string(),
+                                                        SyncStatus::Error { device_name: ref error_device, .. } if error_device == &device_name => "Last sync: failed".to_string(),
+                                                        _ => "—".to_string(),
+                                                    }
+                                                }
+                                            }
+                                            if !is_current {
+                                                {
+                                                    let device_name = device_name.clone();
+                                                    let endpoint_id = endpoint_id.clone();
+                                                    let vault_ctx = vault_ctx.clone();
+                                                    let sync_status = sync_status.clone();
+
+                                                    rsx! {
+                                                        button {
+                                                            class: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed",
+                                                            disabled: !matches!(sync_status(), SyncStatus::Idle),
+                                                            onclick: move |_| {
+                                                                let device_name = device_name.clone();
+                                                                let endpoint_id = endpoint_id.clone();
+                                                                let vault_ctx = vault_ctx.clone();
+                                                                let mut sync_status = sync_status.clone();
+
+                                                                spawn(async move {
+                                                                    sync_status.set(SyncStatus::Syncing { device_name: device_name.clone() });
+
+                                                                    let vault_path = match vault_ctx.get_vault() {
+                                                                        Some(path) => path,
+                                                                        None => {
+                                                                            sync_status.set(SyncStatus::Error {
+                                                                                device_name: device_name.clone(),
+                                                                                error: "No vault path".to_string(),
+                                                                            });
+                                                                            return;
+                                                                        }
+                                                                    };
+
+                                                                    let notes_dir = vault_path.join("notes");
+                                                                    let footnotes_dir = vault_path.join(".footnotes");
+                                                                    let key_file = footnotes_dir.join("this_device");
+
+                                                                    // Load local secret key
+                                                                    let secret_key = match std::fs::read(&key_file) {
+                                                                        Ok(key_bytes) => {
+                                                                            let key_array: Result<[u8; 32], _> = key_bytes.try_into();
+                                                                            match key_array {
+                                                                                Ok(arr) => iroh::SecretKey::from_bytes(&arr),
+                                                                                Err(_) => {
+                                                                                    sync_status.set(SyncStatus::Error {
+                                                                                        device_name: device_name.clone(),
+                                                                                        error: "Invalid key length".to_string(),
+                                                                                    });
+                                                                                    return;
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                        Err(e) => {
+                                                                            sync_status.set(SyncStatus::Error {
+                                                                                device_name: device_name.clone(),
+                                                                                error: format!("Failed to read secret key: {}", e),
+                                                                            });
+                                                                            return;
+                                                                        }
+                                                                    };
+
+                                                                    // Parse endpoint ID
+                                                                    match endpoint_id.parse::<iroh::PublicKey>() {
+                                                                        Ok(public_key) => {
+                                                                            match crate::core::sync::push_to_device(&notes_dir, public_key, secret_key).await {
+                                                                                Ok(_) => {
+                                                                                    sync_status.set(SyncStatus::Success { device_name: device_name.clone() });
+                                                                                }
+                                                                                Err(e) => {
+                                                                                    sync_status.set(SyncStatus::Error {
+                                                                                        device_name: device_name.clone(),
+                                                                                        error: e.to_string(),
+                                                                                    });
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                        Err(e) => {
+                                                                            sync_status.set(SyncStatus::Error {
+                                                                                device_name: device_name.clone(),
+                                                                                error: format!("Invalid endpoint ID: {}", e),
+                                                                            });
+                                                                        }
+                                                                    }
+                                                                });
+                                                            },
+                                                            "Sync"
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        if let SyncStatus::Error { device_name: ref error_device, ref error } = sync_status() {
+                                            if error_device == &device_name {
+                                                div { class: "mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700",
+                                                    "Error: {error}"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    div { class: "text-gray-500 italic", "Loading..." }
+                }
+            }
+
+            // Trusted contacts section
+            div {
+                h2 { class: "text-xl font-bold mb-4", "Trusted Contacts" }
+                if trusted_contacts().is_empty() {
+                    div { class: "text-gray-500 italic", "No trusted contacts yet" }
+                } else {
+                    div { class: "space-y-4",
+                        for (petname, contact) in trusted_contacts().iter() {
+                            div {
+                                key: "{petname}",
+                                class: "bg-white border border-gray-200 rounded-md p-4",
+                                div { class: "font-semibold mb-2", "{petname} ({contact.username})" }
+                                div { class: "space-y-2 ml-4",
+                                    for device in contact.devices.iter() {
+                                        {
+                                            let device_name = device.device_name.clone();
+                                            let endpoint_id = device.iroh_endpoint_id.clone();
+
+                                            rsx! {
+                                                div {
+                                                    key: "{endpoint_id}",
+                                                    class: "flex items-center justify-between border-l-2 border-gray-200 pl-3 py-2",
+                                                    div { class: "flex-1",
+                                                        div { class: "text-sm font-medium", "{device_name}" }
+                                                        div { class: "text-xs text-gray-500 font-mono truncate", "ID: {endpoint_id}" }
+                                                    }
+                                                    div { class: "text-xs text-gray-400", "—" }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

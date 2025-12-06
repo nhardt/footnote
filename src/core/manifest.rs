@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -7,7 +6,7 @@ use std::path::{Path, PathBuf};
 use uuid::Uuid;
 use walkdir::WalkDir;
 
-use super::note;
+use super::note::{self, VectorTime};
 
 /// A single entry in the manifest representing one note file
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -18,8 +17,8 @@ pub struct ManifestEntry {
     /// UUID of the document
     pub uuid: Uuid,
 
-    /// Last modification timestamp
-    pub modified: DateTime<Utc>,
+    /// Last modification timestamp (vector time)
+    pub modified: VectorTime,
 
     /// BLAKE3 hash of the file content for integrity verification
     pub hash: String,
@@ -185,7 +184,6 @@ pub fn diff_manifests(local: &Manifest, remote: &Manifest) -> Vec<FileToSync> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::TimeZone;
 
     #[test]
     fn test_diff_manifests_new_file() {
@@ -196,7 +194,7 @@ mod tests {
         remote.add_entry(ManifestEntry {
             path: PathBuf::from("note.md"),
             uuid,
-            modified: Utc::now(),
+            modified: VectorTime::default(),
             hash: "abc123".to_string(),
         });
 
@@ -212,8 +210,8 @@ mod tests {
         let mut remote = Manifest::new();
 
         let uuid = Uuid::new_v4();
-        let old_time = Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap();
-        let new_time = Utc.with_ymd_and_hms(2024, 1, 2, 0, 0, 0).unwrap();
+        let old_time = VectorTime(1000);
+        let new_time = VectorTime(2000);
 
         local.add_entry(ManifestEntry {
             path: PathBuf::from("note.md"),
@@ -240,8 +238,8 @@ mod tests {
         let mut remote = Manifest::new();
 
         let uuid = Uuid::new_v4();
-        let old_time = Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap();
-        let new_time = Utc.with_ymd_and_hms(2024, 1, 2, 0, 0, 0).unwrap();
+        let old_time = VectorTime(1000);
+        let new_time = VectorTime(2000);
 
         local.add_entry(ManifestEntry {
             path: PathBuf::from("note.md"),
@@ -267,12 +265,12 @@ mod tests {
         let mut remote = Manifest::new();
 
         let uuid = Uuid::new_v4();
-        let time = Utc::now();
+        let time = VectorTime(1500);
 
         local.add_entry(ManifestEntry {
             path: PathBuf::from("note.md"),
             uuid,
-            modified: time,
+            modified: time.clone(),
             hash: "abc123".to_string(),
         });
 

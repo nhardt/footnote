@@ -1,9 +1,37 @@
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 use uuid::Uuid;
+
+/// Vector time for tracking modifications with causality
+/// Uses max(file_modified_time + 1, unix_time) for conflict resolution
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+pub struct VectorTime(pub i64);
+
+impl VectorTime {
+    /// Create a new vector time from a previous time
+    /// Returns max(previous_time + 1, current_unix_time)
+    pub fn new(previous: Option<VectorTime>) -> Self {
+        let current_unix = Utc::now().timestamp();
+        match previous {
+            Some(VectorTime(prev)) => VectorTime(std::cmp::max(prev + 1, current_unix)),
+            None => VectorTime(current_unix),
+        }
+    }
+
+    /// Get the unix timestamp value
+    pub fn as_i64(&self) -> i64 {
+        self.0
+    }
+}
+
+impl Default for VectorTime {
+    fn default() -> Self {
+        VectorTime::new(None)
+    }
+}
 
 /// Frontmatter metadata for a note
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -11,8 +39,8 @@ pub struct NoteFrontmatter {
     #[serde(default = "generate_uuid")]
     pub uuid: Uuid,
 
-    #[serde(default = "current_timestamp")]
-    pub modified: DateTime<Utc>,
+    #[serde(default = "default_vector_time")]
+    pub modified: VectorTime,
 
     #[serde(default)]
     pub share_with: Vec<String>,
@@ -22,15 +50,15 @@ fn generate_uuid() -> Uuid {
     Uuid::new_v4()
 }
 
-fn current_timestamp() -> DateTime<Utc> {
-    Utc::now()
+fn default_vector_time() -> VectorTime {
+    VectorTime::default()
 }
 
 impl Default for NoteFrontmatter {
     fn default() -> Self {
         Self {
             uuid: generate_uuid(),
-            modified: current_timestamp(),
+            modified: default_vector_time(),
             share_with: Vec::new(),
         }
     }
@@ -173,9 +201,7 @@ This is the content.
     fn test_serialize_note() {
         let frontmatter = NoteFrontmatter {
             uuid: Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap(),
-            modified: DateTime::parse_from_rfc3339("2024-01-15T10:30:00Z")
-                .unwrap()
-                .with_timezone(&Utc),
+            modified: VectorTime(1705316400),
             share_with: vec!["alice".to_string()],
         };
 
