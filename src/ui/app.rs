@@ -76,9 +76,9 @@ pub fn App() -> Element {
                     Err(_) => return,
                 };
 
-                // Load device-specific home file
+                // Load device-specific home file from vault root
                 let home_filename = format!("home-{}.md", device_name);
-                let home_path = vault_path.join("notes").join(&home_filename);
+                let home_path = vault_path.join(&home_filename);
 
                 if let Ok(note) = crate::core::note::parse_note(&home_path) {
                     open_file.set(Some(OpenFile {
@@ -404,7 +404,7 @@ fn OpenVaultScreen(mut vault_status: Signal<VaultStatus>, vault_path: PathBuf) -
 
             // Check for device-specific home file, create if it doesn't exist
             let home_filename = format!("home-{}.md", device_name);
-            let home_path = vault_path.join("notes").join(&home_filename);
+            let home_path = vault_path.join(&home_filename);
 
             if !home_path.exists() {
                 // Create device-specific home file
@@ -695,7 +695,7 @@ fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
         let vault_ctx = vault_ctx.clone();
         spawn(async move {
             let vault_path = match vault_ctx.get_vault() {
-                Some(path) => path.join("notes"),
+                Some(path) => path,
                 None => return,
             };
 
@@ -703,6 +703,10 @@ fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                 let mut files = Vec::new();
                 for entry in entries.flatten() {
                     if let Ok(file_name) = entry.file_name().into_string() {
+                        // Skip directories starting with "." (like .footnotes, .obsidian)
+                        if file_name.starts_with('.') {
+                            continue;
+                        }
                         if file_name.ends_with(".md") {
                             files.push(file_name);
                         }
@@ -929,7 +933,7 @@ fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                                         None => return,
                                     };
 
-                                    let file_path = vault_path.join("notes").join(&href);
+                                    let file_path = vault_path.join(&href);
                                     let mut open_file = open_file.clone();
                                     let mut editor_mode = editor_mode.clone();
 
@@ -1348,7 +1352,7 @@ fn SyncScreen() -> Element {
                                                                         }
                                                                     };
 
-                                                                    let notes_dir = vault_path.join("notes");
+                                                                    let notes_dir = vault_path.clone();
                                                                     let footnotes_dir = vault_path.join(".footnotes");
                                                                     let key_file = footnotes_dir.join("this_device");
 

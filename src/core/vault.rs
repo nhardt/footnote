@@ -5,7 +5,6 @@ const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
 const CONTACT_FILE: &str = "contact.json";
 const CONTACTS_DIR: &str = "contacts";
 const TRUSTED_SOURCES_DIR: &str = "footnotes";
-const NOTES_DIR: &str = "notes";
 
 /// Get the base vault directory path by searching upward for .footnotes/
 pub fn get_vault_path() -> anyhow::Result<PathBuf> {
@@ -37,8 +36,9 @@ pub fn get_contact_path() -> anyhow::Result<PathBuf> {
 }
 
 /// Get the notes directory path (for "me")
+/// Notes are stored at the vault root for Obsidian compatibility
 pub fn get_notes_dir() -> anyhow::Result<PathBuf> {
-    Ok(get_vault_path()?.join(NOTES_DIR))
+    get_vault_path()
 }
 
 /// Get the contacts directory path (inside .footnotes)

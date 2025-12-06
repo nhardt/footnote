@@ -270,12 +270,10 @@ pub async fn create_remote(connection_string: &str, device_name: &str) -> anyhow
     // Create vault directory structure in current directory
     let footnotes_dir = vault_path.join(".footnotes");
     let contacts_dir = footnotes_dir.join("contacts");
-    let notes_dir = vault_path.join("notes");
     let trusted_sources_dir = vault_path.join("footnotes");
 
     fs::create_dir_all(&footnotes_dir)?;
     fs::create_dir_all(&contacts_dir)?;
-    fs::create_dir_all(&notes_dir)?;
     fs::create_dir_all(&trusted_sources_dir)?;
 
     // Store Iroh secret key
@@ -289,10 +287,10 @@ pub async fn create_remote(connection_string: &str, device_name: &str) -> anyhow
         serde_json::to_string_pretty(&contact_record)?,
     )?;
 
-    // Create device-specific home note
+    // Create device-specific home note at vault root
     let home_uuid = Uuid::new_v4();
     let home_filename = format!("home-{}.md", device_name);
-    let home_file = notes_dir.join(&home_filename);
+    let home_file = vault_path.join(&home_filename);
     let home_content = format!(
         r#"---
 uuid: {}

@@ -48,12 +48,10 @@ pub async fn init(
     // Create directory structure
     let footnotes_dir = vault_path.join(".footnotes");
     let contacts_dir = footnotes_dir.join("contacts");
-    let notes_dir = vault_path.join("notes");
     let trusted_sources_dir = vault_path.join("footnotes");
 
     fs::create_dir_all(&footnotes_dir)?;
     fs::create_dir_all(&contacts_dir)?;
-    fs::create_dir_all(&notes_dir)?;
     fs::create_dir_all(&trusted_sources_dir)?;
 
     // Generate master identity key pair
@@ -75,10 +73,10 @@ pub async fn init(
     fs::write(&key_file, secret_key.to_bytes())?;
     eprintln!("Device Iroh key stored at {}", key_file.display());
 
-    // Create device-specific home note
+    // Create device-specific home note at vault root
     let home_uuid = Uuid::new_v4();
     let home_filename = format!("home-{}.md", device_name);
-    let home_file = notes_dir.join(&home_filename);
+    let home_file = vault_path.join(&home_filename);
     let home_content = format!(
         r#"---
 uuid: {}
