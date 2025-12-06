@@ -24,6 +24,10 @@ impl VaultContext {
     fn get_vault(&self) -> Option<PathBuf> {
         self.vault_path.cloned()
     }
+
+    fn clear_vault(&mut self) {
+        self.vault_path.set(None);
+    }
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -93,16 +97,28 @@ pub fn App() -> Element {
             if vault_ctx.get_vault().is_some() {
                 // Navigation bar
                 nav { class: "bg-white border-b border-gray-200 px-4 py-3",
-                    div { class: "flex gap-4",
-                        button {
-                            class: if current_screen() == Screen::Editor { "px-4 py-2 font-medium text-blue-600 border-b-2 border-blue-600" } else { "px-4 py-2 font-medium text-gray-600 hover:text-gray-900" },
-                            onclick: move |_| current_screen.set(Screen::Editor),
-                            "Editor"
+                    div { class: "flex justify-between items-center",
+                        div { class: "flex gap-4",
+                            button {
+                                class: if current_screen() == Screen::Editor { "px-4 py-2 font-medium text-blue-600 border-b-2 border-blue-600" } else { "px-4 py-2 font-medium text-gray-600 hover:text-gray-900" },
+                                onclick: move |_| current_screen.set(Screen::Editor),
+                                "Editor"
+                            }
+                            button {
+                                class: if current_screen() == Screen::Contacts { "px-4 py-2 font-medium text-blue-600 border-b-2 border-blue-600" } else { "px-4 py-2 font-medium text-gray-600 hover:text-gray-900" },
+                                onclick: move |_| current_screen.set(Screen::Contacts),
+                                "Contacts"
+                            }
                         }
                         button {
-                            class: if current_screen() == Screen::Contacts { "px-4 py-2 font-medium text-blue-600 border-b-2 border-blue-600" } else { "px-4 py-2 font-medium text-gray-600 hover:text-gray-900" },
-                            onclick: move |_| current_screen.set(Screen::Contacts),
-                            "Contacts"
+                            class: "px-4 py-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50",
+                            onclick: move |_| {
+                                let mut vault_ctx = vault_ctx.clone();
+                                let mut open_file = open_file.clone();
+                                vault_ctx.clear_vault();
+                                open_file.set(None);
+                            },
+                            "Switch Vault"
                         }
                     }
                 }
