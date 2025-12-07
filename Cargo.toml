@@ -27,7 +27,7 @@ tokio = "1.48.0"
 tokio-util = "0.7"
 uuid = { version = "1.11", features = ["v4", "serde"] }
 walkdir = "2.5.0"
-dioxus = { version = "0.7.1", features = [] }
+dioxus = { version = "0.7.2", features = [] }
 tracing = "0.1"
 
 [target.'cfg(target_os = "android")'.dependencies]
