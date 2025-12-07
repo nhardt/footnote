@@ -1,0 +1,5 @@
+[application]
+identifier = "works.footnote.app" 
+
+[bundle.macos]
+entitlements = "app.entitlements" 
