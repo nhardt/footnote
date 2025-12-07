@@ -265,6 +265,10 @@ fn DirectoryBrowserScreen(mut vault_status: Signal<VaultStatus>, action: &'stati
             let mut folder_list = Vec::new();
             if let Ok(entries) = std::fs::read_dir(&path) {
                 for entry in entries.flatten() {
+                    if entry.file_name().to_string_lossy().starts_with('.') {
+                        continue;
+                    }
+
                     if let Ok(metadata) = entry.metadata() {
                         if metadata.is_dir() {
                             folder_list.push(entry.path());
