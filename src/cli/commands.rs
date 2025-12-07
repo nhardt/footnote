@@ -132,22 +132,34 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
         _ => true,
     };
 
-    if needs_vault {
+    // Get vault path for commands that need it
+    let vault_path = if needs_vault {
+        let vp = crate::core::vault::get_vault_path()?;
         crate::core::vault::verify_vault_layout()?;
-    }
+        Some(vp)
+    } else {
+        None
+    };
 
     match cli.command {
         Commands::Init { path, username, device_name } => {
             crate::core::init::init(path, username.as_deref(), device_name.as_deref()).await
         }
         Commands::Trust { file_path, petname } => {
-            crate::core::user::import(&file_path, &petname).await
+            let vp = vault_path.as_ref().expect("vault required for this command");
+            crate::core::user::import(vp, &file_path, &petname).await
         }
         Commands::User { action } => match action {
             UserAction::Create { user_name } => crate::core::user::create(&user_name).await,
             UserAction::Delete { user_name } => crate::core::user::delete(&user_name).await,
-            UserAction::Read => crate::core::user::read().await,
-            UserAction::Export { user_name } => crate::core::user::export(&user_name).await,
+            UserAction::Read => {
+                let vp = vault_path.as_ref().expect("vault required for this command");
+                crate::core::user::read(vp).await
+            }
+            UserAction::Export { user_name } => {
+                let vp = vault_path.as_ref().expect("vault required for this command");
+                crate::core::user::export(vp, &user_name).await
+            }
         },
         Commands::Device { action } => match action {
             DeviceAction::Delete {
@@ -157,7 +169,8 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
             DeviceAction::Create { mode } => match mode {
                 None => {
                     // Primary device: generate join URL and handle events
-                    let mut rx = crate::core::device::create_primary().await?;
+                    let vp = vault_path.as_ref().expect("vault required for this command");
+                    let mut rx = crate::core::device::create_primary(vp).await?;
 
                     while let Some(event) = rx.recv().await {
                         match event {
@@ -193,21 +206,28 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
                     device_name,
                 }) => {
                     // Remote device: join using URL
-                    crate::core::device::create_remote(&remote_url, &device_name).await
+                    let vp = vault_path.as_ref().expect("vault required for this command");
+                    crate::core::device::create_remote(vp, &remote_url, &device_name).await
                 }
             },
         },
         Commands::Mirror { action } => match action {
-            MirrorAction::Listen => crate::core::mirror::listen().await,
+            MirrorAction::Listen => {
+                let vp = vault_path.as_ref().expect("vault required for this command");
+                crate::core::mirror::listen(vp).await
+            }
             MirrorAction::From { remote_url, device_name } => {
-                crate::core::device::create_remote(&remote_url, &device_name).await
+                let vp = vault_path.as_ref().expect("vault required for this command");
+                crate::core::device::create_remote(vp, &remote_url, &device_name).await
             }
             MirrorAction::Push { user, device } => {
-                crate::core::mirror::push(user.as_deref(), device.as_deref()).await
+                let vp = vault_path.as_ref().expect("vault required for this command");
+                crate::core::mirror::push(vp, user.as_deref(), device.as_deref()).await
             }
         },
         Commands::Share { petname } => {
-            crate::core::mirror::share(petname.as_deref()).await
+            let vp = vault_path.as_ref().expect("vault required for this command");
+            crate::core::mirror::share(vp, petname.as_deref()).await
         }
     }
 }

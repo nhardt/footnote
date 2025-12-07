@@ -122,16 +122,17 @@ pub fn App() -> Element {
         }
 
         if let Some(vault_path) = vault_ctx.get_vault() {
+            let vault_path_for_spawn = vault_path.clone();
             spawn(async move {
                 // Get the local device name to load correct home file
-                let device_name = match crate::core::device::get_local_device_name() {
+                let device_name = match crate::core::device::get_local_device_name(&vault_path_for_spawn) {
                     Ok(name) => name,
                     Err(_) => return,
                 };
 
                 // Load device-specific home file from vault root
                 let home_filename = format!("home-{}.md", device_name);
-                let home_path = vault_path.join(&home_filename);
+                let home_path = vault_path_for_spawn.join(&home_filename);
 
                 if let Ok(note) = crate::core::note::parse_note(&home_path) {
                     open_file.set(Some(OpenFile {
@@ -461,7 +462,7 @@ fn OpenVaultScreen(mut vault_status: Signal<VaultStatus>, vault_path: PathBuf) -
             }
 
             // Get the local device name
-            let device_name = match crate::core::device::get_local_device_name() {
+            let device_name = match crate::core::device::get_local_device_name(&vault_path) {
                 Ok(name) => name,
                 Err(e) => {
                     vault_status.set(VaultStatus::Error(format!(
@@ -564,7 +565,7 @@ fn JoinVaultScreen(
                 return;
             }
 
-            match crate::core::device::create_remote(&url, &device).await {
+            match crate::core::device::create_remote(&vault_path, &url, &device).await {
                 Ok(_) => {
                     vault_ctx.set_vault(vault_path);
                     vault_status.set(VaultStatus::VaultNeeded);
@@ -1209,9 +1210,21 @@ fn ContactsScreen() -> Element {
                             onclick: move |_| {
                                 let mut device_add_state = device_add_state.clone();
                                 let mut reload_trigger = reload_trigger.clone();
+                                let vault_ctx = vault_ctx.clone();
 
                                 spawn(async move {
-                                    match crate::core::device::create_primary().await {
+                                    // Get vault path from context
+                                    let vault_path = match vault_ctx.get_vault() {
+                                        Some(path) => path,
+                                        None => {
+                                            device_add_state.set(DeviceAddState::Error(
+                                                "No vault path available".to_string()
+                                            ));
+                                            return;
+                                        }
+                                    };
+
+                                    match crate::core::device::create_primary(&vault_path).await {
                                         Ok(mut rx) => {
                                             // Consume events from the channel
                                             while let Some(event) = rx.recv().await {
@@ -1427,10 +1440,10 @@ fn SyncScreen() -> Element {
                             {
                                 let device_name = device.device_name.clone();
                                 let endpoint_id = device.iroh_endpoint_id.clone();
-                                let is_current = match crate::core::device::get_local_device_name() {
-                                    Ok(name) => name == device_name,
-                                    Err(_) => false,
-                                };
+                                let is_current = vault_ctx.get_vault()
+                                    .and_then(|vp| crate::core::device::get_local_device_name(&vp).ok())
+                                    .map(|name| name == device_name)
+                                    .unwrap_or(false);
 
                                 rsx! {
                                     div {
@@ -1679,9 +1692,18 @@ fn SyncScreen() -> Element {
                                 onclick: move |_| {
                                     let mut listen_status = listen_status.clone();
                                     let mut cancel_token = cancel_token.clone();
+                                    let vault_ctx = vault_ctx.clone();
 
                                     spawn(async move {
-                                        match crate::core::mirror::listen_background().await {
+                                        let vault_path = match vault_ctx.get_vault() {
+                                            Some(path) => path,
+                                            None => {
+                                                listen_status.set(ListenStatus::Error("No vault path available".to_string()));
+                                                return;
+                                            }
+                                        };
+
+                                        match crate::core::mirror::listen_background(&vault_path).await {
                                             Ok((mut rx, token)) => {
                                                 cancel_token.set(Some(token));
 

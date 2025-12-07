@@ -4,7 +4,7 @@ use n0_error::StdResultExt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::{crypto, manifest, vault};
+use super::{crypto, manifest};
 
 /// ALPN protocol identifier for mirror sync
 pub const ALPN_MIRROR: &[u8] = b"footnote/mirror";
@@ -13,9 +13,9 @@ pub const ALPN_MIRROR: &[u8] = b"footnote/mirror";
 ///
 /// Returns either ("me", device_name) for same-user devices
 /// or ("user", petname) for trusted user devices
-pub async fn identify_device(endpoint_id: &iroh::PublicKey) -> Result<(String, String)> {
+pub async fn identify_device(vault_path: &Path, endpoint_id: &iroh::PublicKey) -> Result<(String, String)> {
     // First check if it's one of my devices
-    let contact_path = vault::get_contact_path()?;
+    let contact_path = vault_path.join(".footnotes").join("contact.json");
     let contact_content = fs::read_to_string(&contact_path)
         .context("Failed to read contact.json")?;
     let contact_record: crypto::ContactRecord = serde_json::from_str(&contact_content)
@@ -31,7 +31,7 @@ pub async fn identify_device(endpoint_id: &iroh::PublicKey) -> Result<(String, S
     }
 
     // Check if it's a trusted user's device
-    let contacts_dir = vault::get_contacts_dir()?;
+    let contacts_dir = vault_path.join(".footnotes").join("contacts");
     if contacts_dir.exists() {
         for entry in fs::read_dir(&contacts_dir)? {
             let entry = entry?;
@@ -58,11 +58,11 @@ pub async fn identify_device(endpoint_id: &iroh::PublicKey) -> Result<(String, S
 }
 
 /// Handle an incoming sync connection
-pub async fn handle_sync_accept(connection: Connection, local_notes_dir: &Path) -> Result<()> {
+pub async fn handle_sync_accept(vault_path: &Path, connection: Connection, local_notes_dir: &Path) -> Result<()> {
     let remote_endpoint_id = connection.remote_id();
 
     // Identify the remote device (either same user or trusted user)
-    let (device_type, identifier) = identify_device(&remote_endpoint_id).await?;
+    let (device_type, identifier) = identify_device(vault_path, &remote_endpoint_id).await?;
 
     // Determine target directory based on device type
     let target_dir = if device_type == "me" {
@@ -72,7 +72,7 @@ pub async fn handle_sync_accept(connection: Connection, local_notes_dir: &Path) 
     } else {
         // Share from trusted user -> footnotes/{petname}/
         println!("Receiving shared documents from {} ({})", identifier, remote_endpoint_id);
-        let footnotes_dir = vault::get_trusted_user_dir(&identifier)?;
+        let footnotes_dir = vault_path.join("footnotes").join(&identifier);
         fs::create_dir_all(&footnotes_dir)?;
         footnotes_dir
     };

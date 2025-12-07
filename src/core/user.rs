@@ -1,4 +1,4 @@
-use crate::core::{crypto, vault};
+use crate::core::crypto;
 use serde::Serialize;
 use std::fs;
 
@@ -37,17 +37,17 @@ pub async fn delete(user_name: &str) -> anyhow::Result<()> {
 }
 
 /// Export a user's contact information
-pub async fn export(user_name: &str) -> anyhow::Result<()> {
+pub async fn export(vault_path: &std::path::Path, user_name: &str) -> anyhow::Result<()> {
     if user_name == "me" {
-        return export_me().await;
+        return export_me(vault_path).await;
     } else {
-        return export_trusted_user(user_name).await;
+        return export_trusted_user(vault_path, user_name).await;
     }
 }
 
 /// Export "me" user's contact information
-async fn export_me() -> anyhow::Result<()> {
-    let contact_path = vault::get_contact_path()?;
+async fn export_me(vault_path: &std::path::Path) -> anyhow::Result<()> {
+    let contact_path = vault_path.join(".footnotes").join("contact.json");
 
     if !contact_path.exists() {
         anyhow::bail!("Contact record not found. Run 'footnote init' first.");
@@ -66,8 +66,8 @@ async fn export_me() -> anyhow::Result<()> {
 }
 
 /// Export a trusted user's contact information
-async fn export_trusted_user(petname: &str) -> anyhow::Result<()> {
-    let contact_path = vault::get_contact_file_path(petname)?;
+async fn export_trusted_user(vault_path: &std::path::Path, petname: &str) -> anyhow::Result<()> {
+    let contact_path = vault_path.join(".footnotes").join("contacts").join(format!("{}.json", petname));
 
     if !contact_path.exists() {
         anyhow::bail!("Trusted user '{}' not found", petname);
@@ -86,7 +86,7 @@ async fn export_trusted_user(petname: &str) -> anyhow::Result<()> {
 }
 
 /// Import a user's contact information
-pub async fn import(file_path: &str, petname: &str) -> anyhow::Result<()> {
+pub async fn import(vault_path: &std::path::Path, file_path: &str, petname: &str) -> anyhow::Result<()> {
     let content = fs::read_to_string(file_path)?;
     let new_contact: crypto::ContactRecord = serde_json::from_str(&content)?;
 
@@ -99,7 +99,7 @@ pub async fn import(file_path: &str, petname: &str) -> anyhow::Result<()> {
         new_contact.devices.len()
     );
 
-    let contact_path = vault::get_contact_file_path(petname)?;
+    let contact_path = vault_path.join(".footnotes").join("contacts").join(format!("{}.json", petname));
 
     if contact_path.exists() {
         let existing_content = fs::read_to_string(&contact_path)?;
@@ -126,8 +126,8 @@ pub async fn import(file_path: &str, petname: &str) -> anyhow::Result<()> {
     }
 
     // Ensure contacts directory and trusted sources directory exist
-    let contacts_dir = vault::get_contacts_dir()?;
-    let trusted_user_dir = vault::get_trusted_user_dir(petname)?;
+    let contacts_dir = vault_path.join(".footnotes").join("contacts");
+    let trusted_user_dir = vault_path.join("footnotes").join(petname);
     fs::create_dir_all(&contacts_dir)?;
     fs::create_dir_all(&trusted_user_dir)?;
 
@@ -141,14 +141,14 @@ pub async fn import(file_path: &str, petname: &str) -> anyhow::Result<()> {
 }
 
 /// Read and display all users and their devices
-pub async fn read() -> anyhow::Result<()> {
+pub async fn read(vault_path: &std::path::Path) -> anyhow::Result<()> {
     let mut users = Vec::new();
 
     // Read "me" user from contact.json
     let mut me_devices = Vec::new();
     let mut master_public_key = None;
     let mut nickname = None;
-    let contact_path = vault::get_contact_path()?;
+    let contact_path = vault_path.join(".footnotes").join("contact.json");
 
     if contact_path.exists() {
         let contact_content = fs::read_to_string(&contact_path)?;
@@ -180,7 +180,7 @@ pub async fn read() -> anyhow::Result<()> {
     });
 
     // Scan .footnotes/contacts/ directory for trusted user contact files
-    let contacts_dir = vault::get_contacts_dir()?;
+    let contacts_dir = vault_path.join(".footnotes").join("contacts");
     if contacts_dir.exists() {
         for entry in fs::read_dir(&contacts_dir)? {
             let entry = entry?;

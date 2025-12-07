@@ -6,7 +6,7 @@ use tokio::sync::mpsc::{self, Receiver};
 use tokio_util::sync::CancellationToken;
 use walkdir::WalkDir;
 
-use super::{crypto, note, sync, vault};
+use super::{crypto, note, sync};
 
 const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
 
@@ -25,13 +25,13 @@ pub enum ListenEvent {
 
 /// Start listening for incoming sync connections in the background
 /// Returns a receiver for status events and a cancellation token to stop
-pub async fn listen_background() -> Result<(Receiver<ListenEvent>, CancellationToken)> {
+pub async fn listen_background(vault_path: &std::path::Path) -> Result<(Receiver<ListenEvent>, CancellationToken)> {
     let (tx, rx) = mpsc::channel(32);
     let cancel_token = CancellationToken::new();
     let cancel_clone = cancel_token.clone();
 
     // Load device secret key
-    let footnotes_dir = vault::get_footnotes_dir()?;
+    let footnotes_dir = vault_path.join(".footnotes");
     let key_file = footnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
     let key_bytes = fs::read(&key_file)?;
     let key_array: [u8; 32] = key_bytes
@@ -41,7 +41,8 @@ pub async fn listen_background() -> Result<(Receiver<ListenEvent>, CancellationT
     let endpoint_id = secret_key.public();
 
     // Get notes directory
-    let notes_dir = vault::get_notes_dir()?;
+    let notes_dir = vault_path.to_path_buf();
+    let vault_path_clone = vault_path.to_path_buf();
 
     tokio::spawn(async move {
         // Create Iroh endpoint
@@ -96,7 +97,7 @@ pub async fn listen_background() -> Result<(Receiver<ListenEvent>, CancellationT
                         let remote_id = conn.remote_id();
 
                         // Identify device (could fail, but we still handle the connection)
-                        let device_name = match crate::core::sync::identify_device(&remote_id).await {
+                        let device_name = match crate::core::sync::identify_device(&vault_path_clone, &remote_id).await {
                             Ok((_, name)) => name,
                             Err(_) => remote_id.to_string(),
                         };
@@ -105,8 +106,9 @@ pub async fn listen_background() -> Result<(Receiver<ListenEvent>, CancellationT
 
                         // Spawn task to handle connection
                         let notes_dir_clone = notes_dir.clone();
+                        let vault_path_for_task = vault_path_clone.clone();
                         tokio::spawn(async move {
-                            if let Err(e) = sync::handle_sync_accept(conn, &notes_dir_clone).await {
+                            if let Err(e) = sync::handle_sync_accept(&vault_path_for_task, conn, &notes_dir_clone).await {
                                 eprintln!("Error handling sync: {:?}", e);
                             }
                         });
@@ -128,9 +130,9 @@ pub async fn listen_background() -> Result<(Receiver<ListenEvent>, CancellationT
 ///
 /// Starts an Iroh endpoint listening for sync connections from other devices.
 /// Only accepts connections from devices belonging to the same user (verified via signatures).
-pub async fn listen() -> Result<()> {
+pub async fn listen(vault_path: &std::path::Path) -> Result<()> {
     // Load this device's Iroh secret key
-    let footnotes_dir = vault::get_footnotes_dir()?;
+    let footnotes_dir = vault_path.join(".footnotes");
     let key_file = footnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
     let key_bytes = fs::read(&key_file)?;
     let key_array: [u8; 32] = key_bytes
@@ -140,7 +142,7 @@ pub async fn listen() -> Result<()> {
     let endpoint_id = secret_key.public();
 
     // Get notes directory
-    let notes_dir = vault::get_notes_dir()?;
+    let notes_dir = vault_path.to_path_buf();
 
     println!("\n📡 Mirror Sync - Listening");
     println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -167,8 +169,9 @@ pub async fn listen() -> Result<()> {
                 if alpn == sync::ALPN_MIRROR {
                     // Spawn a task to handle the connection
                     let notes_dir_clone = notes_dir.clone();
+                    let vault_path_clone = vault_path.to_path_buf();
                     tokio::spawn(async move {
-                        if let Err(e) = sync::handle_sync_accept(conn, &notes_dir_clone).await {
+                        if let Err(e) = sync::handle_sync_accept(&vault_path_clone, conn, &notes_dir_clone).await {
                             eprintln!("Error handling sync: {:?}", e);
                         }
                     });
@@ -191,11 +194,11 @@ pub async fn listen() -> Result<()> {
 /// - Pushes all notes to the specified device (same user)
 ///
 /// Future: --user parameter for user-to-user sharing
-pub async fn push(user: Option<&str>, device: Option<&str>) -> Result<()> {
+pub async fn push(vault_path: &std::path::Path, user: Option<&str>, device: Option<&str>) -> Result<()> {
     match (user, device) {
         (None, Some(device_name)) => {
             // Self-to-self sync: push to specified device
-            push_to_own_device(device_name).await
+            push_to_own_device(vault_path, device_name).await
         }
         (None, None) => {
             anyhow::bail!(
@@ -214,9 +217,9 @@ pub async fn push(user: Option<&str>, device: Option<&str>) -> Result<()> {
 }
 
 /// Push to one of the user's own devices (self-to-self sync)
-async fn push_to_own_device(device_name: &str) -> Result<()> {
+async fn push_to_own_device(vault_path: &std::path::Path, device_name: &str) -> Result<()> {
     // Load this device's Iroh secret key
-    let footnotes_dir = vault::get_footnotes_dir()?;
+    let footnotes_dir = vault_path.join(".footnotes");
     let key_file = footnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
     let key_bytes = fs::read(&key_file)?;
     let key_array: [u8; 32] = key_bytes
@@ -225,7 +228,7 @@ async fn push_to_own_device(device_name: &str) -> Result<()> {
     let secret_key = SecretKey::from_bytes(&key_array);
 
     // Look up the target device in contact.json
-    let contact_path = vault::get_contact_path()?;
+    let contact_path = footnotes_dir.join("contact.json");
     let contact_content = fs::read_to_string(&contact_path)?;
     let contact_record: crate::core::crypto::ContactRecord =
         serde_json::from_str(&contact_content)?;
@@ -251,7 +254,7 @@ async fn push_to_own_device(device_name: &str) -> Result<()> {
     println!();
 
     // Get notes directory
-    let notes_dir = vault::get_notes_dir()?;
+    let notes_dir = vault_path.to_path_buf();
 
     // Push to the device
     sync::push_to_device(&notes_dir, endpoint_id, secret_key).await?;
@@ -260,9 +263,9 @@ async fn push_to_own_device(device_name: &str) -> Result<()> {
 }
 
 /// Share documents with trusted users based on frontmatter share_with field
-pub async fn share(petname_filter: Option<&str>) -> Result<()> {
+pub async fn share(vault_path: &std::path::Path, petname_filter: Option<&str>) -> Result<()> {
     // Load this device's Iroh secret key
-    let footnotes_dir = vault::get_footnotes_dir()?;
+    let footnotes_dir = vault_path.join(".footnotes");
     let key_file = footnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
     let key_bytes = fs::read(&key_file)?;
     let key_array: [u8; 32] = key_bytes
@@ -273,7 +276,7 @@ pub async fn share(petname_filter: Option<&str>) -> Result<()> {
     // (Future: could use my contact record to determine my petname from their perspective)
 
     // Collect all notes and group by share_with users
-    let notes_dir = vault::get_notes_dir()?;
+    let notes_dir = vault_path.to_path_buf();
     let mut shared_docs: std::collections::HashMap<String, Vec<PathBuf>> = std::collections::HashMap::new();
 
     println!("\nDocument Sharing");
@@ -317,7 +320,7 @@ pub async fn share(petname_filter: Option<&str>) -> Result<()> {
         println!("  {} document(s)", docs.len());
 
         // Look up the user's contact record
-        let contact_file_path = vault::get_contact_file_path(&petname)?;
+        let contact_file_path = footnotes_dir.join("contacts").join(format!("{}.json", petname));
         if !contact_file_path.exists() {
             eprintln!("  Warning: Contact not found for '{}'. Run 'footnote trust' first.", petname);
             eprintln!("  Skipping...\n");

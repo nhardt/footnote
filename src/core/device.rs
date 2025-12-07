@@ -33,15 +33,15 @@ struct DeviceJoinResponse {
 }
 
 /// Check if the current device is a primary device
-fn is_primary_device() -> anyhow::Result<bool> {
-    let footnotes_dir = vault::get_footnotes_dir()?;
+fn is_primary_device(vault_path: &std::path::Path) -> anyhow::Result<bool> {
+    let footnotes_dir = vault_path.join(".footnotes");
     let master_key_file = footnotes_dir.join(MASTER_KEY_FILE);
     Ok(master_key_file.exists())
 }
 
 /// Get the local device name by matching the public key
-pub fn get_local_device_name() -> anyhow::Result<String> {
-    let footnotes_dir = vault::get_footnotes_dir()?;
+pub fn get_local_device_name(vault_path: &std::path::Path) -> anyhow::Result<String> {
+    let footnotes_dir = vault_path.join(".footnotes");
     let key_file = footnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
 
     if !key_file.exists() {
@@ -59,7 +59,7 @@ pub fn get_local_device_name() -> anyhow::Result<String> {
     let local_public_key = secret_key.public();
 
     // Read contact.json to find device name
-    let contact_path = vault::get_contact_path()?;
+    let contact_path = footnotes_dir.join("contact.json");
     let contact_content = fs::read_to_string(&contact_path)?;
     let contact_record: crypto::ContactRecord = serde_json::from_str(&contact_content)?;
 
@@ -127,10 +127,10 @@ pub async fn delete(user_name: &str, device_name: &str) -> anyhow::Result<()> {
 }
 
 /// Create a new device (primary side) - generates join URL and listens for connection
-pub async fn create_primary() -> anyhow::Result<Receiver<DeviceAuthEvent>> {
+pub async fn create_primary(vault_path: &std::path::Path) -> anyhow::Result<Receiver<DeviceAuthEvent>> {
     let (tx, rx) = mpsc::channel(32);
     // Check if this device is primary
-    if !is_primary_device()? {
+    if !is_primary_device(vault_path)? {
         anyhow::bail!(
             "This device is not marked as primary. Only the primary device can create join URLs.\n\
             Run this command on your primary device."
@@ -138,7 +138,7 @@ pub async fn create_primary() -> anyhow::Result<Receiver<DeviceAuthEvent>> {
     }
 
     // Load master identity key
-    let footnotes_dir = vault::get_footnotes_dir()?;
+    let footnotes_dir = vault_path.join(".footnotes");
     let master_key_file = footnotes_dir.join(MASTER_KEY_FILE);
     if !master_key_file.exists() {
         anyhow::bail!("Master identity key not found. Run 'footnote init' first.");
@@ -171,6 +171,9 @@ pub async fn create_primary() -> anyhow::Result<Receiver<DeviceAuthEvent>> {
     // Send initial listening event with URL
     let _ = tx.send(DeviceAuthEvent::Listening { join_url: join_url.clone() }).await;
 
+    // Clone vault_path for use in spawned task
+    let vault_path = vault_path.to_path_buf();
+
     // Spawn background task to handle connection
     tokio::spawn(async move {
         // Wait for connection
@@ -197,7 +200,7 @@ pub async fn create_primary() -> anyhow::Result<Receiver<DeviceAuthEvent>> {
                 let _ = tx.send(DeviceAuthEvent::Verifying).await;
 
                 // Load current contact.json
-                let contact_path = vault::get_contact_path()?;
+                let contact_path = vault_path.join(".footnotes").join("contact.json");
                 let contact_content = fs::read_to_string(&contact_path)?;
                 let mut contact_record: crypto::ContactRecord = serde_json::from_str(&contact_content)?;
 
@@ -249,10 +252,8 @@ pub async fn create_primary() -> anyhow::Result<Receiver<DeviceAuthEvent>> {
 }
 
 /// Create a new device (remote side) - joins using connection URL from primary
-pub async fn create_remote(connection_string: &str, device_name: &str) -> anyhow::Result<()> {
-    // Check if vault already exists in current directory
-    let vault_path =
-        std::env::current_dir().map_err(|_| anyhow::anyhow!("Failed to get current directory"))?;
+pub async fn create_remote(vault_path: &std::path::Path, connection_string: &str, device_name: &str) -> anyhow::Result<()> {
+    // Check if vault already exists at the specified path
     let footnotes_check = vault_path.join(".footnotes");
     if footnotes_check.exists() {
         anyhow::bail!(
