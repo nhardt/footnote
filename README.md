@@ -22,13 +22,14 @@ worth citing.
 ### The Trust Model
 
 - **`footnote trust alice.json`** - Establishes the communication channel.
-You're importing Alice's contact information (her identity and devices) and
-creating space for her shared work.
+  You're importing Alice's contact information (her identity and devices) and
+  creating space for her shared work.
 
 - **`footnote share alice`** - Sends your shared documents to Alice. Only
-documents marked with `share_with: [alice]` will be transmitted.
+  documents marked with `share_with: [alice]` will be transmitted.
 
 This separation means:
+
 1. Setting up trust is a one-time relationship establishment
 2. Sharing is an ongoing, selective transmission of specific documents
 3. You control what goes out; they control what goes out to you
@@ -137,6 +138,7 @@ footnote init --username alice-jones --device-name laptop
 ```
 
 Creates the vault structure on your primary device with:
+
 - Master identity key generation
 - Initial contact record
 - Directory structure (`notes/`, `footnotes/`, `.footnotes/`)
@@ -157,6 +159,7 @@ footnote mirror from "iroh://abc123...?token=xyz789" --device-name phone
 ```
 
 This:
+
 1. Connects the new device to your primary
 2. Primary signs the new device
 3. Both update their contact records
@@ -177,6 +180,7 @@ footnote trust alice-contact.json --petname alice
 ```
 
 This:
+
 1. Verifies the cryptographic signatures in their contact record
 2. Creates `.footnotes/contacts/alice.json`
 3. Creates `footnotes/alice/` directory
@@ -319,3 +323,8 @@ Footnote prioritizes:
 
 This is a tool for researchers, writers, and thinkers who want to maintain their
 own knowledge base while selectively collaborating with trusted peers.
+
+## References
+
+https://www.inkandswitch.com/keyhive/notebook/
+https://files.spritely.institute/papers/petnames.html
