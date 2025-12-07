@@ -102,6 +102,13 @@ pub fn create_manifest(notes_dir: &Path) -> Result<Manifest> {
     {
         let path = entry.path();
 
+        // Skip hidden directories and files (starting with .)
+        if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+            if file_name.starts_with('.') {
+                continue;
+            }
+        }
+
         // Only process markdown files
         if !path.is_file() || path.extension().and_then(|s| s.to_str()) != Some("md") {
             continue;
