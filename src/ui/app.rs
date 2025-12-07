@@ -1,8 +1,8 @@
-use dioxus::prelude::*;
-use std::path::PathBuf;
 use crate::ui::markdown::SimpleMarkdown;
-use fuzzy_matcher::FuzzyMatcher;
+use dioxus::prelude::*;
 use fuzzy_matcher::skim::SkimMatcherV2;
+use fuzzy_matcher::FuzzyMatcher;
+use std::path::PathBuf;
 use tracing;
 
 #[derive(Clone, Copy)]
@@ -43,9 +43,17 @@ enum VaultStatus {
     BrowsingToCreate,
     BrowsingToOpen,
     BrowsingToJoin,
-    Creating { vault_path: PathBuf },
-    Opening { vault_path: PathBuf },
-    Joining { vault_path: PathBuf, device_name: String, connect_url: String },
+    Creating {
+        vault_path: PathBuf,
+    },
+    Opening {
+        vault_path: PathBuf,
+    },
+    Joining {
+        vault_path: PathBuf,
+        device_name: String,
+        connect_url: String,
+    },
     Error(String),
 }
 
@@ -66,8 +74,53 @@ pub fn App() -> Element {
     use_context_provider(|| VaultContext::new());
     let vault_ctx = use_context::<VaultContext>();
 
+    // Load config on app startup (once)
+    let mut config_loaded = use_signal(|| false);
+    use_effect(move || {
+        if !config_loaded() {
+            config_loaded.set(true);
+
+            let mut vault_ctx = vault_ctx.clone();
+            let mut open_file = open_file.clone();
+
+            spawn(async move {
+                if let Some(config) = crate::ui::config::AppConfig::load() {
+                    // Validate vault exists
+                    if !config.validate_vault() {
+                        tracing::info!("Config vault path invalid, ignoring config");
+                        return;
+                    }
+
+                    // Set vault context
+                    vault_ctx.set_vault(config.last_vault_path.clone());
+
+                    // Try to load the last file if it exists
+                    if let Some(filename) = config.last_file {
+                        let file_path = config.last_vault_path.join(&filename);
+                        if file_path.exists() {
+                            if let Ok(note) = crate::core::note::parse_note(&file_path) {
+                                open_file.set(Some(OpenFile {
+                                    path: file_path,
+                                    filename: filename.clone(),
+                                    content: note.content,
+                                    share_with: note.frontmatter.share_with,
+                                }));
+                            }
+                        }
+                        // If file doesn't exist, fall through to home file loader
+                    }
+                }
+            });
+        }
+    });
+
     // Load home file when vault context changes
     use_effect(move || {
+        // Don't override if file already loaded from config
+        if open_file.read().is_some() {
+            return;
+        }
+
         if let Some(vault_path) = vault_ctx.get_vault() {
             spawn(async move {
                 // Get the local device name to load correct home file
@@ -124,6 +177,13 @@ pub fn App() -> Element {
                                 let mut open_file = open_file.clone();
                                 vault_ctx.clear_vault();
                                 open_file.set(None);
+
+                                // Clear config when switching vaults
+                                spawn(async move {
+                                    if let Err(e) = crate::ui::config::AppConfig::delete() {
+                                        tracing::warn!("Failed to delete config: {}", e);
+                                    }
+                                });
                             },
                             "Switch Vault"
                         }
@@ -183,16 +243,14 @@ pub fn App() -> Element {
 
 #[component]
 fn DirectoryBrowserScreen(mut vault_status: Signal<VaultStatus>, action: &'static str) -> Element {
-    let mut current_path = use_signal(|| {
-        match crate::platform::get_app_dir() {
-            Ok(path) => {
-                tracing::info!("Directory browser starting at: {}", path.display());
-                path
-            }
-            Err(e) => {
-                tracing::error!("Failed to get app directory: {}", e);
-                PathBuf::from("/")
-            }
+    let mut current_path = use_signal(|| match crate::platform::get_app_dir() {
+        Ok(path) => {
+            tracing::info!("Directory browser starting at: {}", path.display());
+            path
+        }
+        Err(e) => {
+            tracing::error!("Failed to get app directory: {}", e);
+            PathBuf::from("/")
         }
     });
     let mut folders = use_signal(|| Vec::<PathBuf>::new());
@@ -254,8 +312,13 @@ fn DirectoryBrowserScreen(mut vault_status: Signal<VaultStatus>, action: &'stati
         tracing::info!("Attempting to create directory: {}", new_path.display());
 
         if let Err(e) = std::fs::create_dir(&new_path) {
-            tracing::error!("Failed to create directory {}: {} (kind: {:?}, errno: {:?})",
-                new_path.display(), e, e.kind(), e.raw_os_error());
+            tracing::error!(
+                "Failed to create directory {}: {} (kind: {:?}, errno: {:?})",
+                new_path.display(),
+                e,
+                e.kind(),
+                e.raw_os_error()
+            );
             // TODO: Show error to user
             return;
         }
@@ -381,15 +444,19 @@ fn OpenVaultScreen(mut vault_status: Signal<VaultStatus>, vault_path: PathBuf) -
             // Validate this is a vault directory
             let footnotes_dir = vault_path.join(".footnotes");
             if !footnotes_dir.exists() {
-                vault_status.set(VaultStatus::Error(
-                    format!("Not a valid vault: {} (missing .footnotes directory)", vault_path.display())
-                ));
+                vault_status.set(VaultStatus::Error(format!(
+                    "Not a valid vault: {} (missing .footnotes directory)",
+                    vault_path.display()
+                )));
                 return;
             }
 
             // Set the vault as working directory
             if let Err(e) = std::env::set_current_dir(&vault_path) {
-                vault_status.set(VaultStatus::Error(format!("Failed to set working directory: {}", e)));
+                vault_status.set(VaultStatus::Error(format!(
+                    "Failed to set working directory: {}",
+                    e
+                )));
                 return;
             }
 
@@ -397,7 +464,10 @@ fn OpenVaultScreen(mut vault_status: Signal<VaultStatus>, vault_path: PathBuf) -
             let device_name = match crate::core::device::get_local_device_name() {
                 Ok(name) => name,
                 Err(e) => {
-                    vault_status.set(VaultStatus::Error(format!("Failed to get device name: {}", e)));
+                    vault_status.set(VaultStatus::Error(format!(
+                        "Failed to get device name: {}",
+                        e
+                    )));
                     return;
                 }
             };
@@ -427,12 +497,27 @@ Welcome to footnote! This is your home note.
                 );
 
                 if let Err(e) = std::fs::write(&home_path, home_content) {
-                    vault_status.set(VaultStatus::Error(format!("Failed to create home file: {}", e)));
+                    vault_status.set(VaultStatus::Error(format!(
+                        "Failed to create home file: {}",
+                        e
+                    )));
                     return;
                 }
             }
 
-            vault_ctx.set_vault(vault_path);
+            vault_ctx.set_vault(vault_path.clone());
+
+            // Save vault to config
+            spawn(async move {
+                let config = crate::ui::config::AppConfig {
+                    last_vault_path: vault_path,
+                    last_file: None,
+                };
+                if let Err(e) = config.save() {
+                    tracing::warn!("Failed to save config: {}", e);
+                }
+            });
+
             vault_status.set(VaultStatus::VaultNeeded);
         });
     });
@@ -448,7 +533,12 @@ Welcome to footnote! This is your home note.
 }
 
 #[component]
-fn JoinVaultScreen(mut vault_status: Signal<VaultStatus>, vault_path: PathBuf, device_name: String, connect_url: String) -> Element {
+fn JoinVaultScreen(
+    mut vault_status: Signal<VaultStatus>,
+    vault_path: PathBuf,
+    device_name: String,
+    connect_url: String,
+) -> Element {
     let mut device_name_input = use_signal(|| device_name);
     let mut connect_url_input = use_signal(|| connect_url);
     let vault_path_display = vault_path.display().to_string();
@@ -467,7 +557,10 @@ fn JoinVaultScreen(mut vault_status: Signal<VaultStatus>, vault_path: PathBuf, d
 
         spawn(async move {
             if let Err(e) = std::env::set_current_dir(&vault_path) {
-                vault_status.set(VaultStatus::Error(format!("Failed to set working directory: {}", e)));
+                vault_status.set(VaultStatus::Error(format!(
+                    "Failed to set working directory: {}",
+                    e
+                )));
                 return;
             }
 
@@ -475,7 +568,7 @@ fn JoinVaultScreen(mut vault_status: Signal<VaultStatus>, vault_path: PathBuf, d
                 Ok(_) => {
                     vault_ctx.set_vault(vault_path);
                     vault_status.set(VaultStatus::VaultNeeded);
-                },
+                }
                 Err(e) => {
                     vault_status.set(VaultStatus::Error(format!("Failed to join vault: {}", e)));
                 }
@@ -557,23 +650,26 @@ fn CreateVaultScreen(mut vault_status: Signal<VaultStatus>, vault_path: PathBuf)
         let mut vault_ctx = vault_ctx.clone();
 
         spawn(async move {
-            match crate::core::init::init(
-                Some(vault_path.clone()),
-                Some("me"),
-                Some(&device)
-            ).await {
+            match crate::core::init::init(Some(vault_path.clone()), Some("me"), Some(&device)).await
+            {
                 Ok(_) => {
                     // Set the vault as working directory
                     if let Err(e) = std::env::set_current_dir(&vault_path) {
-                        vault_status.set(VaultStatus::Error(format!("Failed to set working directory: {}", e)));
+                        vault_status.set(VaultStatus::Error(format!(
+                            "Failed to set working directory: {}",
+                            e
+                        )));
                         return;
                     }
 
                     vault_ctx.set_vault(vault_path);
                     vault_status.set(VaultStatus::VaultNeeded);
-                },
+                }
                 Err(e) => {
-                    vault_status.set(VaultStatus::Error(format!("Failed to initialize vault: {}", e)));
+                    vault_status.set(VaultStatus::Error(format!(
+                        "Failed to initialize vault: {}",
+                        e
+                    )));
                 }
             }
         });
@@ -735,24 +831,25 @@ fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                     match crate::core::note::parse_note(&path) {
                         Ok(mut note) => {
                             note.content = content.clone();
-                            note.frontmatter.modified = crate::core::note::VectorTime::new(Some(note.frontmatter.modified.clone()));
+                            note.frontmatter.modified = crate::core::note::VectorTime::new(Some(
+                                note.frontmatter.modified.clone(),
+                            ));
 
                             match crate::core::note::serialize_note(&note) {
-                                Ok(serialized) => {
-                                    match std::fs::write(&path, serialized) {
-                                        Ok(_) => {
-                                            save_status.set("Saved!".to_string());
+                                Ok(serialized) => match std::fs::write(&path, serialized) {
+                                    Ok(_) => {
+                                        save_status.set("Saved!".to_string());
 
-                                            if let Some(file) = open_file.write().as_mut() {
-                                                file.content = content;
-                                            }
-
-                                            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-                                            save_status.set(String::new());
+                                        if let Some(file) = open_file.write().as_mut() {
+                                            file.content = content;
                                         }
-                                        Err(e) => save_status.set(format!("Error: {}", e)),
+
+                                        tokio::time::sleep(tokio::time::Duration::from_secs(2))
+                                            .await;
+                                        save_status.set(String::new());
                                     }
-                                }
+                                    Err(e) => save_status.set(format!("Error: {}", e)),
+                                },
                                 Err(e) => save_status.set(format!("Error: {}", e)),
                             }
                         }
@@ -777,12 +874,18 @@ fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                 if picker_input().is_empty() {
                     Some((file.clone(), 0))
                 } else {
-                    matcher.fuzzy_match(file, &picker_input()).map(|score| (file.clone(), score))
+                    matcher
+                        .fuzzy_match(file, &picker_input())
+                        .map(|score| (file.clone(), score))
                 }
             })
             .collect();
         filtered_files.sort_by(|a, b| b.1.cmp(&a.1)); // Sort by score descending
-        let filtered_files: Vec<String> = filtered_files.into_iter().map(|(f, _)| f).take(10).collect();
+        let filtered_files: Vec<String> = filtered_files
+            .into_iter()
+            .map(|(f, _)| f)
+            .take(10)
+            .collect();
 
         rsx! {
             div { class: "max-w-4xl mx-auto p-6 h-full flex flex-col gap-4",
@@ -824,7 +927,7 @@ fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                                             class: "px-3 py-2 hover:bg-blue-50 cursor-pointer",
                                             onclick: move |_| {
                                                 let vault_path = match vault_ctx.get_vault() {
-                                                    Some(path) => path.join("notes"),
+                                                    Some(path) => path,
                                                     None => return,
                                                 };
                                                 let file_path = vault_path.join(&file);
@@ -839,13 +942,22 @@ fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                                                         Ok(note) => {
                                                             open_file.set(Some(OpenFile {
                                                                 path: file_path.clone(),
-                                                                filename: file_name,
+                                                                filename: file_name.clone(),
                                                                 content: note.content,
                                                                 share_with: note.frontmatter.share_with,
                                                             }));
                                                             editor_mode.set(EditorMode::View);
                                                             picker_input.set(String::new());
                                                             show_dropdown.set(false);
+
+                                                            // Save file to config
+                                                            let config = crate::ui::config::AppConfig {
+                                                                last_vault_path: vault_path,
+                                                                last_file: Some(file_name),
+                                                            };
+                                                            if let Err(e) = config.save() {
+                                                                tracing::warn!("Failed to save config: {}", e);
+                                                            }
                                                         }
                                                         Err(e) => {
                                                             eprintln!("Failed to load file: {}", e);
@@ -974,6 +1086,15 @@ share_with: []
                                                 }));
                                                 // Switch to view mode
                                                 editor_mode.set(EditorMode::View);
+
+                                                // Save file to config
+                                                let config = crate::ui::config::AppConfig {
+                                                    last_vault_path: vault_path,
+                                                    last_file: Some(href.clone()),
+                                                };
+                                                if let Err(e) = config.save() {
+                                                    tracing::warn!("Failed to save config: {}", e);
+                                                }
                                             }
                                             Err(e) => {
                                                 eprintln!("Failed to load file: {}", e);
@@ -1025,7 +1146,8 @@ enum DeviceAddState {
 #[component]
 fn ContactsScreen() -> Element {
     let mut self_contact = use_signal(|| None::<crate::core::crypto::ContactRecord>);
-    let mut trusted_contacts = use_signal(|| Vec::<(String, crate::core::crypto::ContactRecord)>::new());
+    let mut trusted_contacts =
+        use_signal(|| Vec::<(String, crate::core::crypto::ContactRecord)>::new());
     let mut device_add_state = use_signal(|| DeviceAddState::Idle);
     let reload_trigger = use_signal(|| 0);
     let vault_ctx = use_context::<VaultContext>();
@@ -1043,7 +1165,9 @@ fn ContactsScreen() -> Element {
             // Load self contact
             let self_path = vault_path.join("contact.json");
             if let Ok(content) = std::fs::read_to_string(&self_path) {
-                if let Ok(contact) = serde_json::from_str::<crate::core::crypto::ContactRecord>(&content) {
+                if let Ok(contact) =
+                    serde_json::from_str::<crate::core::crypto::ContactRecord>(&content)
+                {
                     self_contact.set(Some(contact));
                 }
             }
@@ -1056,7 +1180,10 @@ fn ContactsScreen() -> Element {
                     if let Ok(file_name) = entry.file_name().into_string() {
                         if file_name.ends_with(".json") {
                             if let Ok(content) = std::fs::read_to_string(entry.path()) {
-                                if let Ok(contact) = serde_json::from_str::<crate::core::crypto::ContactRecord>(&content) {
+                                if let Ok(contact) = serde_json::from_str::<
+                                    crate::core::crypto::ContactRecord,
+                                >(&content)
+                                {
                                     let petname = file_name.trim_end_matches(".json").to_string();
                                     contacts.push((petname, contact));
                                 }
@@ -1233,7 +1360,8 @@ enum SyncStatus {
 #[component]
 fn SyncScreen() -> Element {
     let mut self_contact = use_signal(|| None::<crate::core::crypto::ContactRecord>);
-    let mut trusted_contacts = use_signal(|| Vec::<(String, crate::core::crypto::ContactRecord)>::new());
+    let mut trusted_contacts =
+        use_signal(|| Vec::<(String, crate::core::crypto::ContactRecord)>::new());
     let sync_status = use_signal(|| SyncStatus::Idle);
     let mut listen_status = use_signal(|| ListenStatus::Idle);
     let mut cancel_token = use_signal(|| None::<tokio_util::sync::CancellationToken>);
@@ -1251,7 +1379,9 @@ fn SyncScreen() -> Element {
             // Load self contact
             let self_path = vault_path.join("contact.json");
             if let Ok(content) = std::fs::read_to_string(&self_path) {
-                if let Ok(contact) = serde_json::from_str::<crate::core::crypto::ContactRecord>(&content) {
+                if let Ok(contact) =
+                    serde_json::from_str::<crate::core::crypto::ContactRecord>(&content)
+                {
                     self_contact.set(Some(contact));
                 }
             }
@@ -1264,7 +1394,10 @@ fn SyncScreen() -> Element {
                     if let Ok(file_name) = entry.file_name().into_string() {
                         if file_name.ends_with(".json") {
                             if let Ok(content) = std::fs::read_to_string(entry.path()) {
-                                if let Ok(contact) = serde_json::from_str::<crate::core::crypto::ContactRecord>(&content) {
+                                if let Ok(contact) = serde_json::from_str::<
+                                    crate::core::crypto::ContactRecord,
+                                >(&content)
+                                {
                                     let petname = file_name.trim_end_matches(".json").to_string();
                                     contacts.push((petname, contact));
                                 }
