@@ -76,10 +76,54 @@ pub fn get_local_device_name() -> anyhow::Result<String> {
     )
 }
 
-/// Delete a device
-pub async fn delete(user_name: &str, device_name: &str) -> anyhow::Result<()> {
-    println!("TODO: device::delete({}, {})", user_name, device_name);
+/// Delete a device from the user's contact record
+pub async fn delete_device(vault_path: &std::path::Path, device_name: &str) -> anyhow::Result<()> {
+    // Load contact.json
+    let footnotes_dir = vault_path.join(".footnotes");
+    let contact_path = footnotes_dir.join("contact.json");
+    let contact_content = fs::read_to_string(&contact_path)?;
+    let mut contact_record: crypto::ContactRecord = serde_json::from_str(&contact_content)?;
+
+    // Find and remove the device
+    let original_count = contact_record.devices.len();
+    contact_record.devices.retain(|d| d.device_name != device_name);
+
+    // Check if device was found
+    if contact_record.devices.len() == original_count {
+        anyhow::bail!("Device '{}' not found in contact record", device_name);
+    }
+
+    // Update timestamp
+    contact_record.updated_at = chrono::Utc::now().to_rfc3339();
+    contact_record.signature = String::new();
+
+    // Load master signing key
+    let master_key_file = footnotes_dir.join(MASTER_KEY_FILE);
+    if !master_key_file.exists() {
+        anyhow::bail!("Master identity key not found");
+    }
+
+    let master_key_hex = fs::read_to_string(&master_key_file)?;
+    let signing_key = crypto::signing_key_from_hex(&master_key_hex)?;
+
+    // Re-sign contact record
+    let signature = crypto::sign_contact_record(&contact_record, &signing_key)?;
+    contact_record.signature = signature;
+
+    // Save updated contact.json
+    fs::write(
+        &contact_path,
+        serde_json::to_string_pretty(&contact_record)?,
+    )?;
+
     Ok(())
+}
+
+/// Delete a device (legacy CLI interface)
+pub async fn delete(user_name: &str, device_name: &str) -> anyhow::Result<()> {
+    let _ = user_name; // Unused, kept for CLI compatibility
+    let vault_path = vault::get_vault_path()?;
+    delete_device(&vault_path, device_name).await
 }
 
 /// Create a new device (primary side) - generates join URL and listens for connection

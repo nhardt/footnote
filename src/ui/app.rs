@@ -1365,10 +1365,13 @@ fn SyncScreen() -> Element {
     let sync_status = use_signal(|| SyncStatus::Idle);
     let mut listen_status = use_signal(|| ListenStatus::Idle);
     let mut cancel_token = use_signal(|| None::<tokio_util::sync::CancellationToken>);
+    let confirm_delete = use_signal(|| None::<String>);
+    let reload_trigger = use_signal(|| 0);
     let vault_ctx = use_context::<VaultContext>();
 
-    // Load contacts on mount
+    // Load contacts on mount and when reload_trigger changes
     use_effect(move || {
+        let _ = reload_trigger(); // Subscribe to changes
         let vault_ctx = vault_ctx.clone();
         spawn(async move {
             let vault_path = match vault_ctx.get_vault() {
@@ -1460,18 +1463,24 @@ fn SyncScreen() -> Element {
                                                     let endpoint_id = endpoint_id.clone();
                                                     let vault_ctx = vault_ctx.clone();
                                                     let sync_status = sync_status.clone();
+                                                    let confirm_delete = confirm_delete.clone();
 
                                                     rsx! {
                                                         button {
                                                             class: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed",
                                                             disabled: !matches!(sync_status(), SyncStatus::Idle),
-                                                            onclick: move |_| {
+                                                            onclick: {
                                                                 let device_name = device_name.clone();
                                                                 let endpoint_id = endpoint_id.clone();
                                                                 let vault_ctx = vault_ctx.clone();
-                                                                let mut sync_status = sync_status.clone();
+                                                                let sync_status = sync_status.clone();
+                                                                move |_| {
+                                                                    let device_name = device_name.clone();
+                                                                    let endpoint_id = endpoint_id.clone();
+                                                                    let vault_ctx = vault_ctx.clone();
+                                                                    let mut sync_status = sync_status.clone();
 
-                                                                spawn(async move {
+                                                                    spawn(async move {
                                                                     sync_status.set(SyncStatus::Syncing { device_name: device_name.clone() });
 
                                                                     let vault_path = match vault_ctx.get_vault() {
@@ -1535,9 +1544,22 @@ fn SyncScreen() -> Element {
                                                                             });
                                                                         }
                                                                     }
-                                                                });
+                                                                    });
+                                                                }
                                                             },
                                                             "Sync"
+                                                        }
+                                                        button {
+                                                            class: "px-4 py-2 ml-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed",
+                                                            disabled: confirm_delete().is_some(),
+                                                            onclick: {
+                                                                let device_name = device_name.clone();
+                                                                let mut confirm_delete = confirm_delete.clone();
+                                                                move |_| {
+                                                                    confirm_delete.set(Some(device_name.clone()));
+                                                                }
+                                                            },
+                                                            "Delete"
                                                         }
                                                     }
                                                 }
@@ -1557,6 +1579,63 @@ fn SyncScreen() -> Element {
                     }
                 } else {
                     div { class: "text-gray-500 italic", "Loading..." }
+                }
+            }
+
+            // Confirmation dialog for device deletion
+            if let Some(device_to_delete) = confirm_delete().clone() {
+                div { class: "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50",
+                    div { class: "bg-white rounded-lg p-6 max-w-md",
+                        h3 { class: "text-lg font-bold mb-4", "Delete Device" }
+                        p { class: "mb-4", "Are you sure you want to delete device '{device_to_delete}'?" }
+                        div { class: "flex gap-2 justify-end",
+                            button {
+                                class: "px-4 py-2 bg-gray-300 rounded-md hover:bg-gray-400",
+                                onclick: {
+                                    let mut confirm_delete = confirm_delete.clone();
+                                    move |_| {
+                                        confirm_delete.set(None);
+                                    }
+                                },
+                                "Cancel"
+                            }
+                            button {
+                                class: "px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700",
+                                onclick: {
+                                    let device_name = device_to_delete.clone();
+                                    let mut confirm_delete = confirm_delete.clone();
+                                    let mut reload_trigger = reload_trigger.clone();
+                                    let vault_ctx = vault_ctx.clone();
+                                    move |_| {
+                                        let device_name = device_name.clone();
+                                        let vault_ctx = vault_ctx.clone();
+                                        spawn(async move {
+                                            let vault_path = match vault_ctx.get_vault() {
+                                                Some(path) => path,
+                                                None => {
+                                                    tracing::error!("No vault path available for delete");
+                                                    confirm_delete.set(None);
+                                                    return;
+                                                }
+                                            };
+
+                                            match crate::core::device::delete_device(&vault_path, &device_name).await {
+                                                Ok(_) => {
+                                                    reload_trigger.set(reload_trigger() + 1);
+                                                    confirm_delete.set(None);
+                                                }
+                                                Err(e) => {
+                                                    tracing::error!("Failed to delete device: {}", e);
+                                                    confirm_delete.set(None);
+                                                }
+                                            }
+                                        });
+                                    }
+                                },
+                                "Delete"
+                            }
+                        }
+                    }
                 }
             }
 
