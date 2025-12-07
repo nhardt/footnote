@@ -125,10 +125,11 @@ pub fn App() -> Element {
             let vault_path_for_spawn = vault_path.clone();
             spawn(async move {
                 // Get the local device name to load correct home file
-                let device_name = match crate::core::device::get_local_device_name(&vault_path_for_spawn) {
-                    Ok(name) => name,
-                    Err(_) => return,
-                };
+                let device_name =
+                    match crate::core::device::get_local_device_name(&vault_path_for_spawn) {
+                        Ok(name) => name,
+                        Err(_) => return,
+                    };
 
                 // Load device-specific home file from vault root
                 let home_filename = format!("home-{}.md", device_name);
