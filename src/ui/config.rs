@@ -46,11 +46,8 @@ impl AppConfig {
         }
     }
 
-    /// Save config to disk
     pub fn save(&self) -> Result<()> {
         let config_path = Self::get_config_path()?;
-
-        // Serialize to pretty JSON
         let contents = serde_json::to_string_pretty(self)?;
 
         // Write atomically: write to temp file, then rename

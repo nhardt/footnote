@@ -2,4 +2,7 @@
 identifier = "works.footnote.app" 
 
 [bundle.macos]
-entitlements = "app.entitlements" 
+entitlements = "macos.app.entitlements"
+
+[bundle.ios]
+entitlements = "ios.app.entitlements"
