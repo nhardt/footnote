@@ -1,8 +1,7 @@
 [application]
-identifier = "works.footnote.app" 
+ios_info_plist = "ios.info.plist"
+ios_entitlements = "ios.app.entitlements"
+macos_entitlements = "macos.app.entitlements"
 
-[bundle.macos]
-entitlements = "macos.app.entitlements"
-
-[bundle.ios]
-entitlements = "ios.app.entitlements"
+[bundle]
+identifier = "wiki.footnote.app"
