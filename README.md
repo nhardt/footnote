@@ -7,43 +7,53 @@ trusted contacts.
 
 ## Core Concepts
 
-### Your Notebook
+### Personal Wiki
 
-Your notes live in the top level directory. All your devices mirror this
-complete collection - every device has access to everything you've written.
+Your notes are a markdown wiki. The live in a vault and only ever exist on your
+devices. They are only ever transmitted encrypted over the network, and only
+transmitted to known devices and known peers.
 
 ### Trusted Sources
 
-When you trust someone, you're allocating space in a `footnotes/{name}/`
-directory on your filesystem. Their shared documents appear there, and you can
-reference them in your own notes. You're treating them as a credible source
-worth citing.
+Your notes live in a vault with a special directory called `footnotes`. These
+are documents you can link to that are owned and maintained by trusted sources.
+Trust is established with a one time, out-of-band setup process.
 
-### The Trust Model
+### Share vs Sync
 
-With Footnote you will set up a "share" relationship with someone you know and
-trust. There is a one time setup of the communication channel where you import
-Alice's contact information (her identity and devices) and are creating space
-for documents she has shared with you.
+"Share" is defined as transmitting documents to your trusted peers.
 
-After the initial setup, when your devices connect, Footnote checks to see which
-documents need updating and facilitates the transfer.
+"Sync" is defined as coordinating an eventually consistent view of all your
+notes across all your devices.
 
-This separation means:
+### Infrastructure
 
-1. Setting up trust is a one-time relationship establishment
-2. Sharing is an ongoing, selective transmission of specific documents
-3. You control what goes out; they control what goes out to you
+#### Public
+
+The internet infrastucture required to facilitate data exachanges are Iroh
+signaling servers. An end user just needs a device that is on somewhere.
+
+#### Primary Devivce
+
+A user will designated a single device as primary. This is the device where the
+vault is created. Additional devices are added via the primary. On the primary
+device, the user creates a new device. This generates a one time key. On a secondary
+device, the user joins a repo, providing the one time connect screen.
+
+It's not required that the primary device is always available, but something that is
+imagined is that a single device, like a desktop or even a dedicated device, will be
+on somewhere. User devices will try to sync there first. Sharing is imagined to happen
+between primaries.
 
 ## Identity and Users
 
 ### Three-Layer Identity System
 
-Every user has three identifiers:
+A contact in your contact list has three identifiers:
 
-1. **Master Key** - Ed25519 cryptographic keypair, the canonical immutable identity
-2. **Nickname** - What they call themselves publicly (e.g., "@alice-jones")
-3. **Petname** - What YOU call them locally (e.g., "alice", "mom", "bob")
+1. **Master Key** - Ed25519 public key, the primary identifier
+2. **Nickname** - The name provided in their contact record.
+3. **Petname** - The name you use for them locally. "mom", "dad", etc.
 
 When you trust someone, you assign them a petname. That becomes their directory
 name in `footnotes/`. Multiple people can refer to the same person by different
@@ -275,21 +285,28 @@ Contact records are JSON files containing:
 - This proves the devices legitimately belong to the claimed user
 - Enables trusted third-party contact sharing (you can export contacts you trust)
 
-## Technical Stack
+## Future Work
 
-- **Rust** - Core implementation
-- **iroh** (v0.95) - P2P networking with Iroh endpoint IDs
-- **ed25519-dalek** - Cryptographic signatures for identity
-- **clap** - CLI argument parsing
-- **serde/serde_json/serde_yaml** - Serialization
-- **tokio** - Async runtime
-
-## Future Improvements
-
-This biggest and most obvious missing pieces:
+### Major Missing Pieces
 
 - Legitimate document merging (diff-patch-merge, CRDT)
+- Contact distribution upon update
+- Linking: Links are probably easiest if they link to a doc-uuid, but being able
+  to use a local file system path is better, and being able to use the same path
+  everywhere is even better. It'd be nice if I could reference
+  footnotes/bob/events/party_at_my_place.md and if I share that document with a
+  mutual friend, the link works for both of us. Possibly, a translation could
+  occur on share.
+
+### General Improvements
+
 - Better markdown support
+- FZF/RG style document search
+
+### Possible Improvements
+
+- Shared primary, the ability for a family PC to be used for the whole family's notes
+- Integration with a more sophisticated sharing, sync or permission system
 
 ## Design Philosophy
 
