@@ -80,9 +80,8 @@ vault_root/
 │   └── contacts/
 │       ├── alice.json           # Alice's contact record
 │       └── bob.json             # Bob's contact record
-├── notes/                       # Your notes
-│   ├── home.md
-│   └── interesting_ideas.md
+├── home.md
+└── interesting_ideas.md
 └── footnotes/                   # Trusted users' shared notes
     ├── alice/
     │   ├── research.md
@@ -93,7 +92,7 @@ vault_root/
 
 ### Key Principles
 
-- **Your notes**: Everything in `notes/` syncs to all your devices
+- **Your notes**: All markdown files outside of hidden directory and `footnotes/` syncs to all your devices
 - **Trusted sources**: Each trusted user gets a `footnotes/{petname}/` directory
 - **Ownership boundary**: Any device belonging to Alice can update `footnotes/alice/`
 - **Verification**: Device signatures prove which user a device belongs to
