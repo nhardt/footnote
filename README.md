@@ -1,9 +1,7 @@
 # Footnote
 
-Footnote is a peer-to-peer sync and share engine for markdown documents with
-YAML frontmatter. It enables you to maintain a personal collection of notes that
-sync across all your devices, while selectively sharing specific notes with
-trusted contacts.
+Footnote is a local-first personal markdown documents with support for sync
+across your own devices and sharing with known friends and family.
 
 ## Core Concepts
 
