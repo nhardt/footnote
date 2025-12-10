@@ -430,12 +430,12 @@ fn DirectoryBrowserScreen(mut vault_status: Signal<VaultStatus>, action: &'stati
                         "Cancel"
                     }
                     button {
-                        class: if action == "Open" && !has_footnotes_dir() {
+                        class: if (action == "Open" && !has_footnotes_dir()) || (action == "Create" && has_footnotes_dir()) {
                             "flex-1 px-4 py-2 bg-gray-300 text-gray-500 rounded-md cursor-not-allowed"
                         } else {
                             "flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                         },
-                        disabled: action == "Open" && !has_footnotes_dir(),
+                        disabled: (action == "Open" && !has_footnotes_dir()) || (action == "Create" && has_footnotes_dir()),
                         onclick: handle_select_here,
                         "{action} Here"
                     }
