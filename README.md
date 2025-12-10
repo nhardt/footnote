@@ -1,16 +1,16 @@
 # Footnote
 
-Footnote is a command-line, peer-to-peer sync and share engine for markdown
-documents with YAML frontmatter. It enables you to maintain a personal
-collection of notes that syncs across all your devices, while selectively
-sharing specific notes with trusted contacts.
+Footnote is a peer-to-peer sync and share engine for markdown documents with
+YAML frontmatter. It enables you to maintain a personal collection of notes that
+sync across all your devices, while selectively sharing specific notes with
+trusted contacts.
 
 ## Core Concepts
 
 ### Your Notebook
 
-Your notes live in a `notes/` directory. All your devices mirror this complete
-collection - every device has access to everything you've written.
+Your notes live in the top level directory. All your devices mirror this
+complete collection - every device has access to everything you've written.
 
 ### Trusted Sources
 
@@ -21,12 +21,13 @@ worth citing.
 
 ### The Trust Model
 
-- **`footnote trust alice.json`** - Establishes the communication channel.
-  You're importing Alice's contact information (her identity and devices) and
-  creating space for her shared work.
+With Footnote you will set up a "share" relationship with someone you know and
+trust. There is a one time setup of the communication channel where you import
+Alice's contact information (her identity and devices) and are creating space
+for documents she has shared with you.
 
-- **`footnote share alice`** - Sends your shared documents to Alice. Only
-  documents marked with `share_with: [alice]` will be transmitted.
+After the initial setup, when your devices connect, Footnote checks to see which
+documents need updating and facilitates the transfer.
 
 This separation means:
 
@@ -81,6 +82,8 @@ vault_root/
 │       ├── alice.json           # Alice's contact record
 │       └── bob.json             # Bob's contact record
 ├── home.md
+├── inbox.md
+├── outbox.md
 └── interesting_ideas.md
 └── footnotes/                   # Trusted users' shared notes
     ├── alice/
@@ -221,7 +224,7 @@ Footnote uses simple conflict resolution with vector timestamps:
 
 ### Mirror Sync (Your Devices)
 
-All your devices maintain a complete mirror of your `notes/` directory. When devices connect:
+All your devices maintain a complete mirror of your notes, both your own and those shared with you.
 
 1. Exchange manifests of all document checkpoints
 2. Request newer versions from each other
@@ -272,27 +275,6 @@ Contact records are JSON files containing:
 - This proves the devices legitimately belong to the claimed user
 - Enables trusted third-party contact sharing (you can export contacts you trust)
 
-## Security Properties
-
-### Verified
-
-- Device signatures prove a device belongs to a user
-- Identity keys are cryptographically unique
-- No one can impersonate a user without their private key
-- Signature chains are verifiable by anyone
-
-### Trusted
-
-- Out-of-band contact exchange (first meeting or export)
-- Manual key rotation verification (if master key is lost)
-- Directory-as-permission-boundary model
-
-### Not Tracked
-
-- Individual document ownership (the footnotes directory owns all its documents)
-- Per-document permission levels (sharing is all-or-nothing per user)
-- Edit history provenance (LWW with vector timestamps, no signatures per edit)
-
 ## Technical Stack
 
 - **Rust** - Core implementation
@@ -304,26 +286,21 @@ Contact records are JSON files containing:
 
 ## Future Improvements
 
-- [ ] CRDTs for collaborative document editing
-- [ ] More sophisticated delegation models (non-primary device sharing)
-- [ ] Shared document ownership between multiple users
-- [ ] Mobile clients with native UI
-- [ ] Conflict resolution UI for competing writes
+This biggest and most obvious missing pieces:
+
+- Legitimate document merging (diff-patch-merge, CRDT)
+- Better markdown support
 
 ## Design Philosophy
 
-Footnote prioritizes:
-
-1. **Human usability** - Petnames let you organize contacts naturally
-2. **Selective sharing** - Share specific documents, not your entire collection
-3. **Cryptographic verification** - Identity is provable, not trust-based
-4. **Simplicity** - Directory structure encodes permissions
-5. **Personal scale** - Optimized for small groups of trusted contacts
+Overall, Footnote prioritizes simplicity and viability. Users should be able to
+understand what they own, what they are sharing, who they are sharing with and
+where their data lives.
 
 This is a tool for researchers, writers, and thinkers who want to maintain their
 own knowledge base while selectively collaborating with trusted peers.
 
 ## References
 
-https://www.inkandswitch.com/keyhive/notebook/
-https://files.spritely.institute/papers/petnames.html
+- https://www.inkandswitch.com/keyhive/notebook/
+- https://files.spritely.institute/papers/petnames.html
