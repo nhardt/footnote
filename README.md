@@ -1,7 +1,7 @@
 # Footnote
 
-Footnote is a local-first personal markdown documents with support for sync
-across your own devices and sharing with known friends and family.
+Footnote is a local-first personal wiki of markdown documents with support for
+sync across your own devices and sharing with known, trusted sources.
 
 ## Core Concepts
 
