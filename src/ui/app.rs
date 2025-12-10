@@ -258,6 +258,7 @@ fn DirectoryBrowserScreen(mut vault_status: Signal<VaultStatus>, action: &'stati
     let mut folders = use_signal(|| Vec::<PathBuf>::new());
     let mut new_folder_name = use_signal(|| String::new());
     let mut show_new_folder_input = use_signal(|| false);
+    let mut has_footnotes_dir = use_signal(|| false);
 
     // Load folders whenever current_path changes
     use_effect(move || {
@@ -279,6 +280,10 @@ fn DirectoryBrowserScreen(mut vault_status: Signal<VaultStatus>, action: &'stati
             }
             folder_list.sort();
             folders.set(folder_list);
+
+            // Check if .footnotes directory exists (for "Open" action)
+            let footnotes_path = path.join(".footnotes");
+            has_footnotes_dir.set(footnotes_path.exists() && footnotes_path.is_dir());
         });
     });
 
@@ -425,7 +430,12 @@ fn DirectoryBrowserScreen(mut vault_status: Signal<VaultStatus>, action: &'stati
                         "Cancel"
                     }
                     button {
-                        class: "flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700",
+                        class: if action == "Open" && !has_footnotes_dir() {
+                            "flex-1 px-4 py-2 bg-gray-300 text-gray-500 rounded-md cursor-not-allowed"
+                        } else {
+                            "flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                        },
+                        disabled: action == "Open" && !has_footnotes_dir(),
                         onclick: handle_select_here,
                         "{action} Here"
                     }
