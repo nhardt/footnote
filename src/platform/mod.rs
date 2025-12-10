@@ -32,6 +32,5 @@ pub fn get_app_dir() -> anyhow::Result<PathBuf> {
 
 #[cfg(not(target_os = "android"))]
 pub fn get_app_dir() -> anyhow::Result<PathBuf> {
-    dirs::home_dir()
-        .ok_or_else(|| anyhow::anyhow!("Could not find home directory"))
+    dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))
 }

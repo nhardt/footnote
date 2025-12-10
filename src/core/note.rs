@@ -133,8 +133,8 @@ pub fn parse_note_from_string(content: &str) -> Result<Note> {
     if let Some(end_pos) = rest.find("\n---\n").or_else(|| rest.find("\r\n---\r\n")) {
         // Extract frontmatter YAML
         let yaml_str = &rest[..end_pos];
-        let frontmatter: NoteFrontmatter = serde_yaml::from_str(yaml_str)
-            .context("Failed to parse frontmatter YAML")?;
+        let frontmatter: NoteFrontmatter =
+            serde_yaml::from_str(yaml_str).context("Failed to parse frontmatter YAML")?;
 
         // Extract content after frontmatter
         let content_start = if rest[end_pos..].starts_with("\r\n") {
@@ -159,8 +159,8 @@ pub fn parse_note_from_string(content: &str) -> Result<Note> {
 
 /// Serialize a note back to markdown with frontmatter
 pub fn serialize_note(note: &Note) -> Result<String> {
-    let yaml = serde_yaml::to_string(&note.frontmatter)
-        .context("Failed to serialize frontmatter")?;
+    let yaml =
+        serde_yaml::to_string(&note.frontmatter).context("Failed to serialize frontmatter")?;
 
     Ok(format!("---\n{}---\n{}", yaml, note.content))
 }
@@ -202,7 +202,10 @@ This is the content.
 "#;
 
         let note = parse_note_from_string(content).unwrap();
-        assert_eq!(note.frontmatter.uuid.to_string(), "550e8400-e29b-41d4-a716-446655440000");
+        assert_eq!(
+            note.frontmatter.uuid.to_string(),
+            "550e8400-e29b-41d4-a716-446655440000"
+        );
         assert_eq!(note.frontmatter.share_with, vec!["alice", "bob"]);
         assert_eq!(note.content, "# My Note\n\nThis is the content.\n");
     }
@@ -249,10 +252,16 @@ This note has an invalid modified timestamp.
 
         let note = parse_note_from_string(content).unwrap();
         // Should have valid frontmatter with defaulted timestamp
-        assert_eq!(note.frontmatter.uuid.to_string(), "550e8400-e29b-41d4-a716-446655440000");
+        assert_eq!(
+            note.frontmatter.uuid.to_string(),
+            "550e8400-e29b-41d4-a716-446655440000"
+        );
         // modified should be a valid VectorTime (current timestamp)
         assert!(note.frontmatter.modified.as_i64() > 0);
-        assert_eq!(note.content, "# Test Note\n\nThis note has an invalid modified timestamp.\n");
+        assert_eq!(
+            note.content,
+            "# Test Note\n\nThis note has an invalid modified timestamp.\n"
+        );
     }
 
     #[test]
@@ -270,7 +279,10 @@ This note has a DateTime string in the modified field.
 
         let note = parse_note_from_string(content).unwrap();
         // Should parse without error
-        assert_eq!(note.frontmatter.uuid.to_string(), "550e8400-e29b-41d4-a716-446655440000");
+        assert_eq!(
+            note.frontmatter.uuid.to_string(),
+            "550e8400-e29b-41d4-a716-446655440000"
+        );
         // modified should be a valid VectorTime (falls back to current timestamp)
         assert!(note.frontmatter.modified.as_i64() > 0);
     }
@@ -289,7 +301,10 @@ This note has no modified field.
 
         let note = parse_note_from_string(content).unwrap();
         // Should parse without error
-        assert_eq!(note.frontmatter.uuid.to_string(), "550e8400-e29b-41d4-a716-446655440000");
+        assert_eq!(
+            note.frontmatter.uuid.to_string(),
+            "550e8400-e29b-41d4-a716-446655440000"
+        );
         // modified should be a valid VectorTime (default)
         assert!(note.frontmatter.modified.as_i64() > 0);
     }

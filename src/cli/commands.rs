@@ -142,22 +142,30 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
     };
 
     match cli.command {
-        Commands::Init { path, username, device_name } => {
-            crate::core::init::init(path, username.as_deref(), device_name.as_deref()).await
-        }
+        Commands::Init {
+            path,
+            username,
+            device_name,
+        } => crate::core::init::init(path, username.as_deref(), device_name.as_deref()).await,
         Commands::Trust { file_path, petname } => {
-            let vp = vault_path.as_ref().expect("vault required for this command");
+            let vp = vault_path
+                .as_ref()
+                .expect("vault required for this command");
             crate::core::user::import(vp, &file_path, &petname).await
         }
         Commands::User { action } => match action {
             UserAction::Create { user_name } => crate::core::user::create(&user_name).await,
             UserAction::Delete { user_name } => crate::core::user::delete(&user_name).await,
             UserAction::Read => {
-                let vp = vault_path.as_ref().expect("vault required for this command");
+                let vp = vault_path
+                    .as_ref()
+                    .expect("vault required for this command");
                 crate::core::user::read(vp).await
             }
             UserAction::Export { user_name } => {
-                let vp = vault_path.as_ref().expect("vault required for this command");
+                let vp = vault_path
+                    .as_ref()
+                    .expect("vault required for this command");
                 crate::core::user::export(vp, &user_name).await
             }
         },
@@ -169,7 +177,9 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
             DeviceAction::Create { mode } => match mode {
                 None => {
                     // Primary device: generate join URL and handle events
-                    let vp = vault_path.as_ref().expect("vault required for this command");
+                    let vp = vault_path
+                        .as_ref()
+                        .expect("vault required for this command");
                     let mut rx = crate::core::device::create_primary(vp).await?;
 
                     while let Some(event) = rx.recv().await {
@@ -183,7 +193,9 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
                             crate::core::device::DeviceAuthEvent::Connecting => {
                                 println!("✓ Device connecting...");
                             }
-                            crate::core::device::DeviceAuthEvent::ReceivedRequest { device_name } => {
+                            crate::core::device::DeviceAuthEvent::ReceivedRequest {
+                                device_name,
+                            } => {
                                 println!("✓ Received request from: {}", device_name);
                             }
                             crate::core::device::DeviceAuthEvent::Verifying => {
@@ -206,27 +218,40 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
                     device_name,
                 }) => {
                     // Remote device: join using URL
-                    let vp = vault_path.as_ref().expect("vault required for this command");
+                    let vp = vault_path
+                        .as_ref()
+                        .expect("vault required for this command");
                     crate::core::device::create_remote(vp, &remote_url, &device_name).await
                 }
             },
         },
         Commands::Mirror { action } => match action {
             MirrorAction::Listen => {
-                let vp = vault_path.as_ref().expect("vault required for this command");
+                let vp = vault_path
+                    .as_ref()
+                    .expect("vault required for this command");
                 crate::core::mirror::listen(vp).await
             }
-            MirrorAction::From { remote_url, device_name } => {
-                let vp = vault_path.as_ref().expect("vault required for this command");
+            MirrorAction::From {
+                remote_url,
+                device_name,
+            } => {
+                let vp = vault_path
+                    .as_ref()
+                    .expect("vault required for this command");
                 crate::core::device::create_remote(vp, &remote_url, &device_name).await
             }
             MirrorAction::Push { user, device } => {
-                let vp = vault_path.as_ref().expect("vault required for this command");
+                let vp = vault_path
+                    .as_ref()
+                    .expect("vault required for this command");
                 crate::core::mirror::push(vp, user.as_deref(), device.as_deref()).await
             }
         },
         Commands::Share { petname } => {
-            let vp = vault_path.as_ref().expect("vault required for this command");
+            let vp = vault_path
+                .as_ref()
+                .expect("vault required for this command");
             crate::core::mirror::share(vp, petname.as_deref()).await
         }
     }

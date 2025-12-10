@@ -86,7 +86,9 @@ pub async fn delete_device(vault_path: &std::path::Path, device_name: &str) -> a
 
     // Find and remove the device
     let original_count = contact_record.devices.len();
-    contact_record.devices.retain(|d| d.device_name != device_name);
+    contact_record
+        .devices
+        .retain(|d| d.device_name != device_name);
 
     // Check if device was found
     if contact_record.devices.len() == original_count {
@@ -127,7 +129,9 @@ pub async fn delete(user_name: &str, device_name: &str) -> anyhow::Result<()> {
 }
 
 /// Create a new device (primary side) - generates join URL and listens for connection
-pub async fn create_primary(vault_path: &std::path::Path) -> anyhow::Result<Receiver<DeviceAuthEvent>> {
+pub async fn create_primary(
+    vault_path: &std::path::Path,
+) -> anyhow::Result<Receiver<DeviceAuthEvent>> {
     let (tx, rx) = mpsc::channel(32);
     // Check if this device is primary
     if !is_primary_device(vault_path)? {
@@ -169,7 +173,11 @@ pub async fn create_primary(vault_path: &std::path::Path) -> anyhow::Result<Rece
     let join_url = format!("iroh://{}?token={}", endpoint_id, token);
 
     // Send initial listening event with URL
-    let _ = tx.send(DeviceAuthEvent::Listening { join_url: join_url.clone() }).await;
+    let _ = tx
+        .send(DeviceAuthEvent::Listening {
+            join_url: join_url.clone(),
+        })
+        .await;
 
     // Clone vault_path for use in spawned task
     let vault_path = vault_path.to_path_buf();
@@ -188,9 +196,11 @@ pub async fn create_primary(vault_path: &std::path::Path) -> anyhow::Result<Rece
                 let request_bytes = recv.read_to_end(10000).await.anyerr()?;
                 let request: DeviceJoinRequest = serde_json::from_slice(&request_bytes)?;
 
-                let _ = tx.send(DeviceAuthEvent::ReceivedRequest {
-                    device_name: request.device_name.clone()
-                }).await;
+                let _ = tx
+                    .send(DeviceAuthEvent::ReceivedRequest {
+                        device_name: request.device_name.clone(),
+                    })
+                    .await;
 
                 // Verify token
                 if request.token != token {
@@ -202,7 +212,8 @@ pub async fn create_primary(vault_path: &std::path::Path) -> anyhow::Result<Rece
                 // Load current contact.json
                 let contact_path = vault_path.join(".footnotes").join("contact.json");
                 let contact_content = fs::read_to_string(&contact_path)?;
-                let mut contact_record: crypto::ContactRecord = serde_json::from_str(&contact_content)?;
+                let mut contact_record: crypto::ContactRecord =
+                    serde_json::from_str(&contact_content)?;
 
                 // Add new device to contact record
                 let new_device = crypto::ContactDevice {
@@ -237,7 +248,9 @@ pub async fn create_primary(vault_path: &std::path::Path) -> anyhow::Result<Rece
                 conn.closed().await;
 
                 Ok::<_, anyhow::Error>(request.device_name.clone())
-            }.await {
+            }
+            .await
+            {
                 Ok(device_name) => {
                     let _ = tx.send(DeviceAuthEvent::Success { device_name }).await;
                 }
@@ -252,7 +265,11 @@ pub async fn create_primary(vault_path: &std::path::Path) -> anyhow::Result<Rece
 }
 
 /// Create a new device (remote side) - joins using connection URL from primary
-pub async fn create_remote(vault_path: &std::path::Path, connection_string: &str, device_name: &str) -> anyhow::Result<()> {
+pub async fn create_remote(
+    vault_path: &std::path::Path,
+    connection_string: &str,
+    device_name: &str,
+) -> anyhow::Result<()> {
     // Check if vault already exists at the specified path
     let footnotes_check = vault_path.join(".footnotes");
     if footnotes_check.exists() {

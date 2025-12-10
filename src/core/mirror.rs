@@ -25,7 +25,9 @@ pub enum ListenEvent {
 
 /// Start listening for incoming sync connections in the background
 /// Returns a receiver for status events and a cancellation token to stop
-pub async fn listen_background(vault_path: &std::path::Path) -> Result<(Receiver<ListenEvent>, CancellationToken)> {
+pub async fn listen_background(
+    vault_path: &std::path::Path,
+) -> Result<(Receiver<ListenEvent>, CancellationToken)> {
     let (tx, rx) = mpsc::channel(32);
     let cancel_token = CancellationToken::new();
     let cancel_clone = cancel_token.clone();
@@ -61,9 +63,11 @@ pub async fn listen_background(vault_path: &std::path::Path) -> Result<(Receiver
         };
 
         // Notify started
-        let _ = tx.send(ListenEvent::Started {
-            endpoint_id: endpoint_id.to_string(),
-        }).await;
+        let _ = tx
+            .send(ListenEvent::Started {
+                endpoint_id: endpoint_id.to_string(),
+            })
+            .await;
 
         // Accept connections loop
         loop {
@@ -194,7 +198,11 @@ pub async fn listen(vault_path: &std::path::Path) -> Result<()> {
 /// - Pushes all notes to the specified device (same user)
 ///
 /// Future: --user parameter for user-to-user sharing
-pub async fn push(vault_path: &std::path::Path, user: Option<&str>, device: Option<&str>) -> Result<()> {
+pub async fn push(
+    vault_path: &std::path::Path,
+    user: Option<&str>,
+    device: Option<&str>,
+) -> Result<()> {
     match (user, device) {
         (None, Some(device_name)) => {
             // Self-to-self sync: push to specified device
@@ -277,14 +285,17 @@ pub async fn share(vault_path: &std::path::Path, petname_filter: Option<&str>) -
 
     // Collect all notes and group by share_with users
     let notes_dir = vault_path.to_path_buf();
-    let mut shared_docs: std::collections::HashMap<String, Vec<PathBuf>> = std::collections::HashMap::new();
+    let mut shared_docs: std::collections::HashMap<String, Vec<PathBuf>> =
+        std::collections::HashMap::new();
 
     println!("\nDocument Sharing");
     println!("============================================");
 
     // Scan all notes
     for entry in WalkDir::new(&notes_dir).into_iter().filter_map(|e| e.ok()) {
-        if entry.file_type().is_file() && entry.path().extension().and_then(|s| s.to_str()) == Some("md") {
+        if entry.file_type().is_file()
+            && entry.path().extension().and_then(|s| s.to_str()) == Some("md")
+        {
             // Parse frontmatter
             if let Ok(frontmatter) = note::get_frontmatter(entry.path()) {
                 // Check if this document is shared with anyone
@@ -296,7 +307,8 @@ pub async fn share(vault_path: &std::path::Path, petname_filter: Option<&str>) -
                         }
                     }
 
-                    shared_docs.entry(petname.clone())
+                    shared_docs
+                        .entry(petname.clone())
                         .or_insert_with(Vec::new)
                         .push(entry.path().to_path_buf());
                 }
@@ -320,9 +332,14 @@ pub async fn share(vault_path: &std::path::Path, petname_filter: Option<&str>) -
         println!("  {} document(s)", docs.len());
 
         // Look up the user's contact record
-        let contact_file_path = footnotes_dir.join("contacts").join(format!("{}.json", petname));
+        let contact_file_path = footnotes_dir
+            .join("contacts")
+            .join(format!("{}.json", petname));
         if !contact_file_path.exists() {
-            eprintln!("  Warning: Contact not found for '{}'. Run 'footnote trust' first.", petname);
+            eprintln!(
+                "  Warning: Contact not found for '{}'. Run 'footnote trust' first.",
+                petname
+            );
             eprintln!("  Skipping...\n");
             continue;
         }
@@ -331,8 +348,14 @@ pub async fn share(vault_path: &std::path::Path, petname_filter: Option<&str>) -
         let user_contact: crypto::ContactRecord = serde_json::from_str(&contact_content)?;
 
         // Find their primary device
-        let primary_device = user_contact.devices.iter()
-            .find(|d| d.device_name == user_contact.username || d.device_name == "desktop" || d.device_name == "primary")
+        let primary_device = user_contact
+            .devices
+            .iter()
+            .find(|d| {
+                d.device_name == user_contact.username
+                    || d.device_name == "desktop"
+                    || d.device_name == "primary"
+            })
             .or_else(|| user_contact.devices.first())
             .ok_or_else(|| anyhow::anyhow!("User '{}' has no devices", petname))?;
 

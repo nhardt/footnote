@@ -8,8 +8,8 @@ const TRUSTED_SOURCES_DIR: &str = "footnotes";
 
 /// Get the base vault directory path by searching upward for .footnotes/
 pub fn get_vault_path() -> anyhow::Result<PathBuf> {
-    let mut current_dir = std::env::current_dir()
-        .map_err(|_| anyhow::anyhow!("Failed to get current directory"))?;
+    let mut current_dir =
+        std::env::current_dir().map_err(|_| anyhow::anyhow!("Failed to get current directory"))?;
 
     loop {
         let footnotes_dir = current_dir.join(FOOTNOTES_DIR);
@@ -18,9 +18,7 @@ pub fn get_vault_path() -> anyhow::Result<PathBuf> {
         }
 
         if !current_dir.pop() {
-            anyhow::bail!(
-                "No footnote vault found. Run 'footnote init' to initialize a vault."
-            );
+            anyhow::bail!("No footnote vault found. Run 'footnote init' to initialize a vault.");
         }
     }
 }
@@ -75,16 +73,12 @@ pub fn verify_vault_layout() -> anyhow::Result<()> {
 
     let local_device_key = footnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
     if !local_device_key.exists() {
-        anyhow::bail!(
-            "Device key not found. Run 'footnote init' first."
-        );
+        anyhow::bail!("Device key not found. Run 'footnote init' first.");
     }
 
     let contact_path = get_contact_path()?;
     if !contact_path.exists() {
-        anyhow::bail!(
-            "Contact file not found. Run 'footnote init' first."
-        );
+        anyhow::bail!("Contact file not found. Run 'footnote init' first.");
     }
 
     Ok(())

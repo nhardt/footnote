@@ -13,13 +13,16 @@ pub const ALPN_MIRROR: &[u8] = b"footnote/mirror";
 ///
 /// Returns either ("me", device_name) for same-user devices
 /// or ("user", petname) for trusted user devices
-pub async fn identify_device(vault_path: &Path, endpoint_id: &iroh::PublicKey) -> Result<(String, String)> {
+pub async fn identify_device(
+    vault_path: &Path,
+    endpoint_id: &iroh::PublicKey,
+) -> Result<(String, String)> {
     // First check if it's one of my devices
     let contact_path = vault_path.join(".footnotes").join("contact.json");
-    let contact_content = fs::read_to_string(&contact_path)
-        .context("Failed to read contact.json")?;
-    let contact_record: crypto::ContactRecord = serde_json::from_str(&contact_content)
-        .context("Failed to parse contact.json")?;
+    let contact_content =
+        fs::read_to_string(&contact_path).context("Failed to read contact.json")?;
+    let contact_record: crypto::ContactRecord =
+        serde_json::from_str(&contact_content).context("Failed to parse contact.json")?;
 
     // Search through my devices
     for device in &contact_record.devices {
@@ -43,7 +46,9 @@ pub async fn identify_device(vault_path: &Path, endpoint_id: &iroh::PublicKey) -
 
                 if let Ok(user_contact) = serde_json::from_str::<crypto::ContactRecord>(&content) {
                     for device in &user_contact.devices {
-                        if let Ok(device_endpoint_id) = device.iroh_endpoint_id.parse::<iroh::PublicKey>() {
+                        if let Ok(device_endpoint_id) =
+                            device.iroh_endpoint_id.parse::<iroh::PublicKey>()
+                        {
                             if &device_endpoint_id == endpoint_id {
                                 return Ok(("user".to_string(), petname.clone()));
                             }
@@ -54,11 +59,18 @@ pub async fn identify_device(vault_path: &Path, endpoint_id: &iroh::PublicKey) -
         }
     }
 
-    anyhow::bail!("Device {} not found (not a known device or trusted user)", endpoint_id)
+    anyhow::bail!(
+        "Device {} not found (not a known device or trusted user)",
+        endpoint_id
+    )
 }
 
 /// Handle an incoming sync connection
-pub async fn handle_sync_accept(vault_path: &Path, connection: Connection, local_notes_dir: &Path) -> Result<()> {
+pub async fn handle_sync_accept(
+    vault_path: &Path,
+    connection: Connection,
+    local_notes_dir: &Path,
+) -> Result<()> {
     let remote_endpoint_id = connection.remote_id();
 
     // Identify the remote device (either same user or trusted user)
@@ -67,11 +79,17 @@ pub async fn handle_sync_accept(vault_path: &Path, connection: Connection, local
     // Determine target directory based on device type
     let target_dir = if device_type == "me" {
         // Mirror sync from my own device -> notes/
-        println!("Receiving mirror sync from {} ({})", identifier, remote_endpoint_id);
+        println!(
+            "Receiving mirror sync from {} ({})",
+            identifier, remote_endpoint_id
+        );
         local_notes_dir.to_path_buf()
     } else {
         // Share from trusted user -> footnotes/{petname}/
-        println!("Receiving shared documents from {} ({})", identifier, remote_endpoint_id);
+        println!(
+            "Receiving shared documents from {} ({})",
+            identifier, remote_endpoint_id
+        );
         let footnotes_dir = vault_path.join("footnotes").join(&identifier);
         fs::create_dir_all(&footnotes_dir)?;
         footnotes_dir
@@ -92,17 +110,14 @@ pub async fn handle_sync_accept(vault_path: &Path, connection: Connection, local
     RecvStream::read_exact(&mut recv, &mut manifest_buf)
         .await
         .anyerr()?;
-    let remote_manifest: manifest::Manifest = serde_json::from_slice(&manifest_buf)
-        .context("Failed to deserialize manifest")?;
+    let remote_manifest: manifest::Manifest =
+        serde_json::from_slice(&manifest_buf).context("Failed to deserialize manifest")?;
 
-    println!(
-        "Received manifest with {} files",
-        remote_manifest.len()
-    );
+    println!("Received manifest with {} files", remote_manifest.len());
 
     // Create local manifest
-    let local_manifest = manifest::create_manifest(&target_dir)
-        .context("Failed to create local manifest")?;
+    let local_manifest =
+        manifest::create_manifest(&target_dir).context("Failed to create local manifest")?;
 
     // Diff: find files that need to be synced
     let files_to_sync = manifest::diff_manifests(&local_manifest, &remote_manifest);
@@ -170,8 +185,8 @@ pub async fn push_to_device(
     local_secret_key: iroh::SecretKey,
 ) -> Result<()> {
     // Create manifest of local notes
-    let manifest = manifest::create_manifest(local_notes_dir)
-        .context("Failed to create manifest")?;
+    let manifest =
+        manifest::create_manifest(local_notes_dir).context("Failed to create manifest")?;
 
     println!("Pushing {} files", manifest.len());
 
@@ -194,9 +209,7 @@ pub async fn push_to_device(
     SendStream::write_all(&mut send, &len.to_be_bytes())
         .await
         .anyerr()?;
-    SendStream::write_all(&mut send, &encoded)
-        .await
-        .anyerr()?;
+    SendStream::write_all(&mut send, &encoded).await.anyerr()?;
 
     println!("Manifest sent, waiting for file requests...");
 
@@ -221,8 +234,7 @@ pub async fn push_to_device(
         RecvStream::read_exact(&mut recv, &mut path_buf)
             .await
             .anyerr()?;
-        let file_path = String::from_utf8(path_buf)
-            .context("Invalid UTF-8 in file path")?;
+        let file_path = String::from_utf8(path_buf).context("Invalid UTF-8 in file path")?;
 
         let path = PathBuf::from(&file_path);
 

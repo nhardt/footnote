@@ -1,5 +1,5 @@
 use dioxus::prelude::*;
-use pulldown_cmark::{Parser, Event, Tag, TagEnd, HeadingLevel};
+use pulldown_cmark::{Event, HeadingLevel, Parser, Tag, TagEnd};
 
 #[derive(Clone)]
 enum ParagraphElement {
@@ -8,10 +8,7 @@ enum ParagraphElement {
 }
 
 #[component]
-pub fn SimpleMarkdown(
-    content: String,
-    on_internal_link_click: EventHandler<String>,
-) -> Element {
+pub fn SimpleMarkdown(content: String, on_internal_link_click: EventHandler<String>) -> Element {
     let parser = Parser::new(&content);
     let mut elements = Vec::new();
     let mut current_text = String::new();

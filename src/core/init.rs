@@ -61,7 +61,10 @@ pub async fn init(
     // Store master private key
     let master_key_file = footnotes_dir.join(MASTER_KEY_FILE);
     fs::write(&master_key_file, crypto::signing_key_to_hex(&signing_key))?;
-    eprintln!("Master identity key stored at {}", master_key_file.display());
+    eprintln!(
+        "Master identity key stored at {}",
+        master_key_file.display()
+    );
 
     // Generate Iroh endpoint for this device
     eprintln!("Generating Iroh endpoint for this device...");
@@ -115,7 +118,10 @@ Welcome to footnote! This is your home note.
     contact_record.signature = signature;
 
     let contact_path = vault_path.join(".footnotes").join("contact.json");
-    fs::write(&contact_path, serde_json::to_string_pretty(&contact_record)?)?;
+    fs::write(
+        &contact_path,
+        serde_json::to_string_pretty(&contact_record)?,
+    )?;
     eprintln!("Contact record created at {}", contact_path.display());
 
     eprintln!("\nVault initialization complete!");

@@ -67,7 +67,10 @@ async fn export_me(vault_path: &std::path::Path) -> anyhow::Result<()> {
 
 /// Export a trusted user's contact information
 async fn export_trusted_user(vault_path: &std::path::Path, petname: &str) -> anyhow::Result<()> {
-    let contact_path = vault_path.join(".footnotes").join("contacts").join(format!("{}.json", petname));
+    let contact_path = vault_path
+        .join(".footnotes")
+        .join("contacts")
+        .join(format!("{}.json", petname));
 
     if !contact_path.exists() {
         anyhow::bail!("Trusted user '{}' not found", petname);
@@ -77,7 +80,10 @@ async fn export_trusted_user(vault_path: &std::path::Path, petname: &str) -> any
     let contact_record: crypto::ContactRecord = serde_json::from_str(&content)?;
 
     if !crypto::verify_contact_signature(&contact_record)? {
-        anyhow::bail!("Trusted user '{}' contact signature verification failed", petname);
+        anyhow::bail!(
+            "Trusted user '{}' contact signature verification failed",
+            petname
+        );
     }
 
     println!("{}", serde_json::to_string_pretty(&contact_record)?);
@@ -86,7 +92,11 @@ async fn export_trusted_user(vault_path: &std::path::Path, petname: &str) -> any
 }
 
 /// Import a user's contact information
-pub async fn import(vault_path: &std::path::Path, file_path: &str, petname: &str) -> anyhow::Result<()> {
+pub async fn import(
+    vault_path: &std::path::Path,
+    file_path: &str,
+    petname: &str,
+) -> anyhow::Result<()> {
     let content = fs::read_to_string(file_path)?;
     let new_contact: crypto::ContactRecord = serde_json::from_str(&content)?;
 
@@ -99,14 +109,18 @@ pub async fn import(vault_path: &std::path::Path, file_path: &str, petname: &str
         new_contact.devices.len()
     );
 
-    let contact_path = vault_path.join(".footnotes").join("contacts").join(format!("{}.json", petname));
+    let contact_path = vault_path
+        .join(".footnotes")
+        .join("contacts")
+        .join(format!("{}.json", petname));
 
     if contact_path.exists() {
         let existing_content = fs::read_to_string(&contact_path)?;
         let existing_contact: crypto::ContactRecord = serde_json::from_str(&existing_content)?;
 
         let new_timestamp = chrono::DateTime::parse_from_rfc3339(&new_contact.updated_at)?;
-        let existing_timestamp = chrono::DateTime::parse_from_rfc3339(&existing_contact.updated_at)?;
+        let existing_timestamp =
+            chrono::DateTime::parse_from_rfc3339(&existing_contact.updated_at)?;
 
         if new_timestamp <= existing_timestamp {
             anyhow::bail!(
@@ -119,9 +133,7 @@ pub async fn import(vault_path: &std::path::Path, file_path: &str, petname: &str
 
         eprintln!(
             "Updating trusted user '{}' (old: {}, new: {})",
-            petname,
-            existing_contact.updated_at,
-            new_contact.updated_at
+            petname, existing_contact.updated_at, new_contact.updated_at
         );
     }
 
@@ -152,7 +164,8 @@ pub async fn read(vault_path: &std::path::Path) -> anyhow::Result<()> {
 
     if contact_path.exists() {
         let contact_content = fs::read_to_string(&contact_path)?;
-        if let Ok(contact_record) = serde_json::from_str::<crypto::ContactRecord>(&contact_content) {
+        if let Ok(contact_record) = serde_json::from_str::<crypto::ContactRecord>(&contact_content)
+        {
             master_public_key = Some(contact_record.master_public_key.clone());
             nickname = if contact_record.nickname.is_empty() {
                 None
@@ -192,9 +205,11 @@ pub async fn read(vault_path: &std::path::Path) -> anyhow::Result<()> {
 
                 // Read and parse the contact record
                 let content = fs::read_to_string(&path)?;
-                if let Ok(contact_record) = serde_json::from_str::<crypto::ContactRecord>(&content) {
+                if let Ok(contact_record) = serde_json::from_str::<crypto::ContactRecord>(&content)
+                {
                     // Verify signature
-                    let signature_valid = crypto::verify_contact_signature(&contact_record).unwrap_or(false);
+                    let signature_valid =
+                        crypto::verify_contact_signature(&contact_record).unwrap_or(false);
 
                     if signature_valid {
                         // Convert devices to Device struct
