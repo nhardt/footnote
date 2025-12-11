@@ -1,0 +1,223 @@
+use dioxus::prelude::*;
+use crate::ui::context::VaultContext;
+
+#[derive(Clone, PartialEq)]
+enum DeviceAddState {
+    Idle,
+    Listening { join_url: String },
+    Connecting,
+    ReceivedRequest { device_name: String },
+    Verifying,
+    Success { device_name: String },
+    Error(String),
+}
+
+#[component]
+pub fn ContactsScreen() -> Element {
+    let mut self_contact = use_signal(|| None::<crate::core::crypto::ContactRecord>);
+    let mut trusted_contacts =
+        use_signal(|| Vec::<(String, crate::core::crypto::ContactRecord)>::new());
+    let mut device_add_state = use_signal(|| DeviceAddState::Idle);
+    let reload_trigger = use_signal(|| 0);
+    let vault_ctx = use_context::<VaultContext>();
+
+    // Load contacts on mount and when reload_trigger changes
+    use_effect(move || {
+        let _ = reload_trigger(); // Subscribe to changes
+        let vault_ctx = vault_ctx.clone();
+        spawn(async move {
+            let vault_path = match vault_ctx.get_vault() {
+                Some(path) => path.join(".footnotes"),
+                None => return,
+            };
+
+            // Load self contact
+            let self_path = vault_path.join("contact.json");
+            if let Ok(content) = std::fs::read_to_string(&self_path) {
+                if let Ok(contact) =
+                    serde_json::from_str::<crate::core::crypto::ContactRecord>(&content)
+                {
+                    self_contact.set(Some(contact));
+                }
+            }
+
+            // Load trusted contacts
+            let contacts_dir = vault_path.join("contacts");
+            if let Ok(entries) = std::fs::read_dir(contacts_dir) {
+                let mut contacts = Vec::new();
+                for entry in entries.flatten() {
+                    if let Ok(file_name) = entry.file_name().into_string() {
+                        if file_name.ends_with(".json") {
+                            if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                                if let Ok(contact) = serde_json::from_str::<
+                                    crate::core::crypto::ContactRecord,
+                                >(&content)
+                                {
+                                    let petname = file_name.trim_end_matches(".json").to_string();
+                                    contacts.push((petname, contact));
+                                }
+                            }
+                        }
+                    }
+                }
+                contacts.sort_by(|a, b| a.0.cmp(&b.0));
+                trusted_contacts.set(contacts);
+            }
+        });
+    });
+
+    rsx! {
+        div { class: "max-w-4xl mx-auto p-6",
+            // Me section
+            div { class: "mb-8",
+                div { class: "flex items-center justify-between mb-4",
+                    h2 { class: "text-xl font-bold", "Me" }
+                    if matches!(device_add_state(), DeviceAddState::Idle) {
+                        button {
+                            class: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700",
+                            onclick: move |_| {
+                                let mut device_add_state = device_add_state.clone();
+                                let mut reload_trigger = reload_trigger.clone();
+                                let vault_ctx = vault_ctx.clone();
+
+                                spawn(async move {
+                                    // Get vault path from context
+                                    let vault_path = match vault_ctx.get_vault() {
+                                        Some(path) => path,
+                                        None => {
+                                            device_add_state.set(DeviceAddState::Error(
+                                                "No vault path available".to_string()
+                                            ));
+                                            return;
+                                        }
+                                    };
+
+                                    match crate::core::device::create_primary(&vault_path).await {
+                                        Ok(mut rx) => {
+                                            // Consume events from the channel
+                                            while let Some(event) = rx.recv().await {
+                                                match event {
+                                                    crate::core::device::DeviceAuthEvent::Listening { join_url } => {
+                                                        device_add_state.set(DeviceAddState::Listening { join_url });
+                                                    }
+                                                    crate::core::device::DeviceAuthEvent::Connecting => {
+                                                        device_add_state.set(DeviceAddState::Connecting);
+                                                    }
+                                                    crate::core::device::DeviceAuthEvent::ReceivedRequest { device_name } => {
+                                                        device_add_state.set(DeviceAddState::ReceivedRequest { device_name });
+                                                    }
+                                                    crate::core::device::DeviceAuthEvent::Verifying => {
+                                                        device_add_state.set(DeviceAddState::Verifying);
+                                                    }
+                                                    crate::core::device::DeviceAuthEvent::Success { device_name } => {
+                                                        device_add_state.set(DeviceAddState::Success { device_name });
+                                                        // Reload contacts
+                                                        reload_trigger.set(reload_trigger() + 1);
+                                                        break;
+                                                    }
+                                                    crate::core::device::DeviceAuthEvent::Error(err) => {
+                                                        device_add_state.set(DeviceAddState::Error(err));
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            device_add_state.set(DeviceAddState::Error(e.to_string()));
+                                        }
+                                    }
+                                });
+                            },
+                            "Add Device"
+                        }
+                    }
+                }
+
+                if let Some(ref contact) = *self_contact.read() {
+                    div { class: "bg-blue-50 border border-blue-200 rounded-md p-4",
+                        div { class: "font-semibold", "{contact.username}" }
+                        div { class: "text-sm text-gray-600 mt-1",
+                            "{contact.devices.len()} device(s)"
+                        }
+                    }
+                } else {
+                    div { class: "text-gray-500 italic", "Loading..." }
+                }
+
+                // Device pairing UI
+                match device_add_state() {
+                    DeviceAddState::Listening { ref join_url } => rsx! {
+                        div { class: "mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md",
+                            div { class: "font-semibold mb-2", "🔐 Waiting for device..." }
+                            div { class: "text-sm mb-2", "Copy this URL to your new device:" }
+                            div { class: "font-mono text-xs bg-white p-2 rounded border break-all",
+                                "{join_url}"
+                            }
+                            div { class: "text-sm text-gray-600 mt-2 italic",
+                                "Listening for connection..."
+                            }
+                        }
+                    },
+                    DeviceAddState::Connecting => rsx! {
+                        div { class: "mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md",
+                            div { class: "font-semibold", "✓ Device connecting..." }
+                        }
+                    },
+                    DeviceAddState::ReceivedRequest { ref device_name } => rsx! {
+                        div { class: "mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md",
+                            div { class: "font-semibold", "✓ Received request from: {device_name}" }
+                        }
+                    },
+                    DeviceAddState::Verifying => rsx! {
+                        div { class: "mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md",
+                            div { class: "font-semibold", "✓ Verifying..." }
+                        }
+                    },
+                    DeviceAddState::Success { ref device_name } => rsx! {
+                        div { class: "mt-4 p-4 bg-green-50 border border-green-200 rounded-md",
+                            div { class: "font-semibold", "✓ Device '{device_name}' added successfully!" }
+                            button {
+                                class: "mt-2 text-sm text-blue-600 hover:underline",
+                                onclick: move |_| device_add_state.set(DeviceAddState::Idle),
+                                "Done"
+                            }
+                        }
+                    },
+                    DeviceAddState::Error(ref error) => rsx! {
+                        div { class: "mt-4 p-4 bg-red-50 border border-red-200 rounded-md",
+                            div { class: "font-semibold text-red-700", "✗ Error" }
+                            div { class: "text-sm mt-1", "{error}" }
+                            button {
+                                class: "mt-2 text-sm text-blue-600 hover:underline",
+                                onclick: move |_| device_add_state.set(DeviceAddState::Idle),
+                                "Try Again"
+                            }
+                        }
+                    },
+                    DeviceAddState::Idle => rsx! {},
+                }
+            }
+
+            // Contacts section
+            div {
+                h2 { class: "text-xl font-bold mb-4", "Contacts" }
+                if trusted_contacts().is_empty() {
+                    div { class: "text-gray-500 italic", "No contacts yet" }
+                } else {
+                    div { class: "space-y-2",
+                        for (petname, contact) in trusted_contacts().iter() {
+                            div {
+                                key: "{petname}",
+                                class: "bg-white border border-gray-200 rounded-md p-4 hover:border-gray-300",
+                                div { class: "font-semibold", "{petname}" }
+                                div { class: "text-sm text-gray-600 mt-1",
+                                    "username: {contact.username}"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
