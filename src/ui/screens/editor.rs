@@ -1,9 +1,9 @@
-use dioxus::prelude::*;
-use std::path::PathBuf;
-use fuzzy_matcher::skim::SkimMatcherV2;
-use fuzzy_matcher::FuzzyMatcher;
 use crate::ui::context::VaultContext;
 use crate::ui::markdown::SimpleMarkdown;
+use dioxus::prelude::*;
+use fuzzy_matcher::skim::SkimMatcherV2;
+use fuzzy_matcher::FuzzyMatcher;
+use std::path::PathBuf;
 
 #[derive(Clone, PartialEq)]
 pub struct OpenFile {
@@ -31,14 +31,10 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
     let mut last_loaded_path = use_signal(|| None::<PathBuf>);
     let vault_ctx = use_context::<VaultContext>();
 
-    // Initialize edited_content when file loads (only when opening a NEW file)
     use_effect(move || {
         if let Some(ref file_data) = *open_file.read() {
-            // Only update content if we're loading a different file
-            if last_loaded_path() != Some(file_data.path.clone()) {
-                edited_content.set(file_data.content.clone());
-                last_loaded_path.set(Some(file_data.path.clone()));
-            }
+            edited_content.set(file_data.content.clone());
+            last_loaded_path.set(Some(file_data.path.clone()));
         }
     });
 
@@ -361,19 +357,14 @@ share_with: []
                             }
                         }
                     } else {
-                        // Edit mode: show textarea
                         label { class: "block text-sm font-medium text-gray-700 mb-2 flex-shrink-0", "Content" }
                         textarea {
                             class: "flex-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono resize-none",
-                            placeholder: "Start writing...",
-                            value: "{edited_content}",
-                            oninput: move |evt| edited_content.set(evt.value()),
-                            onkeydown: move |evt| {
-                                if (evt.modifiers().ctrl() || evt.modifiers().meta()) && evt.key() == Key::Character("s".to_string()) {
-                                    evt.prevent_default();
-                                    trigger_save.set(true);
-                                }
+                            placeholder: "Once upon a time...",
+                            onchange: move |evt| {
+                                edited_content.set(evt.value());
                             },
+                            {edited_content},
                         }
                     }
                 }
