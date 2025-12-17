@@ -14,6 +14,7 @@ pub fn App() -> Element {
     let mut current_screen = use_signal(|| Screen::Editor);
     let vault_status = use_signal(|| VaultStatus::VaultNeeded);
     let mut open_file = use_signal(|| None::<OpenFile>);
+    let mut menu_open = use_signal(|| false);
 
     use_context_provider(|| VaultContext::new());
     let vault_ctx = use_context::<VaultContext>();
@@ -96,10 +97,85 @@ pub fn App() -> Element {
 
         div { class: "h-screen flex flex-col bg-gray-50",
             if vault_ctx.get_vault().is_some() {
+                // Left slide-over menu
+                if menu_open() {
+                    div {
+                        class: "fixed inset-0 z-50 overflow-hidden",
+
+                        // Backdrop overlay
+                        div {
+                            class: "absolute inset-0 bg-gray-500/75 transition-opacity duration-300",
+                            onclick: move |_| menu_open.set(false),
+                        }
+
+                        // Panel container
+                        div {
+                            class: "absolute inset-0 pr-10 focus:outline-none sm:pr-16",
+
+                            // Slide-over panel
+                            div {
+                                class: "relative mr-auto h-full w-full max-w-sm transform bg-white shadow-xl transition-transform duration-300 ease-in-out",
+
+                                // Close button
+                                div {
+                                    class: "absolute top-0 right-0 -mr-8 flex pt-4 pl-2 sm:-mr-10 sm:pl-4",
+                                    button {
+                                        r#type: "button",
+                                        onclick: move |_| menu_open.set(false),
+                                        class: "relative rounded-md text-gray-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-white",
+                                        span { class: "absolute -inset-2.5" }
+                                        span { class: "sr-only", "Close panel" }
+                                        svg {
+                                            view_box: "0 0 24 24",
+                                            fill: "none",
+                                            stroke: "currentColor",
+                                            stroke_width: "1.5",
+                                            "aria-hidden": "true",
+                                            class: "size-6",
+                                            path {
+                                                d: "M6 18 18 6M6 6l12 12",
+                                                stroke_linecap: "round",
+                                                stroke_linejoin: "round"
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Panel content
+                                div {
+                                    class: "relative h-full overflow-y-auto p-8",
+                                    div { class: "text-gray-900 text-lg font-semibold", "Menu" }
+                                    div { class: "mt-4 text-gray-600", "Menu content coming soon..." }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Navigation bar
                 nav { class: "bg-white border-b border-gray-200 px-4 py-3",
                     div { class: "flex justify-between items-center",
-                        div { class: "flex gap-4",
+                        div { class: "flex gap-4 items-center",
+                            // Hamburger menu button
+                            button {
+                                onclick: move |_| menu_open.set(true),
+                                class: "p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500",
+                                span { class: "sr-only", "Open menu" }
+                                svg {
+                                    view_box: "0 0 24 24",
+                                    fill: "none",
+                                    stroke: "currentColor",
+                                    stroke_width: "1.5",
+                                    "aria-hidden": "true",
+                                    class: "size-6",
+                                    path {
+                                        d: "M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5",
+                                        stroke_linecap: "round",
+                                        stroke_linejoin: "round"
+                                    }
+                                }
+                            }
+
                             button {
                                 class: if current_screen() == Screen::Editor { "px-4 py-2 font-medium text-blue-600 border-b-2 border-blue-600" } else { "px-4 py-2 font-medium text-gray-600 hover:text-gray-900" },
                                 onclick: move |_| current_screen.set(Screen::Editor),
