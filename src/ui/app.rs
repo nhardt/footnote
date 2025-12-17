@@ -16,6 +16,11 @@ pub fn App() -> Element {
     let mut open_file = use_signal(|| None::<OpenFile>);
     let mut menu_open = use_signal(|| false);
 
+    // Command palette state
+    let mut palette_input = use_signal(|| String::new());
+    let mut palette_open = use_signal(|| false);
+    let mut all_files = use_signal(|| Vec::<String>::new());
+
     use_context_provider(|| VaultContext::new());
     let vault_ctx = use_context::<VaultContext>();
 
@@ -38,6 +43,28 @@ pub fn App() -> Element {
 
                     // Set vault context
                     vault_ctx.set_vault(config.last_vault_path.clone());
+
+                    // Scan vault for files (for command palette)
+                    tracing::info!("Scanning vault for files: {:?}", config.last_vault_path);
+                    if let Ok(entries) = std::fs::read_dir(&config.last_vault_path) {
+                        let mut files = Vec::new();
+                        for entry in entries.flatten() {
+                            if let Ok(file_name) = entry.file_name().into_string() {
+                                // Skip directories starting with "." (like .footnotes, .obsidian)
+                                if file_name.starts_with('.') {
+                                    continue;
+                                }
+                                if file_name.ends_with(".md") {
+                                    files.push(file_name);
+                                }
+                            }
+                        }
+                        files.sort();
+                        tracing::info!("Found {} markdown files", files.len());
+                        all_files.set(files);
+                    } else {
+                        tracing::warn!("Failed to read vault directory");
+                    }
 
                     // Try to load the last file if it exists
                     if let Some(filename) = config.last_file {
@@ -68,7 +95,30 @@ pub fn App() -> Element {
 
         if let Some(vault_path) = vault_ctx.get_vault() {
             let vault_path_for_spawn = vault_path.clone();
+            let mut all_files = all_files.clone();
             spawn(async move {
+                // Scan vault for files (for command palette)
+                tracing::info!("Scanning vault for files: {:?}", vault_path_for_spawn);
+                if let Ok(entries) = std::fs::read_dir(&vault_path_for_spawn) {
+                    let mut files = Vec::new();
+                    for entry in entries.flatten() {
+                        if let Ok(file_name) = entry.file_name().into_string() {
+                            // Skip directories starting with "." (like .footnotes, .obsidian)
+                            if file_name.starts_with('.') {
+                                continue;
+                            }
+                            if file_name.ends_with(".md") {
+                                files.push(file_name);
+                            }
+                        }
+                    }
+                    files.sort();
+                    tracing::info!("Found {} markdown files", files.len());
+                    all_files.set(files);
+                } else {
+                    tracing::warn!("Failed to read vault directory");
+                }
+
                 // Get the local device name to load correct home file
                 let device_name =
                     match crate::core::device::get_local_device_name(&vault_path_for_spawn) {
@@ -270,22 +320,135 @@ pub fn App() -> Element {
 
                 // Navigation bar
                 nav { class: "bg-white border-b border-gray-200 px-4 py-3",
-                    // Hamburger menu button
-                    button {
-                        onclick: move |_| menu_open.set(true),
-                        class: "p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500",
-                        span { class: "sr-only", "Open menu" }
-                        svg {
-                            view_box: "0 0 24 24",
-                            fill: "none",
-                            stroke: "currentColor",
-                            stroke_width: "1.5",
-                            "aria-hidden": "true",
-                            class: "size-6",
-                            path {
-                                d: "M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5",
-                                stroke_linecap: "round",
-                                stroke_linejoin: "round"
+                    div { class: "flex items-center gap-4",
+                        // Hamburger menu button
+                        button {
+                            onclick: move |_| menu_open.set(true),
+                            class: "p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500",
+                            span { class: "sr-only", "Open menu" }
+                            svg {
+                                view_box: "0 0 24 24",
+                                fill: "none",
+                                stroke: "currentColor",
+                                stroke_width: "1.5",
+                                "aria-hidden": "true",
+                                class: "size-6",
+                                path {
+                                    d: "M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5",
+                                    stroke_linecap: "round",
+                                    stroke_linejoin: "round"
+                                }
+                            }
+                        }
+
+                        // Command palette
+                        div { class: "relative flex-1 max-w-md",
+                            input {
+                                r#type: "text",
+                                class: "w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500",
+                                placeholder: "Search files...",
+                                value: "{palette_input}",
+                                onfocus: move |_| palette_open.set(true),
+                                oninput: move |evt| {
+                                    palette_input.set(evt.value());
+                                    palette_open.set(!evt.value().is_empty());
+                                },
+                                onblur: move |_| {
+                                    // Delay hiding to allow click on dropdown
+                                    let mut palette_open = palette_open.clone();
+                                    spawn(async move {
+                                        tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+                                        palette_open.set(false);
+                                    });
+                                },
+                            }
+
+                            // Dropdown overlay
+                            if palette_open() {
+                                {
+                                    // Fuzzy match files
+                                    use fuzzy_matcher::skim::SkimMatcherV2;
+                                    use fuzzy_matcher::FuzzyMatcher;
+
+                                    let matcher = SkimMatcherV2::default();
+                                    let mut filtered_files: Vec<(String, i64)> = all_files()
+                                        .iter()
+                                        .filter_map(|file| {
+                                            if palette_input().is_empty() {
+                                                Some((file.clone(), 0))
+                                            } else {
+                                                matcher
+                                                    .fuzzy_match(file, &palette_input())
+                                                    .map(|score| (file.clone(), score))
+                                            }
+                                        })
+                                        .collect();
+                                    filtered_files.sort_by(|a, b| b.1.cmp(&a.1));
+                                    let filtered_files: Vec<String> = filtered_files
+                                        .into_iter()
+                                        .map(|(f, _)| f)
+                                        .take(10)
+                                        .collect();
+
+                                    rsx! {
+                                        if !filtered_files.is_empty() {
+                                            div { class: "absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto",
+                                                for file in filtered_files.iter() {
+                                                    {
+                                                        let file = file.clone();
+                                                        rsx! {
+                                                            div {
+                                                                key: "{file}",
+                                                                class: "px-3 py-2 hover:bg-indigo-50 cursor-pointer text-sm",
+                                                                onclick: move |_| {
+                                                                    let vault_path = match vault_ctx.get_vault() {
+                                                                        Some(path) => path,
+                                                                        None => return,
+                                                                    };
+                                                                    let file_path = vault_path.join(&file);
+                                                                    let file_name = file.clone();
+                                                                    let mut open_file = open_file.clone();
+                                                                    let mut current_screen = current_screen.clone();
+                                                                    let mut palette_input = palette_input.clone();
+                                                                    let mut palette_open = palette_open.clone();
+
+                                                                    spawn(async move {
+                                                                        match crate::core::note::parse_note(&file_path) {
+                                                                            Ok(note) => {
+                                                                                open_file.set(Some(OpenFile {
+                                                                                    path: file_path.clone(),
+                                                                                    filename: file_name.clone(),
+                                                                                    content: note.content,
+                                                                                    share_with: note.frontmatter.share_with,
+                                                                                }));
+                                                                                current_screen.set(Screen::Editor);
+                                                                                palette_input.set(String::new());
+                                                                                palette_open.set(false);
+
+                                                                                // Save file to config
+                                                                                let config = crate::ui::config::AppConfig {
+                                                                                    last_vault_path: vault_path,
+                                                                                    last_file: Some(file_name),
+                                                                                };
+                                                                                if let Err(e) = config.save() {
+                                                                                    tracing::warn!("Failed to save config: {}", e);
+                                                                                }
+                                                                            }
+                                                                            Err(e) => {
+                                                                                eprintln!("Failed to load file: {}", e);
+                                                                            }
+                                                                        }
+                                                                    });
+                                                                },
+                                                                "{file}"
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
