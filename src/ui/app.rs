@@ -143,7 +143,7 @@ pub fn App() -> Element {
 
                                 // Panel content
                                 div {
-                                    class: "relative h-full overflow-y-auto p-6",
+                                    class: "relative h-full overflow-y-auto p-6 flex flex-col",
 
                                     // Navigation menu
                                     nav { class: "flex flex-col gap-2",
@@ -225,6 +225,43 @@ pub fn App() -> Element {
                                             "Sync"
                                         }
                                     }
+
+                                    // Spacer to push Switch Vault to bottom
+                                    div { class: "flex-1" }
+
+                                    // Switch Vault button at bottom
+                                    div { class: "border-t border-gray-200 pt-4 mt-4",
+                                        button {
+                                            onclick: move |_| {
+                                                let mut vault_ctx = vault_ctx.clone();
+                                                let mut open_file = open_file.clone();
+                                                vault_ctx.clear_vault();
+                                                open_file.set(None);
+                                                menu_open.set(false);
+
+                                                // Clear config when switching vaults
+                                                spawn(async move {
+                                                    if let Err(e) = crate::ui::config::AppConfig::delete() {
+                                                        tracing::warn!("Failed to delete config: {}", e);
+                                                    }
+                                                });
+                                            },
+                                            class: "flex w-full items-center gap-x-3 rounded-md p-3 text-sm font-semibold text-gray-700 hover:bg-gray-50",
+                                            svg {
+                                                view_box: "0 0 24 24",
+                                                fill: "none",
+                                                stroke: "currentColor",
+                                                stroke_width: "1.5",
+                                                class: "size-6 shrink-0 text-gray-400",
+                                                path {
+                                                    d: "M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5",
+                                                    stroke_linecap: "round",
+                                                    stroke_linejoin: "round"
+                                                }
+                                            }
+                                            "Switch Vault"
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -233,42 +270,23 @@ pub fn App() -> Element {
 
                 // Navigation bar
                 nav { class: "bg-white border-b border-gray-200 px-4 py-3",
-                    div { class: "flex justify-between items-center",
-                        // Hamburger menu button
-                        button {
-                            onclick: move |_| menu_open.set(true),
-                            class: "p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500",
-                            span { class: "sr-only", "Open menu" }
-                            svg {
-                                view_box: "0 0 24 24",
-                                fill: "none",
-                                stroke: "currentColor",
-                                stroke_width: "1.5",
-                                "aria-hidden": "true",
-                                class: "size-6",
-                                path {
-                                    d: "M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5",
-                                    stroke_linecap: "round",
-                                    stroke_linejoin: "round"
-                                }
+                    // Hamburger menu button
+                    button {
+                        onclick: move |_| menu_open.set(true),
+                        class: "p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500",
+                        span { class: "sr-only", "Open menu" }
+                        svg {
+                            view_box: "0 0 24 24",
+                            fill: "none",
+                            stroke: "currentColor",
+                            stroke_width: "1.5",
+                            "aria-hidden": "true",
+                            class: "size-6",
+                            path {
+                                d: "M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5",
+                                stroke_linecap: "round",
+                                stroke_linejoin: "round"
                             }
-                        }
-                        button {
-                            class: "px-4 py-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50",
-                            onclick: move |_| {
-                                let mut vault_ctx = vault_ctx.clone();
-                                let mut open_file = open_file.clone();
-                                vault_ctx.clear_vault();
-                                open_file.set(None);
-
-                                // Clear config when switching vaults
-                                spawn(async move {
-                                    if let Err(e) = crate::ui::config::AppConfig::delete() {
-                                        tracing::warn!("Failed to delete config: {}", e);
-                                    }
-                                });
-                            },
-                            "Switch Vault"
                         }
                     }
                 }
