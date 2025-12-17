@@ -5,3 +5,4 @@ macos_entitlements = "macos.app.entitlements"
 
 [bundle]
 identifier = "wiki.footnote.app"
+publisher = "Foonote Wiki Co"
