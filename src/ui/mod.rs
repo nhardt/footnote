@@ -2,6 +2,7 @@ mod app;
 mod config;
 mod context;
 mod markdown;
+mod plaintext;
 mod screens;
 use tracing::Level;
 

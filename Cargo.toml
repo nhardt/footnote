@@ -12,6 +12,7 @@ clap = { version = "4.5", features = ["derive"] }
 dirs = "5.0"
 fuzzy-matcher = "0.3"
 pulldown-cmark = "0.12"
+regex = "1.11"
 ed25519-dalek = { version = "2.1", features = ["rand_core"] }
 futures = "0.3.31"
 hex = "0.4"
