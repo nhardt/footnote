@@ -33,6 +33,14 @@ impl Default for VectorTime {
     }
 }
 
+/// A footnote reference linking to another note by UUID
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Footnote {
+    pub number: usize,
+    pub title: String,
+    pub uuid: Uuid,
+}
+
 /// Frontmatter metadata for a note
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NoteFrontmatter {
@@ -47,6 +55,9 @@ pub struct NoteFrontmatter {
 
     #[serde(default)]
     pub share_with: Vec<String>,
+
+    #[serde(default)]
+    pub footnotes: Vec<Footnote>,
 }
 
 fn generate_uuid() -> Uuid {
@@ -79,6 +90,7 @@ impl Default for NoteFrontmatter {
             uuid: generate_uuid(),
             modified: default_vector_time(),
             share_with: Vec::new(),
+            footnotes: Vec::new(),
         }
     }
 }
@@ -225,6 +237,7 @@ This is the content.
             uuid: Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap(),
             modified: VectorTime(1705316400),
             share_with: vec!["alice".to_string()],
+            footnotes: vec![],
         };
 
         let note = Note {
@@ -307,5 +320,109 @@ This note has no modified field.
         );
         // modified should be a valid VectorTime (default)
         assert!(note.frontmatter.modified.as_i64() > 0);
+    }
+
+    #[test]
+    fn test_parse_note_with_footnotes() {
+        let content = r#"---
+uuid: 550e8400-e29b-41d4-a716-446655440000
+modified: 1705316400
+share_with: []
+footnotes:
+  - number: 1
+    title: "First Note"
+    uuid: 11111111-1111-1111-1111-111111111111
+  - number: 2
+    title: "Second Note"
+    uuid: 22222222-2222-2222-2222-222222222222
+---
+This is some text with [1] and [2] references.
+"#;
+
+        let note = parse_note_from_string(content).unwrap();
+        assert_eq!(note.frontmatter.footnotes.len(), 2);
+        assert_eq!(note.frontmatter.footnotes[0].number, 1);
+        assert_eq!(note.frontmatter.footnotes[0].title, "First Note");
+        assert_eq!(
+            note.frontmatter.footnotes[0].uuid.to_string(),
+            "11111111-1111-1111-1111-111111111111"
+        );
+        assert_eq!(note.frontmatter.footnotes[1].number, 2);
+        assert_eq!(note.frontmatter.footnotes[1].title, "Second Note");
+    }
+
+    #[test]
+    fn test_parse_note_without_footnotes_field() {
+        // Test backward compatibility - notes without footnotes field should parse
+        let content = r#"---
+uuid: 550e8400-e29b-41d4-a716-446655440000
+modified: 1705316400
+share_with: []
+---
+# Note Without Footnotes
+
+This note has no footnotes field.
+"#;
+
+        let note = parse_note_from_string(content).unwrap();
+        // Should parse without error, footnotes should be empty
+        assert_eq!(note.frontmatter.footnotes.len(), 0);
+    }
+
+    #[test]
+    fn test_serialize_note_with_footnotes() {
+        let footnote1 = Footnote {
+            number: 1,
+            title: "Test Note".to_string(),
+            uuid: Uuid::parse_str("11111111-1111-1111-1111-111111111111").unwrap(),
+        };
+
+        let frontmatter = NoteFrontmatter {
+            uuid: Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap(),
+            modified: VectorTime(1705316400),
+            share_with: vec![],
+            footnotes: vec![footnote1],
+        };
+
+        let note = Note {
+            frontmatter,
+            content: "Text with [1] reference.".to_string(),
+        };
+
+        let serialized = serialize_note(&note).unwrap();
+        assert!(serialized.starts_with("---\n"));
+        assert!(serialized.contains("footnotes:"));
+        assert!(serialized.contains("number: 1"));
+        assert!(serialized.contains("title: Test Note"));
+        assert!(serialized.contains("11111111-1111-1111-1111-111111111111"));
+        assert!(serialized.contains("Text with [1] reference."));
+    }
+
+    #[test]
+    fn test_footnote_round_trip() {
+        // Test that footnotes survive serialization and deserialization
+        let footnote = Footnote {
+            number: 1,
+            title: "Round Trip".to_string(),
+            uuid: Uuid::parse_str("12345678-1234-1234-1234-123456789abc").unwrap(),
+        };
+
+        let frontmatter = NoteFrontmatter {
+            uuid: Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap(),
+            modified: VectorTime(1705316400),
+            share_with: vec![],
+            footnotes: vec![footnote.clone()],
+        };
+
+        let note = Note {
+            frontmatter,
+            content: "Content".to_string(),
+        };
+
+        let serialized = serialize_note(&note).unwrap();
+        let parsed = parse_note_from_string(&serialized).unwrap();
+
+        assert_eq!(parsed.frontmatter.footnotes.len(), 1);
+        assert_eq!(parsed.frontmatter.footnotes[0], footnote);
     }
 }
