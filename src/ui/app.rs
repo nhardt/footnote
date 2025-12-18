@@ -54,6 +54,7 @@ pub fn App() -> Element {
                                     filename: filename.clone(),
                                     content: note.content,
                                     share_with: note.frontmatter.share_with,
+                                    footnotes: note.frontmatter.footnotes,
                                 }));
                             }
                         }
@@ -91,6 +92,7 @@ pub fn App() -> Element {
                         filename: home_filename,
                         content: note.content,
                         share_with: note.frontmatter.share_with,
+                        footnotes: note.frontmatter.footnotes,
                     }));
                 }
             });
@@ -395,6 +397,7 @@ pub fn App() -> Element {
                                                                                     filename: file_name.clone(),
                                                                                     content: note.content,
                                                                                     share_with: note.frontmatter.share_with,
+                                                                                    footnotes: note.frontmatter.footnotes,
                                                                                 }));
                                                                                 current_screen.set(Screen::Editor);
                                                                                 palette_input.set(String::new());

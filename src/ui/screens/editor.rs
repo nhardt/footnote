@@ -9,6 +9,7 @@ pub struct OpenFile {
     pub filename: String,
     pub content: String,
     pub share_with: Vec<String>,
+    pub footnotes: Vec<crate::core::note::Footnote>,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -237,6 +238,7 @@ share_with: []
                                                     filename: href.clone(),
                                                     content: note.content,
                                                     share_with: note.frontmatter.share_with,
+                                                    footnotes: note.frontmatter.footnotes,
                                                 }));
                                                 // Switch to view mode
                                                 editor_mode.set(EditorMode::View);
