@@ -24,6 +24,8 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
     let mut trigger_save = use_signal(|| false);
     let mut editor_mode = use_signal(|| EditorMode::View);
     let mut last_loaded_path = use_signal(|| None::<PathBuf>);
+    let mut editing_title = use_signal(|| false);
+    let mut edited_title = use_signal(|| String::new());
     let vault_ctx = use_context::<VaultContext>();
 
     use_effect(move || {
@@ -88,12 +90,103 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
         rsx! {
             div { class: "max-w-4xl mx-auto p-6 h-full flex flex-col gap-4",
 
-                // Document title/filename and buttons
+                // Document title and buttons
                 div { class: "flex items-end justify-between gap-4 flex-shrink-0",
                     div { class: "flex-1",
-                        label { class: "block text-sm font-medium text-gray-700 mb-2", "Document" }
-                        div { class: "px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900 font-mono",
-                            "{filename}"
+                        if editing_title() {
+                            // Edit mode: input field
+                            input {
+                                r#type: "text",
+                                class: "w-full px-2 py-1 text-2xl font-bold text-gray-900 border-b-2 border-indigo-600 focus:outline-none bg-transparent",
+                                value: "{edited_title}",
+                                oninput: move |evt| edited_title.set(evt.value()),
+                                onblur: move |_| {
+                                    let new_title = edited_title().trim().to_string();
+                                    if new_title.is_empty() {
+                                        // Snap back to original if empty
+                                        editing_title.set(false);
+                                        return;
+                                    }
+
+                                    // Validate filename (ASCII only, no path separators)
+                                    if !new_title.chars().all(|c| c.is_ascii() && c != '/' && c != '\\') {
+                                        // Snap back to original if invalid characters
+                                        editing_title.set(false);
+                                        return;
+                                    }
+
+                                    let vault_path = match vault_ctx.get_vault() {
+                                        Some(path) => path,
+                                        None => {
+                                            editing_title.set(false);
+                                            return;
+                                        }
+                                    };
+
+                                    if let Some(ref file_data) = *open_file.read() {
+                                        let old_path = file_data.path.clone();
+                                        let new_filename = format!("{}.md", new_title);
+                                        let new_path = vault_path.join(&new_filename);
+
+                                        let mut open_file = open_file.clone();
+                                        let mut editing_title = editing_title.clone();
+
+                                        spawn(async move {
+                                            // Try to rename file
+                                            if let Err(e) = std::fs::rename(&old_path, &new_path) {
+                                                tracing::warn!("Failed to rename file: {}", e);
+                                                editing_title.set(false);
+                                                return;
+                                            }
+
+                                            // Update open_file with new path/filename
+                                            if let Some(file) = open_file.write().as_mut() {
+                                                file.path = new_path.clone();
+                                                file.filename = new_filename.clone();
+                                            }
+
+                                            // Save to config
+                                            let config = crate::ui::config::AppConfig {
+                                                last_vault_path: vault_path,
+                                                last_file: Some(new_filename),
+                                            };
+                                            if let Err(e) = config.save() {
+                                                tracing::warn!("Failed to save config: {}", e);
+                                            }
+
+                                            editing_title.set(false);
+                                        });
+                                    } else {
+                                        editing_title.set(false);
+                                    }
+                                },
+                                onkeydown: move |evt| {
+                                    if evt.key() == Key::Enter {
+                                        evt.prevent_default();
+                                        // Trigger blur to save
+                                        editing_title.set(false);
+                                    } else if evt.key() == Key::Escape {
+                                        evt.prevent_default();
+                                        editing_title.set(false);
+                                    }
+                                },
+                                autofocus: true,
+                            }
+                        } else {
+                            // View mode: clickable title
+                            div {
+                                class: "text-2xl font-bold text-gray-900 cursor-pointer hover:text-indigo-600 px-2 py-1",
+                                onclick: move |_| {
+                                    // Strip .md extension for editing
+                                    let title = filename.trim_end_matches(".md");
+                                    edited_title.set(title.to_string());
+                                    editing_title.set(true);
+                                },
+                                {
+                                    // Display without .md extension
+                                    filename.trim_end_matches(".md")
+                                }
+                            }
                         }
                     }
                     div { class: "flex items-center gap-2",
