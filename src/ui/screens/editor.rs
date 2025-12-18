@@ -87,6 +87,63 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
         let filename = file_data.filename.clone();
         let share_with = file_data.share_with.clone();
 
+        // Closure to save title rename
+        let mut save_title = move || {
+            let new_title = edited_title().trim().to_string();
+            if new_title.is_empty() {
+                editing_title.set(false);
+                return;
+            }
+
+            // Validate filename (ASCII only, no path separators)
+            if !new_title.chars().all(|c| c.is_ascii() && c != '/' && c != '\\') {
+                editing_title.set(false);
+                return;
+            }
+
+            let vault_path = match vault_ctx.get_vault() {
+                Some(path) => path,
+                None => {
+                    editing_title.set(false);
+                    return;
+                }
+            };
+
+            if let Some(ref file_data) = *open_file.read() {
+                let old_path = file_data.path.clone();
+                let new_filename = format!("{}.md", new_title);
+                let new_path = vault_path.join(&new_filename);
+
+                let mut open_file = open_file.clone();
+                let mut editing_title = editing_title.clone();
+
+                spawn(async move {
+                    if let Err(e) = std::fs::rename(&old_path, &new_path) {
+                        tracing::warn!("Failed to rename file: {}", e);
+                        editing_title.set(false);
+                        return;
+                    }
+
+                    if let Some(file) = open_file.write().as_mut() {
+                        file.path = new_path.clone();
+                        file.filename = new_filename.clone();
+                    }
+
+                    let config = crate::ui::config::AppConfig {
+                        last_vault_path: vault_path,
+                        last_file: Some(new_filename),
+                    };
+                    if let Err(e) = config.save() {
+                        tracing::warn!("Failed to save config: {}", e);
+                    }
+
+                    editing_title.set(false);
+                });
+            } else {
+                editing_title.set(false);
+            }
+        };
+
         rsx! {
             div { class: "max-w-4xl mx-auto p-6 h-full flex flex-col gap-4",
 
@@ -100,71 +157,11 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                                 class: "w-full px-2 py-1 text-2xl font-bold text-gray-900 border-b-2 border-indigo-600 focus:outline-none bg-transparent",
                                 value: "{edited_title}",
                                 oninput: move |evt| edited_title.set(evt.value()),
-                                onblur: move |_| {
-                                    let new_title = edited_title().trim().to_string();
-                                    if new_title.is_empty() {
-                                        // Snap back to original if empty
-                                        editing_title.set(false);
-                                        return;
-                                    }
-
-                                    // Validate filename (ASCII only, no path separators)
-                                    if !new_title.chars().all(|c| c.is_ascii() && c != '/' && c != '\\') {
-                                        // Snap back to original if invalid characters
-                                        editing_title.set(false);
-                                        return;
-                                    }
-
-                                    let vault_path = match vault_ctx.get_vault() {
-                                        Some(path) => path,
-                                        None => {
-                                            editing_title.set(false);
-                                            return;
-                                        }
-                                    };
-
-                                    if let Some(ref file_data) = *open_file.read() {
-                                        let old_path = file_data.path.clone();
-                                        let new_filename = format!("{}.md", new_title);
-                                        let new_path = vault_path.join(&new_filename);
-
-                                        let mut open_file = open_file.clone();
-                                        let mut editing_title = editing_title.clone();
-
-                                        spawn(async move {
-                                            // Try to rename file
-                                            if let Err(e) = std::fs::rename(&old_path, &new_path) {
-                                                tracing::warn!("Failed to rename file: {}", e);
-                                                editing_title.set(false);
-                                                return;
-                                            }
-
-                                            // Update open_file with new path/filename
-                                            if let Some(file) = open_file.write().as_mut() {
-                                                file.path = new_path.clone();
-                                                file.filename = new_filename.clone();
-                                            }
-
-                                            // Save to config
-                                            let config = crate::ui::config::AppConfig {
-                                                last_vault_path: vault_path,
-                                                last_file: Some(new_filename),
-                                            };
-                                            if let Err(e) = config.save() {
-                                                tracing::warn!("Failed to save config: {}", e);
-                                            }
-
-                                            editing_title.set(false);
-                                        });
-                                    } else {
-                                        editing_title.set(false);
-                                    }
-                                },
+                                onblur: move |_| save_title(),
                                 onkeydown: move |evt| {
                                     if evt.key() == Key::Enter {
                                         evt.prevent_default();
-                                        // Trigger blur to save
-                                        editing_title.set(false);
+                                        save_title();
                                     } else if evt.key() == Key::Escape {
                                         evt.prevent_default();
                                         editing_title.set(false);
