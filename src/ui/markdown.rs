@@ -71,7 +71,7 @@ pub fn SimpleMarkdown(content: String, on_internal_link_click: EventHandler<Stri
                                         rsx! {
                                             a {
                                                 key: "{i}",
-                                                class: "text-blue-600 underline cursor-pointer hover:text-blue-800",
+                                                class: "text-app-primary-light underline cursor-pointer hover:text-app-primary-subtle",
                                                 onclick: move |evt| {
                                                     evt.prevent_default();
                                                     on_internal_link_click.call(url.clone());
@@ -107,7 +107,7 @@ pub fn SimpleMarkdown(content: String, on_internal_link_click: EventHandler<Stri
                         elements.push(rsx! {
                             a {
                                 key: "{elements.len()}",
-                                class: "text-blue-600 underline cursor-pointer hover:text-blue-800",
+                                class: "text-app-primary-light underline cursor-pointer hover:text-app-primary-subtle",
                                 onclick: move |evt| {
                                     evt.prevent_default();
                                     on_internal_link_click.call(url_clone.clone());
@@ -192,7 +192,7 @@ pub fn SimpleMarkdown(content: String, on_internal_link_click: EventHandler<Stri
     }
 
     rsx! {
-        div { class: "p-4 markdown-content",
+        div { class: "p-4 markdown-content text-app-text-secondary",
             {elements.into_iter()}
         }
     }

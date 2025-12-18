@@ -53,21 +53,21 @@ pub fn JoinVaultScreen(
 
     rsx! {
         div { class: "flex items-center justify-center h-full",
-            div { class: "max-w-md w-full p-8 bg-white rounded-lg shadow-lg",
+            div { class: "max-w-md w-full p-8 bg-app-panel rounded-lg shadow-lg",
                 h1 { class: "text-2xl font-bold mb-6 text-center", "Join Vault" }
 
                 div { class: "mb-4",
-                    label { class: "block text-sm font-medium text-gray-700 mb-2", "Vault Location" }
-                    div { class: "px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900 font-mono text-sm break-all",
+                    label { class: "block text-sm font-medium text-app-text-secondary mb-2", "Vault Location" }
+                    div { class: "px-3 py-2 border border-app-border-subtle rounded-md bg-app-hover text-app-text font-mono text-sm break-all",
                         "{vault_path_display}"
                     }
                 }
 
                 div { class: "mb-4",
-                    label { class: "block text-sm font-medium text-gray-700 mb-2", "Device Name" }
+                    label { class: "block text-sm font-medium text-app-text-secondary mb-2", "Device Name" }
                     input {
                         r#type: "text",
-                        class: "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500",
+                        class: "w-full px-3 py-2 border border-app-border-subtle rounded-md focus:outline-none focus:ring-2 focus:ring-app-primary",
                         placeholder: "e.g., laptop, desktop, phone",
                         value: "{device_name_input}",
                         oninput: move |evt| device_name_input.set(evt.value()),
@@ -76,10 +76,10 @@ pub fn JoinVaultScreen(
                 }
 
                 div { class: "mb-6",
-                    label { class: "block text-sm font-medium text-gray-700 mb-2", "Connection URL" }
+                    label { class: "block text-sm font-medium text-app-text-secondary mb-2", "Connection URL" }
                     input {
                         r#type: "text",
-                        class: "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm",
+                        class: "w-full px-3 py-2 border border-app-border-subtle rounded-md focus:outline-none focus:ring-2 focus:ring-app-primary font-mono text-sm",
                         placeholder: "iroh://...",
                         value: "{connect_url_input}",
                         oninput: move |evt| connect_url_input.set(evt.value()),
@@ -88,12 +88,12 @@ pub fn JoinVaultScreen(
 
                 div { class: "flex gap-2",
                     button {
-                        class: "flex-1 px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50",
+                        class: "flex-1 px-4 py-2 bg-app-panel text-app-text-secondary border border-app-border-subtle rounded-md hover:bg-app-hover",
                         onclick: handle_cancel,
                         "Cancel"
                     }
                     button {
-                        class: "flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed",
+                        class: "flex-1 px-4 py-2 bg-app-primary text-white rounded-md hover:bg-app-primary-hover disabled:bg-app-hover disabled:cursor-not-allowed",
                         disabled: device_name_input().trim().is_empty() || connect_url_input().trim().is_empty(),
                         onclick: handle_join,
                         "Join Vault"

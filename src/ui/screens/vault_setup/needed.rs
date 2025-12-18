@@ -36,22 +36,22 @@ pub fn VaultNeededScreen(mut vault_status: Signal<VaultStatus>) -> Element {
 
     rsx! {
         div { class: "flex items-center justify-center h-full",
-            div { class: "max-w-md w-full p-8 bg-white rounded-lg shadow-lg",
-                h1 { class: "text-2xl font-bold mb-6 text-center", "Welcome to Footnote" }
+            div { class: "max-w-md w-full p-8 bg-app-panel rounded-lg shadow-lg border border-app-border",
+                h1 { class: "text-2xl font-bold text-app-text mb-6 text-center", "Welcome to Footnote" }
 
                 div { class: "space-y-3",
                     button {
-                        class: "w-full px-4 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium",
+                        class: "w-full px-4 py-3 bg-app-primary text-white rounded-md hover:bg-app-primary-hover font-medium",
                         onclick: handle_create,
                         "Create"
                     }
                     button {
-                        class: "w-full px-4 py-3 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 font-medium",
+                        class: "w-full px-4 py-3 bg-app-hover text-app-text-secondary border border-app-border-subtle rounded-md hover:bg-app-hover font-medium",
                         onclick: handle_join,
                         "Join"
                     }
                     button {
-                        class: "w-full px-4 py-3 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 font-medium",
+                        class: "w-full px-4 py-3 bg-app-hover text-app-text-secondary border border-app-border-subtle rounded-md hover:bg-app-hover font-medium",
                         onclick: handle_open,
                         "Open"
                     }

@@ -153,7 +153,7 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                         // Edit mode: input field
                         input {
                             r#type: "text",
-                            class: "w-full px-2 py-1 text-2xl font-bold text-gray-900 border-b-2 border-indigo-600 focus:outline-none bg-transparent",
+                            class: "w-full px-2 py-1 text-2xl font-bold text-app-text border-b-2 border-app-primary focus:outline-none bg-transparent",
                             value: "{edited_title}",
                             oninput: move |evt| edited_title.set(evt.value()),
                             onblur: move |_| save_title(),
@@ -171,7 +171,7 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                     } else {
                         // View mode: clickable title
                         div {
-                            class: "text-2xl font-bold text-gray-900 cursor-pointer hover:text-indigo-600 px-2 py-1",
+                            class: "text-2xl font-bold text-app-text cursor-pointer hover:text-app-primary-light px-2 py-1",
                             onclick: move |_| {
                                 // Strip .md extension for editing
                                 let title = filename.trim_end_matches(".md");
@@ -190,7 +190,7 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                 div { class: "flex-1 flex flex-col min-h-0",
                     if editor_mode() == EditorMode::View {
                         // View mode: render markdown
-                        div { class: "flex-1 overflow-auto border border-gray-300 rounded-md bg-white",
+                        div { class: "flex-1 overflow-auto border border-app-border rounded-md bg-app-surface",
                             SimpleMarkdown {
                                 content: edited_content(),
                                 on_internal_link_click: move |href: String| {
@@ -259,9 +259,9 @@ share_with: []
                             }
                         }
                     } else {
-                        label { class: "block text-sm font-medium text-gray-700 mb-2 flex-shrink-0", "Content" }
+                        label { class: "block text-sm font-medium text-app-text-secondary mb-2 flex-shrink-0", "Content" }
                         textarea {
-                            class: "flex-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono resize-none",
+                            class: "flex-1 w-full px-3 py-2 bg-app-surface border border-app-border rounded-md text-app-text placeholder-app-text-muted focus:outline-none focus:ring-2 focus:ring-app-primary font-mono resize-none",
                             placeholder: "Once upon a time...",
                             onchange: move |evt| {
                                 edited_content.set(evt.value());
@@ -275,8 +275,8 @@ share_with: []
                 div { class: "flex items-center justify-between gap-4 flex-shrink-0",
                     // Share with
                     div { class: "flex items-center gap-2",
-                        label { class: "text-sm font-medium text-gray-700", "Share With" }
-                        div { class: "px-3 py-1.5 border border-gray-300 rounded-md bg-gray-50 text-gray-500 text-sm",
+                        label { class: "text-sm font-medium text-app-text-secondary", "Share With" }
+                        div { class: "px-3 py-1.5 border border-app-border rounded-md bg-app-panel text-app-text-muted text-sm",
                             {
                                 if share_with.is_empty() {
                                     "[ no contacts ]".to_string()
@@ -290,16 +290,16 @@ share_with: []
                     div { class: "flex items-center gap-2",
                         button {
                             class: if editor_mode() == EditorMode::Edit {
-                                "px-4 py-2 bg-gray-200 text-gray-700 rounded-md"
+                                "px-4 py-2 bg-app-hover text-app-text-secondary rounded-md"
                             } else {
-                                "px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                                "px-4 py-2 bg-app-panel text-app-text-secondary border border-app-border rounded-md hover:bg-app-hover"
                             },
                             onclick: move |_| editor_mode.set(EditorMode::Edit),
                             "Edit"
                         }
                         if editor_mode() == EditorMode::Edit {
                             button {
-                                class: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500",
+                                class: "px-4 py-2 bg-app-primary text-white rounded-md hover:bg-app-primary-hover focus:outline-none focus:ring-2 focus:ring-app-primary",
                                 onclick: move |_| {
                                     trigger_save.set(true);
                                     editor_mode.set(EditorMode::View);
@@ -308,7 +308,7 @@ share_with: []
                             }
                         }
                         if !save_status().is_empty() {
-                            div { class: "text-sm text-gray-600", "{save_status}" }
+                            div { class: "text-sm text-app-text-tertiary", "{save_status}" }
                         }
                     }
                 }
@@ -317,7 +317,7 @@ share_with: []
     } else {
         rsx! {
             div { class: "max-w-4xl mx-auto p-6",
-                div { class: "text-center text-gray-500", "Loading..." }
+                div { class: "text-center text-app-text-muted", "Loading..." }
             }
         }
     }

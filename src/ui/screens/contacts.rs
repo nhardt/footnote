@@ -71,10 +71,10 @@ pub fn ContactsScreen() -> Element {
             // Me section
             div { class: "mb-8",
                 div { class: "flex items-center justify-between mb-4",
-                    h2 { class: "text-xl font-bold", "Me" }
+                    h2 { class: "text-xl font-bold text-app-text", "Me" }
                     if matches!(device_add_state(), DeviceAddState::Idle) {
                         button {
-                            class: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700",
+                            class: "px-4 py-2 bg-app-primary text-white rounded-md hover:bg-app-primary-hover",
                             onclick: move |_| {
                                 let mut device_add_state = device_add_state.clone();
                                 let mut reload_trigger = reload_trigger.clone();
@@ -134,61 +134,61 @@ pub fn ContactsScreen() -> Element {
                 }
 
                 if let Some(ref contact) = *self_contact.read() {
-                    div { class: "bg-blue-50 border border-blue-200 rounded-md p-4",
+                    div { class: "bg-app-info-bg border border-app-info-border rounded-md p-4",
                         div { class: "font-semibold", "{contact.username}" }
-                        div { class: "text-sm text-gray-600 mt-1",
+                        div { class: "text-sm text-app-text-tertiary mt-1",
                             "{contact.devices.len()} device(s)"
                         }
                     }
                 } else {
-                    div { class: "text-gray-500 italic", "Loading..." }
+                    div { class: "text-app-text-muted italic", "Loading..." }
                 }
 
                 // Device pairing UI
                 match device_add_state() {
                     DeviceAddState::Listening { ref join_url } => rsx! {
-                        div { class: "mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md",
+                        div { class: "mt-4 p-4 bg-app-warning-bg border border-app-warning-border rounded-md",
                             div { class: "font-semibold mb-2", "🔐 Waiting for device..." }
                             div { class: "text-sm mb-2", "Copy this URL to your new device:" }
-                            div { class: "font-mono text-xs bg-white p-2 rounded border break-all",
+                            div { class: "font-mono text-xs bg-app-panel p-2 rounded border break-all",
                                 "{join_url}"
                             }
-                            div { class: "text-sm text-gray-600 mt-2 italic",
+                            div { class: "text-sm text-app-text-tertiary mt-2 italic",
                                 "Listening for connection..."
                             }
                         }
                     },
                     DeviceAddState::Connecting => rsx! {
-                        div { class: "mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md",
+                        div { class: "mt-4 p-4 bg-app-info-bg border border-app-info-border rounded-md",
                             div { class: "font-semibold", "✓ Device connecting..." }
                         }
                     },
                     DeviceAddState::ReceivedRequest { ref device_name } => rsx! {
-                        div { class: "mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md",
+                        div { class: "mt-4 p-4 bg-app-info-bg border border-app-info-border rounded-md",
                             div { class: "font-semibold", "✓ Received request from: {device_name}" }
                         }
                     },
                     DeviceAddState::Verifying => rsx! {
-                        div { class: "mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md",
+                        div { class: "mt-4 p-4 bg-app-info-bg border border-app-info-border rounded-md",
                             div { class: "font-semibold", "✓ Verifying..." }
                         }
                     },
                     DeviceAddState::Success { ref device_name } => rsx! {
-                        div { class: "mt-4 p-4 bg-green-50 border border-green-200 rounded-md",
+                        div { class: "mt-4 p-4 bg-app-success-bg border border-app-success-border rounded-md",
                             div { class: "font-semibold", "✓ Device '{device_name}' added successfully!" }
                             button {
-                                class: "mt-2 text-sm text-blue-600 hover:underline",
+                                class: "mt-2 text-sm text-app-primary hover:underline",
                                 onclick: move |_| device_add_state.set(DeviceAddState::Idle),
                                 "Done"
                             }
                         }
                     },
                     DeviceAddState::Error(ref error) => rsx! {
-                        div { class: "mt-4 p-4 bg-red-50 border border-red-200 rounded-md",
-                            div { class: "font-semibold text-red-700", "✗ Error" }
+                        div { class: "mt-4 p-4 bg-app-error-bg border border-app-error-border rounded-md",
+                            div { class: "font-semibold text-app-error-text", "✗ Error" }
                             div { class: "text-sm mt-1", "{error}" }
                             button {
-                                class: "mt-2 text-sm text-blue-600 hover:underline",
+                                class: "mt-2 text-sm text-app-primary hover:underline",
                                 onclick: move |_| device_add_state.set(DeviceAddState::Idle),
                                 "Try Again"
                             }
@@ -200,17 +200,17 @@ pub fn ContactsScreen() -> Element {
 
             // Contacts section
             div {
-                h2 { class: "text-xl font-bold mb-4", "Contacts" }
+                h2 { class: "text-xl font-bold text-app-text mb-4", "Contacts" }
                 if trusted_contacts().is_empty() {
-                    div { class: "text-gray-500 italic", "No contacts yet" }
+                    div { class: "text-app-text-muted italic", "No contacts yet" }
                 } else {
                     div { class: "space-y-2",
                         for (petname, contact) in trusted_contacts().iter() {
                             div {
                                 key: "{petname}",
-                                class: "bg-white border border-gray-200 rounded-md p-4 hover:border-gray-300",
+                                class: "bg-app-panel border border-app-border rounded-md p-4 hover:border-app-border-subtle",
                                 div { class: "font-semibold", "{petname}" }
-                                div { class: "text-sm text-gray-600 mt-1",
+                                div { class: "text-sm text-app-text-tertiary mt-1",
                                     "username: {contact.username}"
                                 }
                             }
