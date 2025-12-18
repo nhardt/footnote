@@ -147,90 +147,40 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
         rsx! {
             div { class: "max-w-4xl mx-auto p-6 h-full flex flex-col gap-4",
 
-                // Document title and buttons
-                div { class: "flex items-end justify-between gap-4 flex-shrink-0",
-                    div { class: "flex-1",
-                        if editing_title() {
-                            // Edit mode: input field
-                            input {
-                                r#type: "text",
-                                class: "w-full px-2 py-1 text-2xl font-bold text-gray-900 border-b-2 border-indigo-600 focus:outline-none bg-transparent",
-                                value: "{edited_title}",
-                                oninput: move |evt| edited_title.set(evt.value()),
-                                onblur: move |_| save_title(),
-                                onkeydown: move |evt| {
-                                    if evt.key() == Key::Enter {
-                                        evt.prevent_default();
-                                        save_title();
-                                    } else if evt.key() == Key::Escape {
-                                        evt.prevent_default();
-                                        editing_title.set(false);
-                                    }
-                                },
-                                autofocus: true,
-                            }
-                        } else {
-                            // View mode: clickable title
-                            div {
-                                class: "text-2xl font-bold text-gray-900 cursor-pointer hover:text-indigo-600 px-2 py-1",
-                                onclick: move |_| {
-                                    // Strip .md extension for editing
-                                    let title = filename.trim_end_matches(".md");
-                                    edited_title.set(title.to_string());
-                                    editing_title.set(true);
-                                },
-                                {
-                                    // Display without .md extension
-                                    filename.trim_end_matches(".md")
-                                }
-                            }
-                        }
-                    }
-                    div { class: "flex items-center gap-2",
-                        // View/Edit toggle
-                        button {
-                            class: if editor_mode() == EditorMode::View {
-                                "px-4 py-2 bg-gray-200 text-gray-700 rounded-md"
-                            } else {
-                                "px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
-                            },
-                            onclick: move |_| editor_mode.set(EditorMode::View),
-                            "View"
-                        }
-                        button {
-                            class: if editor_mode() == EditorMode::Edit {
-                                "px-4 py-2 bg-gray-200 text-gray-700 rounded-md"
-                            } else {
-                                "px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
-                            },
-                            onclick: move |_| editor_mode.set(EditorMode::Edit),
-                            "Edit"
-                        }
-                        // Save button (only visible in edit mode)
-                        if editor_mode() == EditorMode::Edit {
-                            button {
-                                class: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500",
-                                onclick: move |_| {
-                                    trigger_save.set(true);
-                                },
-                                "Save"
-                            }
-                        }
-                        if !save_status().is_empty() {
-                            div { class: "text-sm text-gray-600", "{save_status}" }
-                        }
-                    }
-                }
-
-                // Share with
+                // Document title
                 div { class: "flex-shrink-0",
-                    label { class: "block text-sm font-medium text-gray-700 mb-2", "Share With" }
-                    div { class: "px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500",
-                        {
-                            if share_with.is_empty() {
-                                "[ no contacts ]".to_string()
-                            } else {
-                                share_with.join(", ")
+                    if editing_title() {
+                        // Edit mode: input field
+                        input {
+                            r#type: "text",
+                            class: "w-full px-2 py-1 text-2xl font-bold text-gray-900 border-b-2 border-indigo-600 focus:outline-none bg-transparent",
+                            value: "{edited_title}",
+                            oninput: move |evt| edited_title.set(evt.value()),
+                            onblur: move |_| save_title(),
+                            onkeydown: move |evt| {
+                                if evt.key() == Key::Enter {
+                                    evt.prevent_default();
+                                    save_title();
+                                } else if evt.key() == Key::Escape {
+                                    evt.prevent_default();
+                                    editing_title.set(false);
+                                }
+                            },
+                            autofocus: true,
+                        }
+                    } else {
+                        // View mode: clickable title
+                        div {
+                            class: "text-2xl font-bold text-gray-900 cursor-pointer hover:text-indigo-600 px-2 py-1",
+                            onclick: move |_| {
+                                // Strip .md extension for editing
+                                let title = filename.trim_end_matches(".md");
+                                edited_title.set(title.to_string());
+                                editing_title.set(true);
+                            },
+                            {
+                                // Display without .md extension
+                                filename.trim_end_matches(".md")
                             }
                         }
                     }
@@ -317,6 +267,56 @@ share_with: []
                                 edited_content.set(evt.value());
                             },
                             {edited_content},
+                        }
+                    }
+                }
+
+                // Bottom bar with Share and buttons
+                div { class: "flex items-center justify-between gap-4 flex-shrink-0",
+                    // Share with
+                    div { class: "flex items-center gap-2",
+                        label { class: "text-sm font-medium text-gray-700", "Share With" }
+                        div { class: "px-3 py-1.5 border border-gray-300 rounded-md bg-gray-50 text-gray-500 text-sm",
+                            {
+                                if share_with.is_empty() {
+                                    "[ no contacts ]".to_string()
+                                } else {
+                                    share_with.join(", ")
+                                }
+                            }
+                        }
+                    }
+                    // View/Edit/Save buttons
+                    div { class: "flex items-center gap-2",
+                        button {
+                            class: if editor_mode() == EditorMode::View {
+                                "px-4 py-2 bg-gray-200 text-gray-700 rounded-md"
+                            } else {
+                                "px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                            },
+                            onclick: move |_| editor_mode.set(EditorMode::View),
+                            "View"
+                        }
+                        button {
+                            class: if editor_mode() == EditorMode::Edit {
+                                "px-4 py-2 bg-gray-200 text-gray-700 rounded-md"
+                            } else {
+                                "px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                            },
+                            onclick: move |_| editor_mode.set(EditorMode::Edit),
+                            "Edit"
+                        }
+                        if editor_mode() == EditorMode::Edit {
+                            button {
+                                class: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500",
+                                onclick: move |_| {
+                                    trigger_save.set(true);
+                                },
+                                "Save"
+                            }
+                        }
+                        if !save_status().is_empty() {
+                            div { class: "text-sm text-gray-600", "{save_status}" }
                         }
                     }
                 }
