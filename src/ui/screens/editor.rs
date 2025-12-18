@@ -1,5 +1,5 @@
 use crate::ui::context::VaultContext;
-use crate::ui::markdown::SimpleMarkdown;
+use crate::ui::plaintext::PlainTextViewer;
 use dioxus::prelude::*;
 use std::path::PathBuf;
 
@@ -190,74 +190,10 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                 // Content area (view or edit mode)
                 div { class: "flex-1 flex flex-col min-h-0",
                     if editor_mode() == EditorMode::View {
-                        // View mode: render markdown
+                        // View mode: render plain text with footnote highlighting
                         div { class: "flex-1 overflow-auto border border-app-border rounded-md bg-app-surface",
-                            SimpleMarkdown {
-                                content: edited_content(),
-                                on_internal_link_click: move |href: String| {
-                                    let vault_path = match vault_ctx.get_vault() {
-                                        Some(path) => path,
-                                        None => return,
-                                    };
-
-                                    let file_path = vault_path.join(&href);
-                                    let mut open_file = open_file.clone();
-                                    let mut editor_mode = editor_mode.clone();
-
-                                    spawn(async move {
-                                        // Check if file exists
-                                        if !file_path.exists() {
-                                            // Create new file with basic frontmatter
-                                            let uuid = uuid::Uuid::new_v4();
-                                            let vector_time = crate::core::note::VectorTime::default();
-                                            let new_content = format!(
-                                                r#"---
-uuid: {}
-modified: {}
-share_with: []
----
-
-# {}
-"#,
-                                                uuid,
-                                                vector_time.as_i64(),
-                                                href.trim_end_matches(".md")
-                                            );
-
-                                            if let Err(e) = std::fs::write(&file_path, new_content) {
-                                                eprintln!("Failed to create file: {}", e);
-                                                return;
-                                            }
-                                        }
-
-                                        // Load the file
-                                        match crate::core::note::parse_note(&file_path) {
-                                            Ok(note) => {
-                                                open_file.set(Some(OpenFile {
-                                                    path: file_path.clone(),
-                                                    filename: href.clone(),
-                                                    content: note.content,
-                                                    share_with: note.frontmatter.share_with,
-                                                    footnotes: note.frontmatter.footnotes,
-                                                }));
-                                                // Switch to view mode
-                                                editor_mode.set(EditorMode::View);
-
-                                                // Save file to config
-                                                let config = crate::ui::config::AppConfig {
-                                                    last_vault_path: vault_path,
-                                                    last_file: Some(href.clone()),
-                                                };
-                                                if let Err(e) = config.save() {
-                                                    tracing::warn!("Failed to save config: {}", e);
-                                                }
-                                            }
-                                            Err(e) => {
-                                                eprintln!("Failed to load file: {}", e);
-                                            }
-                                        }
-                                    });
-                                }
+                            PlainTextViewer {
+                                content: edited_content()
                             }
                         }
                     } else {
