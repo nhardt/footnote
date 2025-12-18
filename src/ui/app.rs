@@ -297,7 +297,7 @@ pub fn App() -> Element {
                         }
 
                         // Command palette
-                        div { class: "relative flex-1 max-w-md",
+                        div { class: "relative flex-1 max-w-md mx-auto",
                             input {
                                 r#type: "text",
                                 class: "w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500",
