@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 use crate::ui::context::VaultContext;
 use crate::ui::screens::*;
+use std::path::PathBuf;
 
 #[derive(Clone, Copy, PartialEq)]
 enum Screen {
@@ -19,7 +20,6 @@ pub fn App() -> Element {
     // Command palette state
     let mut palette_input = use_signal(|| String::new());
     let mut palette_open = use_signal(|| false);
-    let mut all_files = use_signal(|| Vec::<String>::new());
 
     use_context_provider(|| VaultContext::new());
     let vault_ctx = use_context::<VaultContext>();
@@ -43,28 +43,6 @@ pub fn App() -> Element {
 
                     // Set vault context
                     vault_ctx.set_vault(config.last_vault_path.clone());
-
-                    // Scan vault for files (for command palette)
-                    tracing::info!("Scanning vault for files: {:?}", config.last_vault_path);
-                    if let Ok(entries) = std::fs::read_dir(&config.last_vault_path) {
-                        let mut files = Vec::new();
-                        for entry in entries.flatten() {
-                            if let Ok(file_name) = entry.file_name().into_string() {
-                                // Skip directories starting with "." (like .footnotes, .obsidian)
-                                if file_name.starts_with('.') {
-                                    continue;
-                                }
-                                if file_name.ends_with(".md") {
-                                    files.push(file_name);
-                                }
-                            }
-                        }
-                        files.sort();
-                        tracing::info!("Found {} markdown files", files.len());
-                        all_files.set(files);
-                    } else {
-                        tracing::warn!("Failed to read vault directory");
-                    }
 
                     // Try to load the last file if it exists
                     if let Some(filename) = config.last_file {
@@ -95,30 +73,7 @@ pub fn App() -> Element {
 
         if let Some(vault_path) = vault_ctx.get_vault() {
             let vault_path_for_spawn = vault_path.clone();
-            let mut all_files = all_files.clone();
             spawn(async move {
-                // Scan vault for files (for command palette)
-                tracing::info!("Scanning vault for files: {:?}", vault_path_for_spawn);
-                if let Ok(entries) = std::fs::read_dir(&vault_path_for_spawn) {
-                    let mut files = Vec::new();
-                    for entry in entries.flatten() {
-                        if let Ok(file_name) = entry.file_name().into_string() {
-                            // Skip directories starting with "." (like .footnotes, .obsidian)
-                            if file_name.starts_with('.') {
-                                continue;
-                            }
-                            if file_name.ends_with(".md") {
-                                files.push(file_name);
-                            }
-                        }
-                    }
-                    files.sort();
-                    tracing::info!("Found {} markdown files", files.len());
-                    all_files.set(files);
-                } else {
-                    tracing::warn!("Failed to read vault directory");
-                }
-
                 // Get the local device name to load correct home file
                 let device_name =
                     match crate::core::device::get_local_device_name(&vault_path_for_spawn) {
@@ -366,12 +321,31 @@ pub fn App() -> Element {
                             // Dropdown overlay
                             if palette_open() {
                                 {
+                                    // Get vault path and scan files live
+                                    let vault_path = match vault_ctx.get_vault() {
+                                        Some(path) => path,
+                                        None => PathBuf::new(),
+                                    };
+
+                                    let mut files = Vec::new();
+                                    if !vault_path.as_os_str().is_empty() {
+                                        if let Ok(entries) = std::fs::read_dir(&vault_path) {
+                                            for entry in entries.flatten() {
+                                                if let Ok(file_name) = entry.file_name().into_string() {
+                                                    if !file_name.starts_with('.') && file_name.ends_with(".md") {
+                                                        files.push(file_name);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
                                     // Fuzzy match files
                                     use fuzzy_matcher::skim::SkimMatcherV2;
                                     use fuzzy_matcher::FuzzyMatcher;
 
                                     let matcher = SkimMatcherV2::default();
-                                    let mut filtered_files: Vec<(String, i64)> = all_files()
+                                    let mut filtered_files: Vec<(String, i64)> = files
                                         .iter()
                                         .filter_map(|file| {
                                             if palette_input().is_empty() {
