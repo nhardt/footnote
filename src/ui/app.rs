@@ -66,8 +66,8 @@ pub fn App() -> Element {
 
     // Load home file when vault context changes
     use_effect(move || {
-        // Don't override if file already loaded from config
         if open_file.read().is_some() {
+            tracing::debug!("skipping file load since open_file.read().is_some()");
             return;
         }
 
@@ -389,6 +389,7 @@ pub fn App() -> Element {
                                                                     spawn(async move {
                                                                         match crate::core::note::parse_note(&file_path) {
                                                                             Ok(note) => {
+                                                                                tracing::debug!("clicked on {} to open", file_name);
                                                                                 open_file.set(Some(OpenFile {
                                                                                     path: file_path.clone(),
                                                                                     filename: file_name.clone(),
