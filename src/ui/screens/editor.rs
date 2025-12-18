@@ -286,17 +286,8 @@ share_with: []
                             }
                         }
                     }
-                    // View/Edit/Save buttons
+                    // Edit/Save buttons
                     div { class: "flex items-center gap-2",
-                        button {
-                            class: if editor_mode() == EditorMode::View {
-                                "px-4 py-2 bg-gray-200 text-gray-700 rounded-md"
-                            } else {
-                                "px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
-                            },
-                            onclick: move |_| editor_mode.set(EditorMode::View),
-                            "View"
-                        }
                         button {
                             class: if editor_mode() == EditorMode::Edit {
                                 "px-4 py-2 bg-gray-200 text-gray-700 rounded-md"
@@ -311,6 +302,7 @@ share_with: []
                                 class: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500",
                                 onclick: move |_| {
                                     trigger_save.set(true);
+                                    editor_mode.set(EditorMode::View);
                                 },
                                 "Save"
                             }
