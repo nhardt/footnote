@@ -1,4 +1,6 @@
-use crate::ui::components::{command_palette::CommandPalette, icons};
+use crate::ui::components::{
+    command_palette::CommandPalette, icons, nav_menu_item::NavMenuItem,
+};
 use crate::ui::context::VaultContext;
 use crate::ui::screens::*;
 use crate::ui::Screen;
@@ -7,7 +9,7 @@ use std::path::PathBuf;
 
 #[component]
 pub fn App() -> Element {
-    let mut current_screen = use_signal(|| Screen::Editor);
+    let current_screen = use_signal(|| Screen::Editor);
     let vault_status = use_signal(|| VaultStatus::VaultNeeded);
     let open_file = use_signal(|| None::<OpenFile>);
     let mut menu_open = use_signal(|| false);
@@ -65,49 +67,28 @@ pub fn App() -> Element {
 
                                     // Navigation menu
                                     nav { class: "flex flex-col gap-2",
-                                        // Editor
-                                        button {
-                                            onclick: move |_| {
-                                                current_screen.set(Screen::Editor);
-                                                menu_open.set(false);
-                                            },
-                                            class: if current_screen() == Screen::Editor {
-                                                "flex items-center gap-x-3 rounded-md bg-zinc-800 p-3 text-sm font-semibold text-zinc-100"
-                                            } else {
-                                                "flex items-center gap-x-3 rounded-md p-3 text-sm font-semibold text-zinc-200 hover:bg-zinc-800"
-                                            },
+                                        NavMenuItem {
+                                            screen: Screen::Editor,
+                                            current_screen,
+                                            menu_open,
+                                            label: "Editor".to_string(),
                                             icons::EditIcon {}
-                                            "Editor"
                                         }
 
-                                        // Contacts
-                                        button {
-                                            onclick: move |_| {
-                                                current_screen.set(Screen::Contacts);
-                                                menu_open.set(false);
-                                            },
-                                            class: if current_screen() == Screen::Contacts {
-                                                "flex items-center gap-x-3 rounded-md bg-zinc-800 p-3 text-sm font-semibold text-zinc-100"
-                                            } else {
-                                                "flex items-center gap-x-3 rounded-md p-3 text-sm font-semibold text-zinc-200 hover:bg-zinc-800"
-                                            },
+                                        NavMenuItem {
+                                            screen: Screen::Contacts,
+                                            current_screen,
+                                            menu_open,
+                                            label: "Contacts".to_string(),
                                             icons::ContactsIcon {}
-                                            "Contacts"
                                         }
 
-                                        // Sync
-                                        button {
-                                            onclick: move |_| {
-                                                current_screen.set(Screen::Sync);
-                                                menu_open.set(false);
-                                            },
-                                            class: if current_screen() == Screen::Sync {
-                                                "flex items-center gap-x-3 rounded-md bg-zinc-800 p-3 text-sm font-semibold text-zinc-100"
-                                            } else {
-                                                "flex items-center gap-x-3 rounded-md p-3 text-sm font-semibold text-zinc-200 hover:bg-zinc-800"
-                                            },
+                                        NavMenuItem {
+                                            screen: Screen::Sync,
+                                            current_screen,
+                                            menu_open,
+                                            label: "Sync".to_string(),
                                             icons::SyncIcon {}
-                                            "Sync"
                                         }
                                     }
 
