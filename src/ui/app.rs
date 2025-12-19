@@ -15,7 +15,7 @@ enum Screen {
 pub fn App() -> Element {
     let mut current_screen = use_signal(|| Screen::Editor);
     let vault_status = use_signal(|| VaultStatus::VaultNeeded);
-    let mut open_file = use_signal(|| None::<OpenFile>);
+    let open_file = use_signal(|| None::<OpenFile>);
     let mut menu_open = use_signal(|| false);
 
     // Command palette state
@@ -27,40 +27,6 @@ pub fn App() -> Element {
 
     use_load_last_session_on_start(vault_ctx, open_file);
     use_load_device_home_file_on_vault_change(vault_ctx, open_file);
-
-    // Load home file when vault context changes
-    use_effect(move || {
-        if open_file.read().is_some() {
-            tracing::debug!("skipping file load since open_file.read().is_some()");
-            return;
-        }
-
-        if let Some(vault_path) = vault_ctx.get_vault() {
-            let vault_path_for_spawn = vault_path.clone();
-            spawn(async move {
-                // Get the local device name to load correct home file
-                let device_name =
-                    match crate::core::device::get_local_device_name(&vault_path_for_spawn) {
-                        Ok(name) => name,
-                        Err(_) => return,
-                    };
-
-                // Load device-specific home file from vault root
-                let home_filename = format!("home-{}.md", device_name);
-                let home_path = vault_path_for_spawn.join(&home_filename);
-
-                if let Ok(note) = crate::core::note::parse_note(&home_path) {
-                    open_file.set(Some(OpenFile {
-                        path: home_path,
-                        filename: home_filename,
-                        content: note.content,
-                        share_with: note.frontmatter.share_with,
-                        footnotes: note.frontmatter.footnotes,
-                    }));
-                }
-            });
-        }
-    });
 
     rsx! {
         document::Stylesheet { href: asset!("/assets/tailwind.css") }
@@ -379,10 +345,10 @@ pub fn App() -> Element {
 }
 
 fn use_load_last_session_on_start(vault_ctx: VaultContext, open_file: Signal<Option<OpenFile>>) {
-    let mut config_loaded = use_signal(|| false);
+    let mut last_session_loaded = use_signal(|| false);
     use_effect(move || {
-        if !config_loaded() {
-            config_loaded.set(true);
+        if !last_session_loaded() {
+            last_session_loaded.set(true);
             load_last_session(vault_ctx.clone(), open_file.clone());
         }
     });
@@ -421,7 +387,7 @@ fn use_load_device_home_file_on_vault_change(
 ) {
     use_effect(move || {
         if open_file.read().is_some() {
-            tracing::debug!("a file is open though we are changing vaults");
+            tracing::debug!("file changed but file is valid, not a vault change");
             return;
         }
         if let Some(vault_path) = vault_ctx.get_vault() {
