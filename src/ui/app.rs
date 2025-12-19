@@ -1,5 +1,6 @@
 use crate::ui::components::{
-    command_palette::CommandPalette, icons, slide_over_menu::SlideOverMenu,
+    command_palette::CommandPalette, icons, listen_button::ListenButton,
+    slide_over_menu::SlideOverMenu,
 };
 use crate::ui::context::VaultContext;
 use crate::ui::screens::*;
@@ -50,6 +51,8 @@ pub fn App() -> Element {
                             current_file,
                             current_screen,
                         }
+
+                        ListenButton {}
                     }
                 }
 

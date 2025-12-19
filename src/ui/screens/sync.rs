@@ -1,4 +1,3 @@
-use crate::ui::components::listen_button::ListenButton;
 use crate::ui::context::VaultContext;
 use dioxus::prelude::*;
 
@@ -289,8 +288,6 @@ pub fn SyncScreen() -> Element {
                     }
                 }
             }
-
-            ListenButton {}
 
             // Trusted contacts section
             div {
