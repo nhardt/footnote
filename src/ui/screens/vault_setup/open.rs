@@ -99,8 +99,8 @@ Welcome to footnote! This is your home note.
     rsx! {
         div { class: "flex items-center justify-center h-full",
             div { class: "text-center",
-                div { class: "text-lg font-medium text-app-text-secondary", "Opening vault..." }
-                div { class: "text-sm text-app-text-muted mt-2", "{vault_path_display}" }
+                div { class: "text-lg font-medium text-zinc-200", "Opening vault..." }
+                div { class: "text-sm text-zinc-400 mt-2", "{vault_path_display}" }
             }
         }
     }

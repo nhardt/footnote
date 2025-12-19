@@ -79,7 +79,7 @@ pub fn PlainTextViewer(
                                 rsx! {
                                     span {
                                         key: "{seg_idx}",
-                                        class: "text-app-primary-light font-medium cursor-pointer hover:text-app-primary-subtle hover:underline",
+                                        class: "text-indigo-400 font-medium cursor-pointer hover:text-indigo-300 hover:underline",
                                         onclick: move |evt| {
                                             evt.prevent_default();
                                             on_footnote_click.call(uuid);
@@ -92,7 +92,7 @@ pub fn PlainTextViewer(
                                 rsx! {
                                     span {
                                         key: "{seg_idx}",
-                                        class: "text-app-text-muted font-medium",
+                                        class: "text-zinc-400 font-medium",
                                         "[{num}]"
                                     }
                                 }
@@ -105,7 +105,7 @@ pub fn PlainTextViewer(
     }
 
     rsx! {
-        div { class: "p-4 text-app-text whitespace-pre-wrap font-mono text-sm",
+        div { class: "p-4 text-zinc-100 whitespace-pre-wrap font-mono text-sm",
             {elements.into_iter()}
         }
     }

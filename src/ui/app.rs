@@ -102,7 +102,7 @@ pub fn App() -> Element {
     rsx! {
         document::Stylesheet { href: asset!("/assets/tailwind.css") }
 
-        div { class: "h-screen flex flex-col bg-app-bg",
+        div { class: "h-screen flex flex-col bg-zinc-950",
             if vault_ctx.get_vault().is_some() {
                 // Left slide-over menu
                 if menu_open() {
@@ -111,7 +111,7 @@ pub fn App() -> Element {
 
                         // Backdrop overlay
                         div {
-                            class: "absolute inset-0 bg-app-bg/75 transition-opacity duration-300",
+                            class: "absolute inset-0 bg-zinc-950/75 transition-opacity duration-300",
                             onclick: move |_| menu_open.set(false),
                         }
 
@@ -121,7 +121,7 @@ pub fn App() -> Element {
 
                             // Slide-over panel
                             div {
-                                class: "relative mr-auto h-full w-full max-w-sm transform bg-app-surface shadow-xl transition-transform duration-300 ease-in-out",
+                                class: "relative mr-auto h-full w-full max-w-sm transform bg-zinc-900 shadow-xl transition-transform duration-300 ease-in-out",
 
                                 // Close button
                                 div {
@@ -129,7 +129,7 @@ pub fn App() -> Element {
                                     button {
                                         r#type: "button",
                                         onclick: move |_| menu_open.set(false),
-                                        class: "relative rounded-md text-app-text-muted hover:text-app-text focus:outline-none focus:ring-2 focus:ring-slate-400",
+                                        class: "relative rounded-md text-zinc-400 hover:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-slate-400",
                                         span { class: "absolute -inset-2.5" }
                                         span { class: "sr-only", "Close panel" }
                                         svg {
@@ -161,16 +161,16 @@ pub fn App() -> Element {
                                                 menu_open.set(false);
                                             },
                                             class: if current_screen() == Screen::Editor {
-                                                "flex items-center gap-x-3 rounded-md bg-app-panel p-3 text-sm font-semibold text-app-text"
+                                                "flex items-center gap-x-3 rounded-md bg-zinc-800 p-3 text-sm font-semibold text-zinc-100"
                                             } else {
-                                                "flex items-center gap-x-3 rounded-md p-3 text-sm font-semibold text-app-text-secondary hover:bg-app-panel"
+                                                "flex items-center gap-x-3 rounded-md p-3 text-sm font-semibold text-zinc-200 hover:bg-zinc-800"
                                             },
                                             svg {
                                                 view_box: "0 0 24 24",
                                                 fill: "none",
                                                 stroke: "currentColor",
                                                 stroke_width: "1.5",
-                                                class: "size-6 shrink-0 text-app-text-muted",
+                                                class: "size-6 shrink-0 text-zinc-400",
                                                 path {
                                                     d: "M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10",
                                                     stroke_linecap: "round",
@@ -187,16 +187,16 @@ pub fn App() -> Element {
                                                 menu_open.set(false);
                                             },
                                             class: if current_screen() == Screen::Contacts {
-                                                "flex items-center gap-x-3 rounded-md bg-app-panel p-3 text-sm font-semibold text-app-text"
+                                                "flex items-center gap-x-3 rounded-md bg-zinc-800 p-3 text-sm font-semibold text-zinc-100"
                                             } else {
-                                                "flex items-center gap-x-3 rounded-md p-3 text-sm font-semibold text-app-text-secondary hover:bg-app-panel"
+                                                "flex items-center gap-x-3 rounded-md p-3 text-sm font-semibold text-zinc-200 hover:bg-zinc-800"
                                             },
                                             svg {
                                                 view_box: "0 0 24 24",
                                                 fill: "none",
                                                 stroke: "currentColor",
                                                 stroke_width: "1.5",
-                                                class: "size-6 shrink-0 text-app-text-muted",
+                                                class: "size-6 shrink-0 text-zinc-400",
                                                 path {
                                                     d: "M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z",
                                                     stroke_linecap: "round",
@@ -213,16 +213,16 @@ pub fn App() -> Element {
                                                 menu_open.set(false);
                                             },
                                             class: if current_screen() == Screen::Sync {
-                                                "flex items-center gap-x-3 rounded-md bg-app-panel p-3 text-sm font-semibold text-app-text"
+                                                "flex items-center gap-x-3 rounded-md bg-zinc-800 p-3 text-sm font-semibold text-zinc-100"
                                             } else {
-                                                "flex items-center gap-x-3 rounded-md p-3 text-sm font-semibold text-app-text-secondary hover:bg-app-panel"
+                                                "flex items-center gap-x-3 rounded-md p-3 text-sm font-semibold text-zinc-200 hover:bg-zinc-800"
                                             },
                                             svg {
                                                 view_box: "0 0 24 24",
                                                 fill: "none",
                                                 stroke: "currentColor",
                                                 stroke_width: "1.5",
-                                                class: "size-6 shrink-0 text-app-text-muted",
+                                                class: "size-6 shrink-0 text-zinc-400",
                                                 path {
                                                     d: "M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99",
                                                     stroke_linecap: "round",
@@ -237,7 +237,7 @@ pub fn App() -> Element {
                                     div { class: "flex-1" }
 
                                     // Switch Vault button at bottom
-                                    div { class: "border-t border-app-border pt-4 mt-4",
+                                    div { class: "border-t border-zinc-700 pt-4 mt-4",
                                         button {
                                             onclick: move |_| {
                                                 let mut vault_ctx = vault_ctx.clone();
@@ -253,13 +253,13 @@ pub fn App() -> Element {
                                                     }
                                                 });
                                             },
-                                            class: "flex w-full items-center gap-x-3 rounded-md p-3 text-sm font-semibold text-app-text-secondary hover:bg-app-panel",
+                                            class: "flex w-full items-center gap-x-3 rounded-md p-3 text-sm font-semibold text-zinc-200 hover:bg-zinc-800",
                                             svg {
                                                 view_box: "0 0 24 24",
                                                 fill: "none",
                                                 stroke: "currentColor",
                                                 stroke_width: "1.5",
-                                                class: "size-6 shrink-0 text-app-text-muted",
+                                                class: "size-6 shrink-0 text-zinc-400",
                                                 path {
                                                     d: "M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5",
                                                     stroke_linecap: "round",
@@ -276,12 +276,12 @@ pub fn App() -> Element {
                 }
 
                 // Navigation bar
-                nav { class: "bg-app-surface border-b border-app-border px-4 py-3",
+                nav { class: "bg-zinc-900 border-b border-zinc-700 px-4 py-3",
                     div { class: "flex items-center gap-4",
                         // Hamburger menu button
                         button {
                             onclick: move |_| menu_open.set(true),
-                            class: "p-2 rounded-md text-app-text-muted hover:text-app-text hover:bg-app-panel focus:outline-none focus:ring-2 focus:ring-inset focus:ring-app-primary",
+                            class: "p-2 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-600",
                             span { class: "sr-only", "Open menu" }
                             svg {
                                 view_box: "0 0 24 24",
@@ -302,7 +302,7 @@ pub fn App() -> Element {
                         div { class: "relative flex-1 max-w-md mx-auto",
                             input {
                                 r#type: "text",
-                                class: "w-full px-3 py-1.5 text-sm bg-app-panel border border-app-border rounded-md text-app-text placeholder-app-text-muted focus:outline-none focus:ring-2 focus:ring-app-primary",
+                                class: "w-full px-3 py-1.5 text-sm bg-zinc-800 border border-zinc-700 rounded-md text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-600",
                                 placeholder: "Search files...",
                                 value: "{palette_input}",
                                 onfocus: move |_| palette_open.set(true),
@@ -368,14 +368,14 @@ pub fn App() -> Element {
 
                                     rsx! {
                                         if !filtered_files.is_empty() {
-                                            div { class: "absolute z-50 w-full mt-1 bg-app-panel border border-app-border rounded-md shadow-lg max-h-60 overflow-y-auto",
+                                            div { class: "absolute z-50 w-full mt-1 bg-zinc-800 border border-zinc-700 rounded-md shadow-lg max-h-60 overflow-y-auto",
                                                 for file in filtered_files.iter() {
                                                     {
                                                         let file = file.clone();
                                                         rsx! {
                                                             div {
                                                                 key: "{file}",
-                                                                class: "px-3 py-2 hover:bg-app-hover cursor-pointer text-sm text-app-text-secondary",
+                                                                class: "px-3 py-2 hover:bg-zinc-700 cursor-pointer text-sm text-zinc-200",
                                                                 onclick: move |_| {
                                                                     let vault_path = match vault_ctx.get_vault() {
                                                                         Some(path) => path,
@@ -472,8 +472,8 @@ pub fn App() -> Element {
                     VaultStatus::Error(ref error) => rsx! {
                         div { class: "flex items-center justify-center h-full",
                             div { class: "text-center max-w-md",
-                                div { class: "text-lg font-medium text-app-warning", "Error" }
-                                div { class: "text-sm text-app-text-secondary mt-2", "{error}" }
+                                div { class: "text-lg font-medium text-red-400", "Error" }
+                                div { class: "text-sm text-zinc-200 mt-2", "{error}" }
                             }
                         }
                     },

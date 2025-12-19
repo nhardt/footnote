@@ -76,11 +76,11 @@ pub fn SyncScreen() -> Element {
 
     rsx! {
         div { class: "max-w-4xl mx-auto p-6",
-            h1 { class: "text-2xl font-bold text-app-text mb-6", "Device Sync" }
+            h1 { class: "text-2xl font-bold text-zinc-100 mb-6", "Device Sync" }
 
             // Me section
             div { class: "mb-8",
-                h2 { class: "text-xl font-bold text-app-text mb-4", "My Devices" }
+                h2 { class: "text-xl font-bold text-zinc-100 mb-4", "My Devices" }
                 if let Some(ref contact) = *self_contact.read() {
                     div { class: "space-y-2",
                         for device in contact.devices.iter() {
@@ -95,19 +95,19 @@ pub fn SyncScreen() -> Element {
                                 rsx! {
                                     div {
                                         key: "{endpoint_id}",
-                                        class: "bg-app-panel border border-app-border rounded-md p-4",
+                                        class: "bg-zinc-800 border border-zinc-700 rounded-md p-4",
                                         div { class: "flex items-center justify-between",
                                             div { class: "flex-1",
                                                 div { class: "font-semibold",
                                                     "{device_name}"
                                                     if is_current {
-                                                        span { class: "ml-2 text-xs text-app-success font-normal", "(this device)" }
+                                                        span { class: "ml-2 text-xs text-green-600 font-normal", "(this device)" }
                                                     }
                                                 }
-                                                div { class: "text-sm text-app-text-tertiary mt-1 font-mono text-xs truncate",
+                                                div { class: "text-sm text-zinc-300 mt-1 font-mono text-xs truncate",
                                                     "ID: {endpoint_id}"
                                                 }
-                                                div { class: "text-sm text-app-text-muted mt-1",
+                                                div { class: "text-sm text-zinc-400 mt-1",
                                                     match sync_status() {
                                                         SyncStatus::Idle => "Ready to sync".to_string(),
                                                         SyncStatus::Syncing { device_name: ref syncing_device } if syncing_device == &device_name => "Syncing...".to_string(),
@@ -127,7 +127,7 @@ pub fn SyncScreen() -> Element {
 
                                                     rsx! {
                                                         button {
-                                                            class: "px-4 py-2 bg-app-primary text-white rounded-md hover:bg-app-primary-hover disabled:bg-app-hover disabled:cursor-not-allowed",
+                                                            class: "px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-zinc-700 disabled:cursor-not-allowed",
                                                             disabled: !matches!(sync_status(), SyncStatus::Idle),
                                                             onclick: {
                                                                 let device_name = device_name.clone();
@@ -210,7 +210,7 @@ pub fn SyncScreen() -> Element {
                                                             "Sync"
                                                         }
                                                         button {
-                                                            class: "px-4 py-2 ml-2 bg-app-error text-white rounded-md hover:bg-app-error disabled:bg-app-hover disabled:cursor-not-allowed",
+                                                            class: "px-4 py-2 ml-2 bg-red-600 text-white rounded-md hover:bg-red-600 disabled:bg-zinc-700 disabled:cursor-not-allowed",
                                                             disabled: confirm_delete().is_some(),
                                                             onclick: {
                                                                 let device_name = device_name.clone();
@@ -227,7 +227,7 @@ pub fn SyncScreen() -> Element {
                                         }
                                         if let SyncStatus::Error { device_name: ref error_device, ref error } = sync_status() {
                                             if error_device == &device_name {
-                                                div { class: "mt-2 p-2 bg-app-error-bg border border-app-error-border rounded text-sm text-app-error-text",
+                                                div { class: "mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700",
                                                     "Error: {error}"
                                                 }
                                             }
@@ -238,19 +238,19 @@ pub fn SyncScreen() -> Element {
                         }
                     }
                 } else {
-                    div { class: "text-app-text-muted italic", "Loading..." }
+                    div { class: "text-zinc-400 italic", "Loading..." }
                 }
             }
 
             // Confirmation dialog for device deletion
             if let Some(device_to_delete) = confirm_delete().clone() {
-                div { class: "fixed inset-0 bg-app-bg bg-opacity-75 flex items-center justify-center z-50",
-                    div { class: "bg-app-panel rounded-lg p-6 max-w-md border border-app-border",
-                        h3 { class: "text-lg font-bold text-app-text mb-4", "Delete Device" }
-                        p { class: "text-app-text-secondary mb-4", "Are you sure you want to delete device '{device_to_delete}'?" }
+                div { class: "fixed inset-0 bg-zinc-950 bg-opacity-75 flex items-center justify-center z-50",
+                    div { class: "bg-zinc-800 rounded-lg p-6 max-w-md border border-zinc-700",
+                        h3 { class: "text-lg font-bold text-zinc-100 mb-4", "Delete Device" }
+                        p { class: "text-zinc-200 mb-4", "Are you sure you want to delete device '{device_to_delete}'?" }
                         div { class: "flex gap-2 justify-end",
                             button {
-                                class: "px-4 py-2 bg-app-hover rounded-md hover:bg-app-hover",
+                                class: "px-4 py-2 bg-zinc-700 rounded-md hover:bg-zinc-700",
                                 onclick: {
                                     let mut confirm_delete = confirm_delete.clone();
                                     move |_| {
@@ -260,7 +260,7 @@ pub fn SyncScreen() -> Element {
                                 "Cancel"
                             }
                             button {
-                                class: "px-4 py-2 bg-app-error text-white rounded-md hover:bg-app-error",
+                                class: "px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-600",
                                 onclick: {
                                     let device_name = device_to_delete.clone();
                                     let mut confirm_delete = confirm_delete.clone();
@@ -301,12 +301,12 @@ pub fn SyncScreen() -> Element {
 
             // Receive Sync section
             div { class: "mb-8",
-                h2 { class: "text-xl font-bold text-app-text mb-4", "Receive Sync" }
-                div { class: "bg-app-panel border border-app-border rounded-md p-4",
+                h2 { class: "text-xl font-bold text-zinc-100 mb-4", "Receive Sync" }
+                div { class: "bg-zinc-800 border border-zinc-700 rounded-md p-4",
                     div { class: "flex items-center justify-between",
                         div { class: "flex-1",
                             div { class: "font-semibold", "Accept sync from other devices" }
-                            div { class: "text-sm text-app-text-tertiary mt-1",
+                            div { class: "text-sm text-zinc-300 mt-1",
                                 match listen_status() {
                                     ListenStatus::Idle => "Not listening".to_string(),
                                     ListenStatus::Listening { ref endpoint_id } => {
@@ -321,7 +321,7 @@ pub fn SyncScreen() -> Element {
                         }
                         if matches!(listen_status(), ListenStatus::Listening { .. } | ListenStatus::Received { .. }) {
                             button {
-                                class: "px-4 py-2 bg-app-error text-white rounded-md hover:bg-app-error",
+                                class: "px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-600",
                                 onclick: move |_| {
                                     // Stop listening
                                     if let Some(token) = cancel_token() {
@@ -334,7 +334,7 @@ pub fn SyncScreen() -> Element {
                             }
                         } else {
                             button {
-                                class: "px-4 py-2 bg-app-success text-white rounded-md hover:bg-app-success disabled:bg-app-hover",
+                                class: "px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-600 disabled:bg-zinc-700",
                                 disabled: matches!(listen_status(), ListenStatus::Error(_)),
                                 onclick: move |_| {
                                     let mut listen_status = listen_status.clone();
@@ -405,13 +405,13 @@ pub fn SyncScreen() -> Element {
 
                     // Show recent sync info
                     if let ListenStatus::Received { ref from, .. } = listen_status() {
-                        div { class: "mt-2 p-2 bg-app-success-bg border border-app-success-border rounded text-sm text-app-success",
+                        div { class: "mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-600",
                             "Received sync from {from}"
                         }
                     }
 
                     if let ListenStatus::Error(ref e) = listen_status() {
-                        div { class: "mt-2 p-2 bg-app-error-bg border border-app-error-border rounded text-sm text-app-error-text",
+                        div { class: "mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700",
                             "Error: {e}"
                         }
                     }
@@ -420,15 +420,15 @@ pub fn SyncScreen() -> Element {
 
             // Trusted contacts section
             div {
-                h2 { class: "text-xl font-bold text-app-text mb-4", "Trusted Contacts" }
+                h2 { class: "text-xl font-bold text-zinc-100 mb-4", "Trusted Contacts" }
                 if trusted_contacts().is_empty() {
-                    div { class: "text-app-text-muted italic", "No trusted contacts yet" }
+                    div { class: "text-zinc-400 italic", "No trusted contacts yet" }
                 } else {
                     div { class: "space-y-4",
                         for (petname, contact) in trusted_contacts().iter() {
                             div {
                                 key: "{petname}",
-                                class: "bg-app-panel border border-app-border rounded-md p-4",
+                                class: "bg-zinc-800 border border-zinc-700 rounded-md p-4",
                                 div { class: "font-semibold mb-2", "{petname} ({contact.username})" }
                                 div { class: "space-y-2 ml-4",
                                     for device in contact.devices.iter() {
@@ -439,12 +439,12 @@ pub fn SyncScreen() -> Element {
                                             rsx! {
                                                 div {
                                                     key: "{endpoint_id}",
-                                                    class: "flex items-center justify-between border-l-2 border-app-border pl-3 py-2",
+                                                    class: "flex items-center justify-between border-l-2 border-zinc-700 pl-3 py-2",
                                                     div { class: "flex-1",
                                                         div { class: "text-sm font-medium", "{device_name}" }
-                                                        div { class: "text-xs text-app-text-muted font-mono truncate", "ID: {endpoint_id}" }
+                                                        div { class: "text-xs text-zinc-400 font-mono truncate", "ID: {endpoint_id}" }
                                                     }
-                                                    div { class: "text-xs text-app-text-subtle", "—" }
+                                                    div { class: "text-xs text-zinc-500", "—" }
                                                 }
                                             }
                                         }

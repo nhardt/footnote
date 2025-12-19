@@ -114,25 +114,25 @@ pub fn DirectoryBrowserScreen(
 
     rsx! {
         div { class: "flex items-center justify-center h-full p-4",
-            div { class: "max-w-2xl w-full bg-app-panel rounded-lg shadow-lg",
-                div { class: "p-6 border-b border-app-border",
-                    h1 { class: "text-2xl font-bold text-app-text text-center", "Select Directory" }
+            div { class: "max-w-2xl w-full bg-zinc-800 rounded-lg shadow-lg",
+                div { class: "p-6 border-b border-zinc-700",
+                    h1 { class: "text-2xl font-bold text-zinc-100 text-center", "Select Directory" }
                 }
 
                 div { class: "p-6",
                     div { class: "mb-4",
-                        label { class: "block text-sm font-medium text-app-text-secondary mb-2", "Current Path" }
+                        label { class: "block text-sm font-medium text-zinc-200 mb-2", "Current Path" }
                         div { class: "flex gap-2",
-                            div { class: "flex-1 px-3 py-2 border border-app-border-subtle rounded-md bg-app-hover text-app-text font-mono text-sm break-all",
+                            div { class: "flex-1 px-3 py-2 border border-zinc-600 rounded-md bg-zinc-700 text-zinc-100 font-mono text-sm break-all",
                                 "{current_path().display()}"
                             }
                             button {
-                                class: "px-3 py-2 bg-app-panel border border-app-border-subtle rounded-md hover:bg-app-hover",
+                                class: "px-3 py-2 bg-zinc-800 border border-zinc-600 rounded-md hover:bg-zinc-700",
                                 onclick: handle_go_up,
                                 "↑ Up"
                             }
                             button {
-                                class: "px-3 py-2 bg-app-panel border border-app-border-subtle rounded-md hover:bg-app-hover",
+                                class: "px-3 py-2 bg-zinc-800 border border-zinc-600 rounded-md hover:bg-zinc-700",
                                 onclick: handle_toggle_new_folder,
                                 "+ Folder"
                             }
@@ -141,18 +141,18 @@ pub fn DirectoryBrowserScreen(
 
                     if show_new_folder_input() {
                         div { class: "mb-4",
-                            label { class: "block text-sm font-medium text-app-text-secondary mb-2", "New Folder Name" }
+                            label { class: "block text-sm font-medium text-zinc-200 mb-2", "New Folder Name" }
                             div { class: "flex gap-2",
                                 input {
                                     r#type: "text",
-                                    class: "flex-1 px-3 py-2 border border-app-border-subtle rounded-md focus:outline-none focus:ring-2 focus:ring-app-primary",
+                                    class: "flex-1 px-3 py-2 border border-zinc-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-600",
                                     placeholder: "folder-name",
                                     value: "{new_folder_name}",
                                     oninput: move |evt| new_folder_name.set(evt.value()),
                                     autofocus: true,
                                 }
                                 button {
-                                    class: "px-3 py-2 bg-app-primary text-white rounded-md hover:bg-app-primary-hover disabled:bg-app-hover disabled:cursor-not-allowed",
+                                    class: "px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-zinc-700 disabled:cursor-not-allowed",
                                     disabled: new_folder_name().trim().is_empty(),
                                     onclick: handle_create_folder,
                                     "Create"
@@ -161,9 +161,9 @@ pub fn DirectoryBrowserScreen(
                         }
                     }
 
-                    div { class: "mb-4 max-h-96 overflow-y-auto border border-app-border rounded-md",
+                    div { class: "mb-4 max-h-96 overflow-y-auto border border-zinc-700 rounded-md",
                         if folders().is_empty() {
-                            div { class: "p-4 text-center text-app-text-muted", "No subdirectories" }
+                            div { class: "p-4 text-center text-zinc-400", "No subdirectories" }
                         } else {
                             for folder in folders() {
                                 {
@@ -175,7 +175,7 @@ pub fn DirectoryBrowserScreen(
                                     rsx! {
                                         div {
                                             key: "{folder.display()}",
-                                            class: "px-4 py-2 hover:bg-app-hover cursor-pointer border-b border-app-border last:border-b-0",
+                                            class: "px-4 py-2 hover:bg-zinc-700 cursor-pointer border-b border-zinc-700 last:border-b-0",
                                             onclick: move |_| current_path.set(folder_path.clone()),
                                             "📁 {folder_name}"
                                         }
@@ -186,17 +186,17 @@ pub fn DirectoryBrowserScreen(
                     }
                 }
 
-                div { class: "p-6 border-t border-app-border flex gap-2",
+                div { class: "p-6 border-t border-zinc-700 flex gap-2",
                     button {
-                        class: "flex-1 px-4 py-2 bg-app-panel text-app-text-secondary border border-app-border-subtle rounded-md hover:bg-app-hover",
+                        class: "flex-1 px-4 py-2 bg-zinc-800 text-zinc-200 border border-zinc-600 rounded-md hover:bg-zinc-700",
                         onclick: handle_cancel,
                         "Cancel"
                     }
                     button {
                         class: if (action == "Open" && !has_footnotes_dir()) || (action == "Join" && has_footnotes_dir()) || (action == "Create" && has_footnotes_dir()) {
-                            "flex-1 px-4 py-2 bg-app-hover text-app-text-muted rounded-md cursor-not-allowed"
+                            "flex-1 px-4 py-2 bg-zinc-700 text-zinc-400 rounded-md cursor-not-allowed"
                         } else {
-                            "flex-1 px-4 py-2 bg-app-primary text-white rounded-md hover:bg-app-primary-hover"
+                            "flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
                         },
                         disabled: (action == "Open" && !has_footnotes_dir()) || (action == "Join" && has_footnotes_dir()) || (action == "Create" && has_footnotes_dir()),
                         onclick: handle_select_here,

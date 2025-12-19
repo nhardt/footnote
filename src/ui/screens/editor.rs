@@ -165,7 +165,7 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                         // Edit mode: input field
                         input {
                             r#type: "text",
-                            class: "w-full px-2 py-1 text-2xl font-bold text-app-text border-b-2 border-app-primary focus:outline-none bg-transparent",
+                            class: "w-full px-2 py-1 text-2xl font-bold text-zinc-100 border-b-2 border-indigo-600 focus:outline-none bg-transparent",
                             value: "{edited_title}",
                             oninput: move |evt| edited_title.set(evt.value()),
                             onblur: move |_| save_title(),
@@ -183,7 +183,7 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                     } else {
                         // View mode: clickable title
                         div {
-                            class: "text-2xl font-bold text-app-text cursor-pointer hover:text-app-primary-light px-2 py-1",
+                            class: "text-2xl font-bold text-zinc-100 cursor-pointer hover:text-indigo-400 px-2 py-1",
                             onclick: move |_| {
                                 // Strip .md extension for editing
                                 let title = filename.trim_end_matches(".md");
@@ -202,7 +202,7 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                 div { class: "flex-1 flex flex-col min-h-0",
                     if editor_mode() == EditorMode::View {
                         // View mode: render plain text with footnote highlighting
-                        div { class: "flex-1 overflow-auto border border-app-border rounded-md bg-app-surface",
+                        div { class: "flex-1 overflow-auto border border-zinc-700 rounded-md bg-zinc-900",
                             PlainTextViewer {
                                 content: edited_content(),
                                 footnotes: edited_footnotes(),
@@ -270,9 +270,9 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                             }
                         }
                     } else {
-                        label { class: "block text-sm font-medium text-app-text-secondary mb-2 flex-shrink-0", "Content" }
+                        label { class: "block text-sm font-medium text-zinc-200 mb-2 flex-shrink-0", "Content" }
                         textarea {
-                            class: "flex-1 w-full px-3 py-2 bg-app-surface border border-app-border rounded-md text-app-text placeholder-app-text-muted focus:outline-none focus:ring-2 focus:ring-app-primary font-mono resize-none",
+                            class: "flex-1 w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-600 font-mono resize-none",
                             placeholder: "Once upon a time...",
                             oninput: move |evt| {
                                 let content = evt.value();
@@ -313,8 +313,8 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
 
                         // Footnotes section
                         if !edited_footnotes.read().is_empty() {
-                            div { class: "flex-shrink-0 border-t border-app-border pt-4 mt-4",
-                                label { class: "block text-sm font-medium text-app-text-secondary mb-2", "Footnotes" }
+                            div { class: "flex-shrink-0 border-t border-zinc-700 pt-4 mt-4",
+                                label { class: "block text-sm font-medium text-zinc-200 mb-2", "Footnotes" }
                                 div { class: "space-y-2",
                                     {edited_footnotes.read().iter().map(|footnote| {
                                         let num = footnote.number;
@@ -324,18 +324,18 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                                         rsx! {
                                             div {
                                                 key: "{num}",
-                                                class: "flex items-center gap-3 px-3 py-2 bg-app-panel border border-app-border rounded-md text-sm hover:bg-app-hover cursor-pointer",
+                                                class: "flex items-center gap-3 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-sm hover:bg-zinc-700 cursor-pointer",
                                                 onclick: move |_| {
                                                     selected_footnote_number.set(Some(num));
                                                     footnote_search_input.set(String::new());
                                                     footnote_selector_open.set(true);
                                                 },
-                                                div { class: "text-app-primary-light font-medium min-w-[3rem]", "[{num}]" }
+                                                div { class: "text-indigo-400 font-medium min-w-[3rem]", "[{num}]" }
                                                 div {
-                                                    class: if is_empty { "flex-1 text-app-text-muted italic" } else { "flex-1 text-app-text" },
+                                                    class: if is_empty { "flex-1 text-zinc-400 italic" } else { "flex-1 text-zinc-100" },
                                                     if is_empty { "(click to set link)" } else { "{title}" }
                                                 }
-                                                div { class: "text-app-text-muted text-xs font-mono", "{uuid}" }
+                                                div { class: "text-zinc-400 text-xs font-mono", "{uuid}" }
                                             }
                                         }
                                     })}
@@ -351,12 +351,12 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                         class: "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50",
                         onclick: move |_| footnote_selector_open.set(false),
                         div {
-                            class: "bg-app-surface border border-app-border rounded-lg shadow-xl max-w-2xl w-full mx-4",
+                            class: "bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl max-w-2xl w-full mx-4",
                             onclick: move |evt| evt.stop_propagation(),
 
                             // Header
-                            div { class: "px-4 py-3 border-b border-app-border",
-                                h3 { class: "text-lg font-medium text-app-text",
+                            div { class: "px-4 py-3 border-b border-zinc-700",
+                                h3 { class: "text-lg font-medium text-zinc-100",
                                     "Select Note for [{selected_footnote_number.read().unwrap_or(0)}]"
                                 }
                             }
@@ -365,7 +365,7 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                             div { class: "p-4",
                                 input {
                                     r#type: "text",
-                                    class: "w-full px-3 py-2 bg-app-panel border border-app-border rounded-md text-app-text placeholder-app-text-muted focus:outline-none focus:ring-2 focus:ring-app-primary",
+                                    class: "w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-600",
                                     placeholder: "Search files or enter new note title...",
                                     value: "{footnote_search_input}",
                                     oninput: move |evt| footnote_search_input.set(evt.value()),
@@ -423,7 +423,7 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                                         // Show "Create new" option if there's input
                                         if !footnote_search_input().is_empty() {
                                             div {
-                                                class: "px-3 py-2 hover:bg-app-hover cursor-pointer rounded-md text-app-primary-light font-medium border-b border-app-border mb-2",
+                                                class: "px-3 py-2 hover:bg-zinc-700 cursor-pointer rounded-md text-indigo-400 font-medium border-b border-zinc-700 mb-2",
                                                 onclick: move |_| {
                                                     let vault_path = match vault_ctx.get_vault() {
                                                         Some(path) => path,
@@ -488,7 +488,7 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                                                     rsx! {
                                                         div {
                                                             key: "{file}",
-                                                            class: "px-3 py-2 hover:bg-app-hover cursor-pointer rounded-md text-app-text-secondary",
+                                                            class: "px-3 py-2 hover:bg-zinc-700 cursor-pointer rounded-md text-zinc-200",
                                                             onclick: move |_| {
                                                                 let vault_path = match vault_ctx.get_vault() {
                                                                     Some(path) => path,
@@ -538,8 +538,8 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                 div { class: "flex items-center justify-between gap-4 flex-shrink-0",
                     // Share with
                     div { class: "flex items-center gap-2",
-                        label { class: "text-sm font-medium text-app-text-secondary", "Share With" }
-                        div { class: "px-3 py-1.5 border border-app-border rounded-md bg-app-panel text-app-text-muted text-sm",
+                        label { class: "text-sm font-medium text-zinc-200", "Share With" }
+                        div { class: "px-3 py-1.5 border border-zinc-700 rounded-md bg-zinc-800 text-zinc-400 text-sm",
                             {
                                 if share_with.is_empty() {
                                     "[ no contacts ]".to_string()
@@ -553,16 +553,16 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                     div { class: "flex items-center gap-2",
                         button {
                             class: if editor_mode() == EditorMode::Edit {
-                                "px-4 py-2 bg-app-hover text-app-text-secondary rounded-md"
+                                "px-4 py-2 bg-zinc-700 text-zinc-200 rounded-md"
                             } else {
-                                "px-4 py-2 bg-app-panel text-app-text-secondary border border-app-border rounded-md hover:bg-app-hover"
+                                "px-4 py-2 bg-zinc-800 text-zinc-200 border border-zinc-700 rounded-md hover:bg-zinc-700"
                             },
                             onclick: move |_| editor_mode.set(EditorMode::Edit),
                             "Edit"
                         }
                         if editor_mode() == EditorMode::Edit {
                             button {
-                                class: "px-4 py-2 bg-app-primary text-white rounded-md hover:bg-app-primary-hover focus:outline-none focus:ring-2 focus:ring-app-primary",
+                                class: "px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-600",
                                 onclick: move |_| {
                                     trigger_save.set(true);
                                     editor_mode.set(EditorMode::View);
@@ -571,7 +571,7 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                             }
                         }
                         if !save_status().is_empty() {
-                            div { class: "text-sm text-app-text-tertiary", "{save_status}" }
+                            div { class: "text-sm text-zinc-300", "{save_status}" }
                         }
                     }
                 }
@@ -580,7 +580,7 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
     } else {
         rsx! {
             div { class: "max-w-4xl mx-auto p-6",
-                div { class: "text-center text-app-text-muted", "Loading..." }
+                div { class: "text-center text-zinc-400", "Loading..." }
             }
         }
     }
