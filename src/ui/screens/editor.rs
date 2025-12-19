@@ -193,7 +193,69 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                         // View mode: render plain text with footnote highlighting
                         div { class: "flex-1 overflow-auto border border-app-border rounded-md bg-app-surface",
                             PlainTextViewer {
-                                content: edited_content()
+                                content: edited_content(),
+                                footnotes: file_data.footnotes.clone(),
+                                on_footnote_click: move |uuid: uuid::Uuid| {
+                                    let vault_path = match vault_ctx.get_vault() {
+                                        Some(path) => path,
+                                        None => return,
+                                    };
+
+                                    let mut open_file = open_file.clone();
+                                    let mut editor_mode = editor_mode.clone();
+
+                                    spawn(async move {
+                                        // Try to find existing note by UUID
+                                        let file_path = match crate::core::note::find_note_by_uuid(&vault_path, &uuid) {
+                                            Ok(Some(path)) => path,
+                                            Ok(None) => {
+                                                // Note doesn't exist - we'll need to create it
+                                                // For now, just return and don't navigate
+                                                // (Step 9 will handle creating new notes from footnotes)
+                                                tracing::warn!("Footnote references UUID {} which doesn't exist", uuid);
+                                                return;
+                                            }
+                                            Err(e) => {
+                                                tracing::error!("Failed to search for UUID: {}", e);
+                                                return;
+                                            }
+                                        };
+
+                                        // Load the file
+                                        match crate::core::note::parse_note(&file_path) {
+                                            Ok(note) => {
+                                                let filename = file_path
+                                                    .file_name()
+                                                    .and_then(|n: &std::ffi::OsStr| n.to_str())
+                                                    .unwrap_or("unknown.md")
+                                                    .to_string();
+
+                                                open_file.set(Some(OpenFile {
+                                                    path: file_path.clone(),
+                                                    filename: filename.clone(),
+                                                    content: note.content,
+                                                    share_with: note.frontmatter.share_with,
+                                                    footnotes: note.frontmatter.footnotes,
+                                                }));
+
+                                                // Switch to view mode
+                                                editor_mode.set(EditorMode::View);
+
+                                                // Save file to config
+                                                let config = crate::ui::config::AppConfig {
+                                                    last_vault_path: vault_path,
+                                                    last_file: Some(filename),
+                                                };
+                                                if let Err(e) = config.save() {
+                                                    tracing::warn!("Failed to save config: {}", e);
+                                                }
+                                            }
+                                            Err(e) => {
+                                                tracing::error!("Failed to load file: {}", e);
+                                            }
+                                        }
+                                    });
+                                }
                             }
                         }
                     } else {

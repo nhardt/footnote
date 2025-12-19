@@ -8,7 +8,11 @@ enum TextSegment {
 }
 
 #[component]
-pub fn PlainTextViewer(content: String) -> Element {
+pub fn PlainTextViewer(
+    content: String,
+    footnotes: Vec<crate::core::note::Footnote>,
+    on_footnote_click: EventHandler<uuid::Uuid>,
+) -> Element {
     // Regex to match [1], [2], etc.
     let footnote_re = Regex::new(r"\[(\d+)\]").unwrap();
 
@@ -66,11 +70,32 @@ pub fn PlainTextViewer(content: String) -> Element {
                         TextSegment::Text(text) => rsx! {
                             span { key: "{seg_idx}", "{text}" }
                         },
-                        TextSegment::Footnote(num) => rsx! {
-                            span {
-                                key: "{seg_idx}",
-                                class: "text-app-primary-light font-medium",
-                                "[{num}]"
+                        TextSegment::Footnote(num) => {
+                            // Find the footnote with this number
+                            let footnote = footnotes.iter().find(|f| f.number == *num);
+
+                            if let Some(footnote) = footnote {
+                                let uuid = footnote.uuid;
+                                rsx! {
+                                    span {
+                                        key: "{seg_idx}",
+                                        class: "text-app-primary-light font-medium cursor-pointer hover:text-app-primary-subtle hover:underline",
+                                        onclick: move |evt| {
+                                            evt.prevent_default();
+                                            on_footnote_click.call(uuid);
+                                        },
+                                        "[{num}]"
+                                    }
+                                }
+                            } else {
+                                // Footnote not defined - show in muted color
+                                rsx! {
+                                    span {
+                                        key: "{seg_idx}",
+                                        class: "text-app-text-muted font-medium",
+                                        "[{num}]"
+                                    }
+                                }
                             }
                         }
                     }

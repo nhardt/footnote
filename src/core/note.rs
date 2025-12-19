@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 /// Vector time for tracking modifications with causality
@@ -193,6 +193,38 @@ pub fn update_frontmatter(path: &Path, frontmatter: NoteFrontmatter) -> Result<(
 pub fn get_frontmatter(path: &Path) -> Result<NoteFrontmatter> {
     let note = parse_note(path)?;
     Ok(note.frontmatter)
+}
+
+/// Find a note file by UUID in a directory
+/// Scans all .md files in the directory and returns the path of the file with matching UUID
+pub fn find_note_by_uuid(dir: &Path, target_uuid: &Uuid) -> Result<Option<PathBuf>> {
+    if !dir.is_dir() {
+        return Ok(None);
+    }
+
+    for entry in fs::read_dir(dir).context("Failed to read directory")? {
+        let entry = entry.context("Failed to read directory entry")?;
+        let path = entry.path();
+
+        // Only check .md files
+        if path.extension().and_then(|s| s.to_str()) != Some("md") {
+            continue;
+        }
+
+        // Skip if not a file
+        if !path.is_file() {
+            continue;
+        }
+
+        // Parse the note and check UUID
+        if let Ok(note) = parse_note(&path) {
+            if note.frontmatter.uuid == *target_uuid {
+                return Ok(Some(path));
+            }
+        }
+    }
+
+    Ok(None)
 }
 
 #[cfg(test)]
