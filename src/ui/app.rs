@@ -25,7 +25,8 @@ pub fn App() -> Element {
     use_context_provider(|| VaultContext::new());
     let vault_ctx = use_context::<VaultContext>();
 
-    use_load_last_session(vault_ctx, open_file);
+    use_load_last_session_on_start(vault_ctx, open_file);
+    use_load_device_home_file_on_vault_change(vault_ctx, open_file);
 
     // Load home file when vault context changes
     use_effect(move || {
@@ -377,7 +378,7 @@ pub fn App() -> Element {
     }
 }
 
-fn use_load_last_session(vault_ctx: VaultContext, open_file: Signal<Option<OpenFile>>) {
+fn use_load_last_session_on_start(vault_ctx: VaultContext, open_file: Signal<Option<OpenFile>>) {
     let mut config_loaded = use_signal(|| false);
     use_effect(move || {
         if !config_loaded() {
@@ -410,6 +411,44 @@ fn load_last_session(mut vault_ctx: VaultContext, mut open_file: Signal<Option<O
                     }
                 }
             }
+        }
+    });
+}
+
+fn use_load_device_home_file_on_vault_change(
+    vault_ctx: VaultContext,
+    open_file: Signal<Option<OpenFile>>,
+) {
+    use_effect(move || {
+        if open_file.read().is_some() {
+            tracing::debug!("a file is open though we are changing vaults");
+            return;
+        }
+        if let Some(vault_path) = vault_ctx.get_vault() {
+            load_device_home_file(vault_path, open_file.clone());
+        };
+    });
+}
+
+fn load_device_home_file(vault_path: PathBuf, mut open_file: Signal<Option<OpenFile>>) {
+    let vault_path_for_spawn = vault_path.clone();
+    spawn(async move {
+        let device_name = match crate::core::device::get_local_device_name(&vault_path_for_spawn) {
+            Ok(name) => name,
+            Err(_) => return,
+        };
+
+        let home_filename = format!("home-{}.md", device_name);
+        let home_path = vault_path_for_spawn.join(&home_filename);
+
+        if let Ok(note) = crate::core::note::parse_note(&home_path) {
+            open_file.set(Some(OpenFile {
+                path: home_path,
+                filename: home_filename,
+                content: note.content,
+                share_with: note.frontmatter.share_with,
+                footnotes: note.frontmatter.footnotes,
+            }));
         }
     });
 }
