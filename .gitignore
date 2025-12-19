@@ -5,3 +5,4 @@ external
 node_modules/
 third-party/
 .claude/
+assets/tailwind.css
