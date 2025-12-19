@@ -21,17 +21,22 @@ enum EditorMode {
 #[component]
 pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
     let mut edited_content = use_signal(|| String::new());
+    let mut edited_footnotes = use_signal(|| Vec::<crate::core::note::Footnote>::new());
     let save_status = use_signal(|| String::new());
     let mut trigger_save = use_signal(|| false);
     let mut editor_mode = use_signal(|| EditorMode::View);
     let mut last_loaded_path = use_signal(|| None::<PathBuf>);
     let mut editing_title = use_signal(|| false);
     let mut edited_title = use_signal(|| String::new());
+    let mut footnote_selector_open = use_signal(|| false);
+    let mut selected_footnote_number = use_signal(|| None::<usize>);
+    let mut footnote_search_input = use_signal(|| String::new());
     let vault_ctx = use_context::<VaultContext>();
 
     use_effect(move || {
         if let Some(ref file_data) = *open_file.read() {
             edited_content.set(file_data.content.clone());
+            edited_footnotes.set(file_data.footnotes.clone());
             last_loaded_path.set(Some(file_data.path.clone()));
         }
     });
@@ -43,6 +48,7 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
 
             if let Some(ref file_data) = *open_file.read() {
                 let content = edited_content();
+                let footnotes = edited_footnotes();
                 let path = file_data.path.clone();
                 let mut open_file = open_file.clone();
                 let mut save_status = save_status.clone();
@@ -53,6 +59,7 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                     match crate::core::note::parse_note(&path) {
                         Ok(mut note) => {
                             note.content = content.clone();
+                            note.frontmatter.footnotes = footnotes.clone();
                             note.frontmatter.modified = crate::core::note::VectorTime::new(Some(
                                 note.frontmatter.modified.clone(),
                             ));
@@ -64,6 +71,7 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
 
                                         if let Some(file) = open_file.write().as_mut() {
                                             file.content = content;
+                                            file.footnotes = footnotes;
                                         }
 
                                         tokio::time::sleep(tokio::time::Duration::from_secs(2))
@@ -194,7 +202,7 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                         div { class: "flex-1 overflow-auto border border-app-border rounded-md bg-app-surface",
                             PlainTextViewer {
                                 content: edited_content(),
-                                footnotes: file_data.footnotes.clone(),
+                                footnotes: edited_footnotes(),
                                 on_footnote_click: move |uuid: uuid::Uuid| {
                                     let vault_path = match vault_ctx.get_vault() {
                                         Some(path) => path,
@@ -263,31 +271,203 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                         textarea {
                             class: "flex-1 w-full px-3 py-2 bg-app-surface border border-app-border rounded-md text-app-text placeholder-app-text-muted focus:outline-none focus:ring-2 focus:ring-app-primary font-mono resize-none",
                             placeholder: "Once upon a time...",
-                            onchange: move |evt| {
-                                edited_content.set(evt.value());
+                            oninput: move |evt| {
+                                let content = evt.value();
+                                edited_content.set(content.clone());
+
+                                // Auto-detect footnote references [1], [2], etc.
+                                use regex::Regex;
+                                let footnote_re = Regex::new(r"\[(\d+)\]").unwrap();
+                                let mut found_numbers = std::collections::HashSet::new();
+
+                                for cap in footnote_re.captures_iter(&content) {
+                                    if let Ok(num) = cap[1].parse::<usize>() {
+                                        found_numbers.insert(num);
+                                    }
+                                }
+
+                                // Get current footnotes
+                                let mut current_footnotes = edited_footnotes();
+
+                                // Add new footnote entries for numbers that don't exist yet
+                                for num in found_numbers {
+                                    if !current_footnotes.iter().any(|f| f.number == num) {
+                                        current_footnotes.push(crate::core::note::Footnote {
+                                            number: num,
+                                            title: String::new(),
+                                            uuid: uuid::Uuid::nil(), // Placeholder UUID
+                                        });
+                                    }
+                                }
+
+                                // Sort by number
+                                current_footnotes.sort_by_key(|f| f.number);
+
+                                edited_footnotes.set(current_footnotes);
                             },
                             {edited_content},
                         }
 
                         // Footnotes section
-                        if !file_data.footnotes.is_empty() {
+                        if !edited_footnotes.read().is_empty() {
                             div { class: "flex-shrink-0 border-t border-app-border pt-4 mt-4",
                                 label { class: "block text-sm font-medium text-app-text-secondary mb-2", "Footnotes" }
                                 div { class: "space-y-2",
-                                    {file_data.footnotes.iter().map(|footnote| {
+                                    {edited_footnotes.read().iter().map(|footnote| {
                                         let num = footnote.number;
                                         let title = footnote.title.clone();
                                         let uuid = footnote.uuid.to_string();
+                                        let is_empty = title.is_empty();
                                         rsx! {
                                             div {
                                                 key: "{num}",
-                                                class: "flex items-center gap-3 px-3 py-2 bg-app-panel border border-app-border rounded-md text-sm",
+                                                class: "flex items-center gap-3 px-3 py-2 bg-app-panel border border-app-border rounded-md text-sm hover:bg-app-hover cursor-pointer",
+                                                onclick: move |_| {
+                                                    selected_footnote_number.set(Some(num));
+                                                    footnote_search_input.set(String::new());
+                                                    footnote_selector_open.set(true);
+                                                },
                                                 div { class: "text-app-primary-light font-medium min-w-[3rem]", "[{num}]" }
-                                                div { class: "flex-1 text-app-text", "{title}" }
+                                                div {
+                                                    class: if is_empty { "flex-1 text-app-text-muted italic" } else { "flex-1 text-app-text" },
+                                                    if is_empty { "(click to set link)" } else { "{title}" }
+                                                }
                                                 div { class: "text-app-text-muted text-xs font-mono", "{uuid}" }
                                             }
                                         }
                                     })}
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Footnote selector modal
+                if footnote_selector_open() {
+                    div {
+                        class: "fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50",
+                        onclick: move |_| footnote_selector_open.set(false),
+                        div {
+                            class: "bg-app-surface border border-app-border rounded-lg shadow-xl max-w-2xl w-full mx-4",
+                            onclick: move |evt| evt.stop_propagation(),
+
+                            // Header
+                            div { class: "px-4 py-3 border-b border-app-border",
+                                h3 { class: "text-lg font-medium text-app-text",
+                                    "Select Note for [{selected_footnote_number.read().unwrap_or(0)}]"
+                                }
+                            }
+
+                            // Search input
+                            div { class: "p-4",
+                                input {
+                                    r#type: "text",
+                                    class: "w-full px-3 py-2 bg-app-panel border border-app-border rounded-md text-app-text placeholder-app-text-muted focus:outline-none focus:ring-2 focus:ring-app-primary",
+                                    placeholder: "Search files or enter new note title...",
+                                    value: "{footnote_search_input}",
+                                    oninput: move |evt| footnote_search_input.set(evt.value()),
+                                    autofocus: true,
+                                }
+                            }
+
+                            // File list
+                            div { class: "max-h-96 overflow-y-auto px-4 pb-4",
+                                {
+                                    // Get vault path and scan files
+                                    let vault_path = match vault_ctx.get_vault() {
+                                        Some(path) => path,
+                                        None => PathBuf::new(),
+                                    };
+
+                                    let mut files = Vec::new();
+                                    if !vault_path.as_os_str().is_empty() {
+                                        if let Ok(entries) = std::fs::read_dir(&vault_path) {
+                                            for entry in entries.flatten() {
+                                                if let Ok(file_name) = entry.file_name().into_string() {
+                                                    if !file_name.starts_with('.') && file_name.ends_with(".md") {
+                                                        files.push(file_name);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Fuzzy match files
+                                    use fuzzy_matcher::skim::SkimMatcherV2;
+                                    use fuzzy_matcher::FuzzyMatcher;
+
+                                    let matcher = SkimMatcherV2::default();
+                                    let mut filtered_files: Vec<(String, i64)> = files
+                                        .iter()
+                                        .filter_map(|file| {
+                                            if footnote_search_input().is_empty() {
+                                                Some((file.clone(), 0))
+                                            } else {
+                                                matcher
+                                                    .fuzzy_match(file, &footnote_search_input())
+                                                    .map(|score| (file.clone(), score))
+                                            }
+                                        })
+                                        .collect();
+                                    filtered_files.sort_by(|a, b| b.1.cmp(&a.1));
+                                    let filtered_files: Vec<String> = filtered_files
+                                        .into_iter()
+                                        .map(|(f, _)| f)
+                                        .take(10)
+                                        .collect();
+
+                                    rsx! {
+                                        if !filtered_files.is_empty() {
+                                            for file in filtered_files.iter() {
+                                                {
+                                                    let file = file.clone();
+                                                    rsx! {
+                                                        div {
+                                                            key: "{file}",
+                                                            class: "px-3 py-2 hover:bg-app-hover cursor-pointer rounded-md text-app-text-secondary",
+                                                            onclick: move |_| {
+                                                                let vault_path = match vault_ctx.get_vault() {
+                                                                    Some(path) => path,
+                                                                    None => return,
+                                                                };
+                                                                let file_path = vault_path.join(&file);
+                                                                let file_title = file.trim_end_matches(".md").to_string();
+                                                                let footnote_num = selected_footnote_number();
+                                                                let mut edited_footnotes = edited_footnotes.clone();
+                                                                let mut footnote_selector_open = footnote_selector_open.clone();
+
+                                                                spawn(async move {
+                                                                    // Load the file to get its UUID
+                                                                    match crate::core::note::parse_note(&file_path) {
+                                                                        Ok(note) => {
+                                                                            if let Some(num) = footnote_num {
+                                                                                // Update the footnote
+                                                                                let mut footnotes = edited_footnotes();
+                                                                                if let Some(footnote) = footnotes.iter_mut().find(|f| f.number == num) {
+                                                                                    footnote.uuid = note.frontmatter.uuid;
+                                                                                    footnote.title = file_title;
+                                                                                }
+                                                                                edited_footnotes.set(footnotes);
+                                                                            }
+                                                                            footnote_selector_open.set(false);
+                                                                        }
+                                                                        Err(e) => {
+                                                                            tracing::error!("Failed to load file: {}", e);
+                                                                        }
+                                                                    }
+                                                                });
+                                                            },
+                                                            "{file}"
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        } else if !footnote_search_input().is_empty() {
+                                            div { class: "px-3 py-2 text-app-text-muted text-sm",
+                                                "No matching files found"
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
