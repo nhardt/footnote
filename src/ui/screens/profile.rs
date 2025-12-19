@@ -21,7 +21,7 @@ enum SyncStatus {
 }
 
 #[component]
-pub fn SyncScreen() -> Element {
+pub fn ProfileScreen() -> Element {
     let mut self_contact = use_signal(|| None::<crate::core::crypto::ContactRecord>);
     let mut device_add_state = use_signal(|| DeviceAddState::Idle);
     let sync_status = use_signal(|| SyncStatus::Idle);
@@ -53,7 +53,7 @@ pub fn SyncScreen() -> Element {
 
     rsx! {
         div { class: "max-w-4xl mx-auto p-6",
-            h1 { class: "text-2xl font-bold text-zinc-100 mb-6", "Device Sync" }
+            h1 { class: "text-2xl font-bold text-zinc-100 mb-6", "Profile" }
 
             // Me section
             div { class: "mb-8",

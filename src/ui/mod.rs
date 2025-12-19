@@ -15,7 +15,7 @@ pub use context::VaultContext;
 pub enum Screen {
     Editor,
     Contacts,
-    Sync,
+    Profile,
 }
 
 #[derive(Clone, PartialEq)]

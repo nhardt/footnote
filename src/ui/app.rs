@@ -65,8 +65,8 @@ pub fn App() -> Element {
                         Screen::Contacts => rsx! {
                             ContactsScreen {}
                         },
-                        Screen::Sync => rsx! {
-                            SyncScreen {}
+                        Screen::Profile => rsx! {
+                            ProfileScreen {}
                         },
                     }
                 }

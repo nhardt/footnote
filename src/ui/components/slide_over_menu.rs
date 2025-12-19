@@ -65,10 +65,10 @@ pub fn SlideOverMenu(
                             }
 
                             NavMenuItem {
-                                screen: Screen::Sync,
+                                screen: Screen::Profile,
                                 current_screen,
                                 menu_open,
-                                label: "Sync".to_string(),
+                                label: "Profile".to_string(),
                                 icons::SyncIcon {}
                             }
                         }
