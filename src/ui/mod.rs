@@ -3,6 +3,7 @@ mod config;
 mod context;
 mod plaintext;
 mod screens;
+mod components;
 use tracing::Level;
 
 pub use config::AppConfig;
