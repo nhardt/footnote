@@ -134,8 +134,8 @@ pub fn ContactsScreen() -> Element {
                 }
 
                 if let Some(ref contact) = *self_contact.read() {
-                    div { class: "bg-blue-50 border border-blue-200 rounded-md p-4",
-                        div { class: "font-semibold", "{contact.username}" }
+                    div { class: "bg-zinc-800 border border-zinc-700 rounded-md p-4",
+                        div { class: "font-semibold text-zinc-100", "{contact.username}" }
                         div { class: "text-sm text-zinc-300 mt-1",
                             "{contact.devices.len()} device(s)"
                         }
@@ -147,48 +147,48 @@ pub fn ContactsScreen() -> Element {
                 // Device pairing UI
                 match device_add_state() {
                     DeviceAddState::Listening { ref join_url } => rsx! {
-                        div { class: "mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md",
-                            div { class: "font-semibold mb-2", "🔐 Waiting for device..." }
-                            div { class: "text-sm mb-2", "Copy this URL to your new device:" }
-                            div { class: "font-mono text-xs bg-zinc-800 p-2 rounded border break-all",
+                        div { class: "mt-4 p-4 bg-zinc-800 border border-yellow-600 rounded-md",
+                            div { class: "font-semibold text-zinc-100 mb-2", "🔐 Waiting for device..." }
+                            div { class: "text-sm text-zinc-300 mb-2", "Copy this URL to your new device:" }
+                            div { class: "font-mono text-xs bg-zinc-900 text-zinc-300 p-2 rounded border border-zinc-700 break-all",
                                 "{join_url}"
                             }
-                            div { class: "text-sm text-zinc-300 mt-2 italic",
+                            div { class: "text-sm text-zinc-400 mt-2 italic",
                                 "Listening for connection..."
                             }
                         }
                     },
                     DeviceAddState::Connecting => rsx! {
-                        div { class: "mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md",
-                            div { class: "font-semibold", "✓ Device connecting..." }
+                        div { class: "mt-4 p-4 bg-zinc-800 border border-blue-600 rounded-md",
+                            div { class: "font-semibold text-zinc-100", "✓ Device connecting..." }
                         }
                     },
                     DeviceAddState::ReceivedRequest { ref device_name } => rsx! {
-                        div { class: "mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md",
-                            div { class: "font-semibold", "✓ Received request from: {device_name}" }
+                        div { class: "mt-4 p-4 bg-zinc-800 border border-blue-600 rounded-md",
+                            div { class: "font-semibold text-zinc-100", "✓ Received request from: {device_name}" }
                         }
                     },
                     DeviceAddState::Verifying => rsx! {
-                        div { class: "mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md",
-                            div { class: "font-semibold", "✓ Verifying..." }
+                        div { class: "mt-4 p-4 bg-zinc-800 border border-blue-600 rounded-md",
+                            div { class: "font-semibold text-zinc-100", "✓ Verifying..." }
                         }
                     },
                     DeviceAddState::Success { ref device_name } => rsx! {
-                        div { class: "mt-4 p-4 bg-green-50 border border-green-200 rounded-md",
-                            div { class: "font-semibold", "✓ Device '{device_name}' added successfully!" }
+                        div { class: "mt-4 p-4 bg-zinc-800 border border-green-600 rounded-md",
+                            div { class: "font-semibold text-zinc-100", "✓ Device '{device_name}' added successfully!" }
                             button {
-                                class: "mt-2 text-sm text-indigo-600 hover:underline",
+                                class: "mt-2 text-sm text-indigo-400 hover:underline",
                                 onclick: move |_| device_add_state.set(DeviceAddState::Idle),
                                 "Done"
                             }
                         }
                     },
                     DeviceAddState::Error(ref error) => rsx! {
-                        div { class: "mt-4 p-4 bg-red-50 border border-red-200 rounded-md",
-                            div { class: "font-semibold text-red-700", "✗ Error" }
-                            div { class: "text-sm mt-1", "{error}" }
+                        div { class: "mt-4 p-4 bg-zinc-800 border border-red-600 rounded-md",
+                            div { class: "font-semibold text-red-400", "✗ Error" }
+                            div { class: "text-sm text-zinc-300 mt-1", "{error}" }
                             button {
-                                class: "mt-2 text-sm text-indigo-600 hover:underline",
+                                class: "mt-2 text-sm text-indigo-400 hover:underline",
                                 onclick: move |_| device_add_state.set(DeviceAddState::Idle),
                                 "Try Again"
                             }
