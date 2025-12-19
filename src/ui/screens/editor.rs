@@ -417,6 +417,67 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                                         .collect();
 
                                     rsx! {
+                                        // Show "Create new" option if there's input
+                                        if !footnote_search_input().is_empty() {
+                                            div {
+                                                class: "px-3 py-2 hover:bg-app-hover cursor-pointer rounded-md text-app-primary-light font-medium border-b border-app-border mb-2",
+                                                onclick: move |_| {
+                                                    let vault_path = match vault_ctx.get_vault() {
+                                                        Some(path) => path,
+                                                        None => return,
+                                                    };
+                                                    let title = footnote_search_input();
+                                                    let footnote_num = selected_footnote_number();
+                                                    let mut edited_footnotes = edited_footnotes.clone();
+                                                    let mut footnote_selector_open = footnote_selector_open.clone();
+
+                                                    spawn(async move {
+                                                        // Create new note
+                                                        let new_uuid = uuid::Uuid::new_v4();
+                                                        let sanitized_title = title.trim().replace(['/', '\\', ':'], "-");
+                                                        let filename = format!("{}.md", sanitized_title);
+                                                        let file_path = vault_path.join(&filename);
+
+                                                        // Create note with frontmatter
+                                                        let note = crate::core::note::Note {
+                                                            frontmatter: crate::core::note::NoteFrontmatter {
+                                                                uuid: new_uuid,
+                                                                modified: crate::core::note::VectorTime::default(),
+                                                                share_with: Vec::new(),
+                                                                footnotes: Vec::new(),
+                                                            },
+                                                            content: format!("# {}\n", title),
+                                                        };
+
+                                                        // Save the new note
+                                                        match crate::core::note::serialize_note(&note) {
+                                                            Ok(serialized) => {
+                                                                if let Err(e) = std::fs::write(&file_path, serialized) {
+                                                                    tracing::error!("Failed to create note: {}", e);
+                                                                    return;
+                                                                }
+
+                                                                // Update the footnote
+                                                                if let Some(num) = footnote_num {
+                                                                    let mut footnotes = edited_footnotes();
+                                                                    if let Some(footnote) = footnotes.iter_mut().find(|f| f.number == num) {
+                                                                        footnote.uuid = new_uuid;
+                                                                        footnote.title = title;
+                                                                    }
+                                                                    edited_footnotes.set(footnotes);
+                                                                }
+                                                                footnote_selector_open.set(false);
+                                                            }
+                                                            Err(e) => {
+                                                                tracing::error!("Failed to serialize note: {}", e);
+                                                            }
+                                                        }
+                                                    });
+                                                },
+                                                "✨ Create new note: \"{footnote_search_input}\""
+                                            }
+                                        }
+
                                         if !filtered_files.is_empty() {
                                             for file in filtered_files.iter() {
                                                 {
@@ -461,10 +522,6 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                                                         }
                                                     }
                                                 }
-                                            }
-                                        } else if !footnote_search_input().is_empty() {
-                                            div { class: "px-3 py-2 text-app-text-muted text-sm",
-                                                "No matching files found"
                                             }
                                         }
                                     }
