@@ -1,6 +1,6 @@
+use crate::ui::components::icons;
 use crate::ui::context::VaultContext;
 use crate::ui::screens::*;
-use crate::ui::components::icons;
 use dioxus::prelude::*;
 use std::path::PathBuf;
 
@@ -30,39 +30,7 @@ pub fn App() -> Element {
     use_effect(move || {
         if !config_loaded() {
             config_loaded.set(true);
-
-            let mut vault_ctx = vault_ctx.clone();
-            let mut open_file = open_file.clone();
-
-            spawn(async move {
-                if let Some(config) = crate::ui::config::AppConfig::load() {
-                    // Validate vault exists
-                    if !config.validate_vault() {
-                        tracing::info!("Config vault path invalid, ignoring config");
-                        return;
-                    }
-
-                    // Set vault context
-                    vault_ctx.set_vault(config.last_vault_path.clone());
-
-                    // Try to load the last file if it exists
-                    if let Some(filename) = config.last_file {
-                        let file_path = config.last_vault_path.join(&filename);
-                        if file_path.exists() {
-                            if let Ok(note) = crate::core::note::parse_note(&file_path) {
-                                open_file.set(Some(OpenFile {
-                                    path: file_path,
-                                    filename: filename.clone(),
-                                    content: note.content,
-                                    share_with: note.frontmatter.share_with,
-                                    footnotes: note.frontmatter.footnotes,
-                                }));
-                            }
-                        }
-                        // If file doesn't exist, fall through to home file loader
-                    }
-                }
-            });
+            load_last_session(vault_ctx.clone(), open_file.clone());
         }
     });
 
@@ -414,4 +382,31 @@ pub fn App() -> Element {
             }
         }
     }
+}
+
+fn load_last_session(mut vault_ctx: VaultContext, mut open_file: Signal<Option<OpenFile>>) {
+    spawn(async move {
+        if let Some(config) = crate::ui::config::AppConfig::load() {
+            if !config.validate_vault() {
+                tracing::info!("Config vault path invalid, ignoring config");
+                return;
+            }
+            vault_ctx.set_vault(config.last_vault_path.clone());
+
+            if let Some(filename) = config.last_file {
+                let file_path = config.last_vault_path.join(&filename);
+                if file_path.exists() {
+                    if let Ok(note) = crate::core::note::parse_note(&file_path) {
+                        open_file.set(Some(OpenFile {
+                            path: file_path,
+                            filename: filename.clone(),
+                            content: note.content,
+                            share_with: note.frontmatter.share_with,
+                            footnotes: note.frontmatter.footnotes,
+                        }));
+                    }
+                }
+            }
+        }
+    });
 }
