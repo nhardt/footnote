@@ -1,16 +1,8 @@
 use crate::ui::context::VaultContext;
 use crate::ui::plaintext::PlainTextViewer;
+use crate::ui::FootnoteFile;
 use dioxus::prelude::*;
 use std::path::PathBuf;
-
-#[derive(Clone, PartialEq)]
-pub struct OpenFile {
-    pub path: PathBuf,
-    pub filename: String,
-    pub content: String,
-    pub share_with: Vec<String>,
-    pub footnotes: Vec<crate::core::note::Footnote>,
-}
 
 #[derive(Clone, Copy, PartialEq)]
 enum EditorMode {
@@ -19,7 +11,7 @@ enum EditorMode {
 }
 
 #[component]
-pub fn EditorScreen(current_file: Signal<Option<OpenFile>>) -> Element {
+pub fn EditorScreen(current_file: Signal<Option<FootnoteFile>>) -> Element {
     let mut edited_content = use_signal(|| String::new());
     let mut edited_footnotes = use_signal(|| Vec::<crate::core::note::Footnote>::new());
     let save_status = use_signal(|| String::new());
@@ -241,7 +233,7 @@ pub fn EditorScreen(current_file: Signal<Option<OpenFile>>) -> Element {
                                                     .unwrap_or("unknown.md")
                                                     .to_string();
 
-                                                current_file.set(Some(OpenFile {
+                                                current_file.set(Some(FootnoteFile {
                                                     path: file_path.clone(),
                                                     filename: filename.clone(),
                                                     content: note.content,

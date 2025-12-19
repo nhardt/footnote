@@ -1,6 +1,5 @@
 use crate::ui::context::VaultContext;
-use crate::ui::screens::OpenFile;
-use crate::ui::Screen;
+use crate::ui::{FootnoteFile, Screen};
 use dioxus::prelude::*;
 use std::path::PathBuf;
 
@@ -8,7 +7,7 @@ use std::path::PathBuf;
 pub fn CommandPalette(
     palette_input: Signal<String>,
     palette_open: Signal<bool>,
-    current_file: Signal<Option<OpenFile>>,
+    current_file: Signal<Option<FootnoteFile>>,
     current_screen: Signal<Screen>,
 ) -> Element {
     let vault_ctx = use_context::<VaultContext>();
@@ -107,7 +106,7 @@ pub fn CommandPalette(
                                                         match crate::core::note::parse_note(&file_path) {
                                                             Ok(note) => {
                                                                 tracing::debug!("clicked on {} to open", file_name);
-                                                                current_file.set(Some(OpenFile {
+                                                                current_file.set(Some(FootnoteFile {
                                                                     path: file_path.clone(),
                                                                     filename: file_name.clone(),
                                                                     content: note.content,

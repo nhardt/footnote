@@ -1,9 +1,11 @@
 mod app;
+mod components;
 mod config;
 mod context;
 mod plaintext;
 mod screens;
-mod components;
+use std::path::PathBuf;
+
 use tracing::Level;
 
 pub use config::AppConfig;
@@ -14,6 +16,15 @@ pub enum Screen {
     Editor,
     Contacts,
     Sync,
+}
+
+#[derive(Clone, PartialEq)]
+pub struct FootnoteFile {
+    pub path: PathBuf,
+    pub filename: String,
+    pub content: String,
+    pub share_with: Vec<String>,
+    pub footnotes: Vec<crate::core::note::Footnote>,
 }
 
 pub fn launch() {

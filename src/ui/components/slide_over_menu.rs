@@ -1,14 +1,13 @@
 use crate::ui::components::{icons, nav_menu_item::NavMenuItem};
 use crate::ui::context::VaultContext;
-use crate::ui::screens::OpenFile;
-use crate::ui::Screen;
+use crate::ui::{FootnoteFile, Screen};
 use dioxus::prelude::*;
 
 #[component]
 pub fn SlideOverMenu(
     menu_open: Signal<bool>,
     current_screen: Signal<Screen>,
-    current_file: Signal<Option<OpenFile>>,
+    current_file: Signal<Option<FootnoteFile>>,
 ) -> Element {
     let vault_ctx = use_context::<VaultContext>();
 

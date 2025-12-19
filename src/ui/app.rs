@@ -3,6 +3,7 @@ use crate::ui::components::{
 };
 use crate::ui::context::VaultContext;
 use crate::ui::screens::*;
+use crate::ui::FootnoteFile;
 use crate::ui::Screen;
 use dioxus::prelude::*;
 use std::path::PathBuf;
@@ -11,7 +12,7 @@ use std::path::PathBuf;
 pub fn App() -> Element {
     let vault_status = use_signal(|| VaultStatus::VaultNeeded);
     let current_screen = use_signal(|| Screen::Editor);
-    let current_file = use_signal(|| None::<OpenFile>);
+    let current_file = use_signal(|| None::<FootnoteFile>);
     let mut menu_open = use_signal(|| false);
     let palette_input = use_signal(|| String::new());
     let palette_open = use_signal(|| false);
@@ -108,7 +109,10 @@ pub fn App() -> Element {
     }
 }
 
-fn use_load_last_session_on_start(vault_ctx: VaultContext, current_file: Signal<Option<OpenFile>>) {
+fn use_load_last_session_on_start(
+    vault_ctx: VaultContext,
+    current_file: Signal<Option<FootnoteFile>>,
+) {
     let mut last_session_loaded = use_signal(|| false);
     use_effect(move || {
         if !last_session_loaded() {
@@ -118,7 +122,7 @@ fn use_load_last_session_on_start(vault_ctx: VaultContext, current_file: Signal<
     });
 }
 
-fn load_last_session(mut vault_ctx: VaultContext, mut current_file: Signal<Option<OpenFile>>) {
+fn load_last_session(mut vault_ctx: VaultContext, mut current_file: Signal<Option<FootnoteFile>>) {
     spawn(async move {
         if let Some(config) = crate::ui::config::AppConfig::load() {
             if !config.validate_vault() {
@@ -131,7 +135,7 @@ fn load_last_session(mut vault_ctx: VaultContext, mut current_file: Signal<Optio
                 let file_path = config.last_vault_path.join(&filename);
                 if file_path.exists() {
                     if let Ok(note) = crate::core::note::parse_note(&file_path) {
-                        current_file.set(Some(OpenFile {
+                        current_file.set(Some(FootnoteFile {
                             path: file_path,
                             filename: filename.clone(),
                             content: note.content,
@@ -147,7 +151,7 @@ fn load_last_session(mut vault_ctx: VaultContext, mut current_file: Signal<Optio
 
 fn use_load_device_home_file_on_vault_change(
     vault_ctx: VaultContext,
-    current_file: Signal<Option<OpenFile>>,
+    current_file: Signal<Option<FootnoteFile>>,
 ) {
     use_effect(move || {
         if current_file.read().is_some() {
@@ -160,7 +164,7 @@ fn use_load_device_home_file_on_vault_change(
     });
 }
 
-fn load_device_home_file(vault_path: PathBuf, mut current_file: Signal<Option<OpenFile>>) {
+fn load_device_home_file(vault_path: PathBuf, mut current_file: Signal<Option<FootnoteFile>>) {
     let vault_path_for_spawn = vault_path.clone();
     spawn(async move {
         let device_name = match crate::core::device::get_local_device_name(&vault_path_for_spawn) {
@@ -172,7 +176,7 @@ fn load_device_home_file(vault_path: PathBuf, mut current_file: Signal<Option<Op
         let home_path = vault_path_for_spawn.join(&home_filename);
 
         if let Ok(note) = crate::core::note::parse_note(&home_path) {
-            current_file.set(Some(OpenFile {
+            current_file.set(Some(FootnoteFile {
                 path: home_path,
                 filename: home_filename,
                 content: note.content,
