@@ -1,7 +1,7 @@
-use dioxus::prelude::*;
-use std::path::PathBuf;
 use super::needed::VaultStatus;
 use crate::ui::context::VaultContext;
+use dioxus::prelude::*;
+use std::path::PathBuf;
 
 #[component]
 pub fn JoinVaultScreen(

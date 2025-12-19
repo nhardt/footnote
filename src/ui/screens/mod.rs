@@ -1,9 +1,12 @@
-pub mod vault_setup;
-pub mod editor;
 pub mod contacts;
+pub mod editor;
 pub mod sync;
+pub mod vault_setup;
 
-pub use vault_setup::{VaultStatus, VaultNeededScreen, DirectoryBrowserScreen, CreateVaultScreen, OpenVaultScreen, JoinVaultScreen};
-pub use editor::{EditorScreen, OpenFile};
 pub use contacts::ContactsScreen;
+pub use editor::{EditorScreen, OpenFile};
 pub use sync::SyncScreen;
+pub use vault_setup::{
+    CreateVaultScreen, DirectoryBrowserScreen, JoinVaultScreen, OpenVaultScreen, VaultNeededScreen,
+    VaultStatus,
+};

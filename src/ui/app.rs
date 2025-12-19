@@ -1,6 +1,6 @@
-use dioxus::prelude::*;
 use crate::ui::context::VaultContext;
 use crate::ui::screens::*;
+use dioxus::prelude::*;
 use std::path::PathBuf;
 
 #[derive(Clone, Copy, PartialEq)]

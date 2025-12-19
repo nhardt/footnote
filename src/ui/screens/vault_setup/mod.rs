@@ -1,11 +1,11 @@
-mod needed;
 mod browser;
 mod create;
-mod open;
 mod join;
+mod needed;
+mod open;
 
-pub use needed::{VaultNeededScreen, VaultStatus};
 pub use browser::DirectoryBrowserScreen;
 pub use create::CreateVaultScreen;
-pub use open::OpenVaultScreen;
 pub use join::JoinVaultScreen;
+pub use needed::{VaultNeededScreen, VaultStatus};
+pub use open::OpenVaultScreen;

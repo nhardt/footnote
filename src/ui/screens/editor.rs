@@ -105,7 +105,10 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
             }
 
             // Validate filename (ASCII only, no path separators)
-            if !new_title.chars().all(|c| c.is_ascii() && c != '/' && c != '\\') {
+            if !new_title
+                .chars()
+                .all(|c| c.is_ascii() && c != '/' && c != '\\')
+            {
                 editing_title.set(false);
                 return;
             }

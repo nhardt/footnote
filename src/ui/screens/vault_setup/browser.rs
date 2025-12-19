@@ -1,10 +1,13 @@
+use super::needed::VaultStatus;
 use dioxus::prelude::*;
 use std::path::PathBuf;
-use super::needed::VaultStatus;
 use tracing;
 
 #[component]
-pub fn DirectoryBrowserScreen(mut vault_status: Signal<VaultStatus>, action: &'static str) -> Element {
+pub fn DirectoryBrowserScreen(
+    mut vault_status: Signal<VaultStatus>,
+    action: &'static str,
+) -> Element {
     let mut current_path = use_signal(|| match crate::platform::get_app_dir() {
         Ok(path) => {
             tracing::info!("Directory browser starting at: {}", path.display());

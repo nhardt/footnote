@@ -1,5 +1,5 @@
-use dioxus::prelude::*;
 use crate::ui::context::VaultContext;
+use dioxus::prelude::*;
 
 #[derive(Clone, PartialEq)]
 enum DeviceAddState {
