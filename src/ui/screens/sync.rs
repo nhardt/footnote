@@ -12,8 +12,6 @@ enum SyncStatus {
 #[component]
 pub fn SyncScreen() -> Element {
     let mut self_contact = use_signal(|| None::<crate::core::crypto::ContactRecord>);
-    let mut trusted_contacts =
-        use_signal(|| Vec::<(String, crate::core::crypto::ContactRecord)>::new());
     let sync_status = use_signal(|| SyncStatus::Idle);
     let confirm_delete = use_signal(|| None::<String>);
     let reload_trigger = use_signal(|| 0);
@@ -37,29 +35,6 @@ pub fn SyncScreen() -> Element {
                 {
                     self_contact.set(Some(contact));
                 }
-            }
-
-            // Load trusted contacts
-            let contacts_dir = vault_path.join("contacts");
-            if let Ok(entries) = std::fs::read_dir(contacts_dir) {
-                let mut contacts = Vec::new();
-                for entry in entries.flatten() {
-                    if let Ok(file_name) = entry.file_name().into_string() {
-                        if file_name.ends_with(".json") {
-                            if let Ok(content) = std::fs::read_to_string(entry.path()) {
-                                if let Ok(contact) = serde_json::from_str::<
-                                    crate::core::crypto::ContactRecord,
-                                >(&content)
-                                {
-                                    let petname = file_name.trim_end_matches(".json").to_string();
-                                    contacts.push((petname, contact));
-                                }
-                            }
-                        }
-                    }
-                }
-                contacts.sort_by(|a, b| a.0.cmp(&b.0));
-                trusted_contacts.set(contacts);
             }
         });
     });
@@ -283,44 +258,6 @@ pub fn SyncScreen() -> Element {
                                     }
                                 },
                                 "Delete"
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Trusted contacts section
-            div {
-                h2 { class: "text-xl font-bold text-zinc-100 mb-4", "Trusted Contacts" }
-                if trusted_contacts().is_empty() {
-                    div { class: "text-zinc-400 italic", "No trusted contacts yet" }
-                } else {
-                    div { class: "space-y-4",
-                        for (petname, contact) in trusted_contacts().iter() {
-                            div {
-                                key: "{petname}",
-                                class: "bg-zinc-800 border border-zinc-700 rounded-md p-4",
-                                div { class: "font-semibold mb-2", "{petname} ({contact.username})" }
-                                div { class: "space-y-2 ml-4",
-                                    for device in contact.devices.iter() {
-                                        {
-                                            let device_name = device.device_name.clone();
-                                            let endpoint_id = device.iroh_endpoint_id.clone();
-
-                                            rsx! {
-                                                div {
-                                                    key: "{endpoint_id}",
-                                                    class: "flex items-center justify-between border-l-2 border-zinc-700 pl-3 py-2",
-                                                    div { class: "flex-1",
-                                                        div { class: "text-sm font-medium", "{device_name}" }
-                                                        div { class: "text-xs text-zinc-400 font-mono truncate", "ID: {endpoint_id}" }
-                                                    }
-                                                    div { class: "text-xs text-zinc-500", "—" }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
                             }
                         }
                     }

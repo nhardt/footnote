@@ -1,3 +1,4 @@
+use crate::ui::components::contact::Contact;
 use crate::ui::context::VaultContext;
 use dioxus::prelude::*;
 
@@ -206,13 +207,11 @@ pub fn ContactsScreen() -> Element {
                 } else {
                     div { class: "space-y-2",
                         for (petname, contact) in trusted_contacts().iter() {
-                            div {
+                            Contact {
                                 key: "{petname}",
-                                class: "bg-zinc-800 border border-zinc-700 rounded-md p-4 hover:border-zinc-600",
-                                div { class: "font-semibold", "{petname}" }
-                                div { class: "text-sm text-zinc-300 mt-1",
-                                    "username: {contact.username}"
-                                }
+                                petname: petname.clone(),
+                                username: contact.username.clone(),
+                                device_count: contact.devices.len(),
                             }
                         }
                     }
