@@ -1,9 +1,12 @@
 use anyhow::{Context, Result};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use walkdir::WalkDir;
 use std::fs;
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
+
+use crate::core::note;
 
 /// Vector time for tracking modifications with causality
 /// Uses max(file_modified_time + 1, unix_time) for conflict resolution
@@ -202,24 +205,26 @@ pub fn find_note_by_uuid(dir: &Path, target_uuid: &Uuid) -> Result<Option<PathBu
         return Ok(None);
     }
 
-    for entry in fs::read_dir(dir).context("Failed to read directory")? {
-        let entry = entry.context("Failed to read directory entry")?;
+    for entry in WalkDir::new(dir)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
         let path = entry.path();
 
-        // Only check .md files
-        if path.extension().and_then(|s| s.to_str()) != Some("md") {
+        if path.is_dir() {
             continue;
         }
 
-        // Skip if not a file
-        if !path.is_file() {
-            continue;
+        if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+            if file_name.starts_with('.') {
+                continue;
+            }
         }
 
-        // Parse the note and check UUID
-        if let Ok(note) = parse_note(&path) {
-            if note.frontmatter.uuid == *target_uuid {
-                return Ok(Some(path));
+        if let Ok(frontmatter) = note::get_frontmatter(path) {
+            if frontmatter.uuid == *target_uuid {
+                return Ok(Some(path.to_path_buf()));
             }
         }
     }
