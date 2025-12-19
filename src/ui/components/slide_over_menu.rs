@@ -8,7 +8,7 @@ use dioxus::prelude::*;
 pub fn SlideOverMenu(
     menu_open: Signal<bool>,
     current_screen: Signal<Screen>,
-    open_file: Signal<Option<OpenFile>>,
+    current_file: Signal<Option<OpenFile>>,
 ) -> Element {
     let vault_ctx = use_context::<VaultContext>();
 
@@ -82,9 +82,9 @@ pub fn SlideOverMenu(
                             button {
                                 onclick: move |_| {
                                     let mut vault_ctx = vault_ctx.clone();
-                                    let mut open_file = open_file.clone();
+                                    let mut current_file = current_file.clone();
                                     vault_ctx.clear_vault();
-                                    open_file.set(None);
+                                    current_file.set(None);
                                     menu_open.set(false);
 
                                     // Clear config when switching vaults

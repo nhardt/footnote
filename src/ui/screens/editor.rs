@@ -19,7 +19,7 @@ enum EditorMode {
 }
 
 #[component]
-pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
+pub fn EditorScreen(current_file: Signal<Option<OpenFile>>) -> Element {
     let mut edited_content = use_signal(|| String::new());
     let mut edited_footnotes = use_signal(|| Vec::<crate::core::note::Footnote>::new());
     let save_status = use_signal(|| String::new());
@@ -34,7 +34,7 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
     let vault_ctx = use_context::<VaultContext>();
 
     use_effect(move || {
-        if let Some(ref file_data) = *open_file.read() {
+        if let Some(ref file_data) = *current_file.read() {
             edited_content.set(file_data.content.clone());
             edited_footnotes.set(file_data.footnotes.clone());
             last_loaded_path.set(Some(file_data.path.clone()));
@@ -46,11 +46,11 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
         if trigger_save() {
             trigger_save.set(false);
 
-            if let Some(ref file_data) = *open_file.read() {
+            if let Some(ref file_data) = *current_file.read() {
                 let content = edited_content();
                 let footnotes = edited_footnotes();
                 let path = file_data.path.clone();
-                let mut open_file = open_file.clone();
+                let mut current_file = current_file.clone();
                 let mut save_status = save_status.clone();
 
                 spawn(async move {
@@ -69,7 +69,7 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                                     Ok(_) => {
                                         save_status.set("Saved!".to_string());
 
-                                        if let Some(file) = open_file.write().as_mut() {
+                                        if let Some(file) = current_file.write().as_mut() {
                                             file.content = content;
                                             file.footnotes = footnotes;
                                         }
@@ -90,7 +90,7 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
         }
     });
 
-    let file = open_file.read();
+    let file = current_file.read();
 
     if let Some(ref file_data) = *file {
         let filename = file_data.filename.clone();
@@ -121,12 +121,12 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                 }
             };
 
-            if let Some(ref file_data) = *open_file.read() {
+            if let Some(ref file_data) = *current_file.read() {
                 let old_path = file_data.path.clone();
                 let new_filename = format!("{}.md", new_title);
                 let new_path = vault_path.join(&new_filename);
 
-                let mut open_file = open_file.clone();
+                let mut current_file = current_file.clone();
                 let mut editing_title = editing_title.clone();
 
                 spawn(async move {
@@ -136,7 +136,7 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                         return;
                     }
 
-                    if let Some(file) = open_file.write().as_mut() {
+                    if let Some(file) = current_file.write().as_mut() {
                         file.path = new_path.clone();
                         file.filename = new_filename.clone();
                     }
@@ -212,7 +212,7 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                                         None => return,
                                     };
 
-                                    let mut open_file = open_file.clone();
+                                    let mut current_file = current_file.clone();
                                     let mut editor_mode = editor_mode.clone();
 
                                     spawn(async move {
@@ -241,7 +241,7 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                                                     .unwrap_or("unknown.md")
                                                     .to_string();
 
-                                                open_file.set(Some(OpenFile {
+                                                current_file.set(Some(OpenFile {
                                                     path: file_path.clone(),
                                                     filename: filename.clone(),
                                                     content: note.content,

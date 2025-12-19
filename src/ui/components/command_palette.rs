@@ -8,7 +8,7 @@ use std::path::PathBuf;
 pub fn CommandPalette(
     palette_input: Signal<String>,
     palette_open: Signal<bool>,
-    open_file: Signal<Option<OpenFile>>,
+    current_file: Signal<Option<OpenFile>>,
     current_screen: Signal<Screen>,
 ) -> Element {
     let vault_ctx = use_context::<VaultContext>();
@@ -98,7 +98,7 @@ pub fn CommandPalette(
                                                     };
                                                     let file_path = vault_path.join(&file);
                                                     let file_name = file.clone();
-                                                    let mut open_file = open_file.clone();
+                                                    let mut current_file = current_file.clone();
                                                     let mut current_screen = current_screen.clone();
                                                     let mut palette_input = palette_input.clone();
                                                     let mut palette_open = palette_open.clone();
@@ -107,7 +107,7 @@ pub fn CommandPalette(
                                                         match crate::core::note::parse_note(&file_path) {
                                                             Ok(note) => {
                                                                 tracing::debug!("clicked on {} to open", file_name);
-                                                                open_file.set(Some(OpenFile {
+                                                                current_file.set(Some(OpenFile {
                                                                     path: file_path.clone(),
                                                                     filename: file_name.clone(),
                                                                     content: note.content,
