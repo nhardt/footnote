@@ -268,6 +268,29 @@ pub fn EditorScreen(open_file: Signal<Option<OpenFile>>) -> Element {
                             },
                             {edited_content},
                         }
+
+                        // Footnotes section
+                        if !file_data.footnotes.is_empty() {
+                            div { class: "flex-shrink-0 border-t border-app-border pt-4 mt-4",
+                                label { class: "block text-sm font-medium text-app-text-secondary mb-2", "Footnotes" }
+                                div { class: "space-y-2",
+                                    {file_data.footnotes.iter().map(|footnote| {
+                                        let num = footnote.number;
+                                        let title = footnote.title.clone();
+                                        let uuid = footnote.uuid.to_string();
+                                        rsx! {
+                                            div {
+                                                key: "{num}",
+                                                class: "flex items-center gap-3 px-3 py-2 bg-app-panel border border-app-border rounded-md text-sm",
+                                                div { class: "text-app-primary-light font-medium min-w-[3rem]", "[{num}]" }
+                                                div { class: "flex-1 text-app-text", "{title}" }
+                                                div { class: "text-app-text-muted text-xs font-mono", "{uuid}" }
+                                            }
+                                        }
+                                    })}
+                                }
+                            }
+                        }
                     }
                 }
 
