@@ -25,14 +25,7 @@ pub fn App() -> Element {
     use_context_provider(|| VaultContext::new());
     let vault_ctx = use_context::<VaultContext>();
 
-    // Load config on app startup (once)
-    let mut config_loaded = use_signal(|| false);
-    use_effect(move || {
-        if !config_loaded() {
-            config_loaded.set(true);
-            load_last_session(vault_ctx.clone(), open_file.clone());
-        }
-    });
+    use_load_last_session(vault_ctx, open_file);
 
     // Load home file when vault context changes
     use_effect(move || {
@@ -382,6 +375,16 @@ pub fn App() -> Element {
             }
         }
     }
+}
+
+fn use_load_last_session(vault_ctx: VaultContext, open_file: Signal<Option<OpenFile>>) {
+    let mut config_loaded = use_signal(|| false);
+    use_effect(move || {
+        if !config_loaded() {
+            config_loaded.set(true);
+            load_last_session(vault_ctx.clone(), open_file.clone());
+        }
+    });
 }
 
 fn load_last_session(mut vault_ctx: VaultContext, mut open_file: Signal<Option<OpenFile>>) {
