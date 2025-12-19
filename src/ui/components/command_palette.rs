@@ -5,12 +5,12 @@ use std::path::PathBuf;
 
 #[component]
 pub fn CommandPalette(
-    palette_input: Signal<String>,
-    palette_open: Signal<bool>,
     current_file: Signal<Option<FootnoteFile>>,
     current_screen: Signal<Screen>,
 ) -> Element {
     let vault_ctx = use_context::<VaultContext>();
+    let mut palette_input = use_signal(|| String::new());
+    let mut palette_open = use_signal(|| false);
 
     rsx! {
         div { class: "relative flex-1 max-w-md mx-auto",

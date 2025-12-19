@@ -14,8 +14,6 @@ pub fn App() -> Element {
     let current_screen = use_signal(|| Screen::Editor);
     let current_file = use_signal(|| None::<FootnoteFile>);
     let mut menu_open = use_signal(|| false);
-    let palette_input = use_signal(|| String::new());
-    let palette_open = use_signal(|| false);
 
     use_context_provider(|| VaultContext::new());
     let vault_ctx = use_context::<VaultContext>();
@@ -48,10 +46,7 @@ pub fn App() -> Element {
                             icons::HamburgerIcon {}
                         }
 
-                        // Command palette
                         CommandPalette {
-                            palette_input,
-                            palette_open,
                             current_file,
                             current_screen,
                         }
