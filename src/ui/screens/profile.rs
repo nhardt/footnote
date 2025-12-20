@@ -52,7 +52,7 @@ pub fn ProfileScreen() -> Element {
 
             div { class: "mb-6",
                 button {
-                    class: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700",
+                    class: "px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700",
                     onclick: {
                         let vault_ctx = vault_ctx.clone();
                         move |_| {
