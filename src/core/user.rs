@@ -94,14 +94,13 @@ async fn export_trusted_user(vault_path: &std::path::Path, petname: &str) -> any
     Ok(())
 }
 
-/// Import a user's contact information
-pub async fn import(
+/// Import a user's contact information from a JSON string
+pub async fn import_from_string(
     vault_path: &std::path::Path,
-    file_path: &str,
+    content: &str,
     petname: &str,
 ) -> anyhow::Result<()> {
-    let content = fs::read_to_string(file_path)?;
-    let new_contact: crypto::ContactRecord = serde_json::from_str(&content)?;
+    let new_contact: crypto::ContactRecord = serde_json::from_str(content)?;
 
     if !crypto::verify_contact_signature(&new_contact)? {
         anyhow::bail!("Contact signature verification failed. Import aborted.");
@@ -153,6 +152,16 @@ pub async fn import(
     eprintln!("Trusted user '{}' contact updated", petname);
 
     Ok(())
+}
+
+/// Import a user's contact information
+pub async fn import(
+    vault_path: &std::path::Path,
+    file_path: &str,
+    petname: &str,
+) -> anyhow::Result<()> {
+    let content = fs::read_to_string(file_path)?;
+    import_from_string(vault_path, &content, petname).await
 }
 
 /// Read and display all users and their devices

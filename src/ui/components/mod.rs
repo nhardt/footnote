@@ -5,4 +5,5 @@ pub mod device_list_item;
 pub mod icons;
 pub mod listen_button;
 pub mod nav_menu_item;
+pub mod new_contact;
 pub mod slide_over_menu;

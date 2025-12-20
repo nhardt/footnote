@@ -1,4 +1,5 @@
 use crate::ui::components::contact::Contact;
+use crate::ui::components::new_contact::{NewContactForm, NewContactState};
 use crate::ui::context::VaultContext;
 use dioxus::prelude::*;
 
@@ -6,10 +7,13 @@ use dioxus::prelude::*;
 pub fn ContactsScreen() -> Element {
     let mut trusted_contacts =
         use_signal(|| Vec::<(String, crate::core::crypto::ContactRecord)>::new());
+    let new_contact_state = use_signal(|| NewContactState::Idle);
+    let reload_trigger = use_signal(|| 0);
     let vault_ctx = use_context::<VaultContext>();
 
-    // Load contacts on mount
+    // Load contacts on mount and when reload_trigger changes
     use_effect(move || {
+        let _ = reload_trigger(); // Subscribe to changes
         let vault_ctx = vault_ctx.clone();
         spawn(async move {
             let vault_path = match vault_ctx.get_vault() {
@@ -44,12 +48,18 @@ pub fn ContactsScreen() -> Element {
 
     rsx! {
         div { class: "max-w-4xl mx-auto p-6",
+
+            // Add Contact Form
+            div { class: "mb-8",
+                NewContactForm {
+                    new_contact_state,
+                    reload_trigger,
+                }
+            }
+
             // Contacts section
             div {
-                h2 { class: "text-xl font-bold text-zinc-100 mb-4", "Contacts" }
-                if trusted_contacts().is_empty() {
-                    div { class: "text-zinc-400 italic", "No contacts yet" }
-                } else {
+                if !trusted_contacts().is_empty() {
                     div { class: "space-y-2",
                         for (petname, contact) in trusted_contacts().iter() {
                             Contact {
