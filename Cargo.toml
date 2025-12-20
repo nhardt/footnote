@@ -30,6 +30,7 @@ uuid = { version = "1.11", features = ["v4", "serde"] }
 walkdir = "2.5.0"
 dioxus = { version = "0.7.2", features = [] }
 tracing = "0.1"
+dioxus-clipboard = "0.3.0"
 
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21"

@@ -1,7 +1,10 @@
+use crate::core::crypto;
+use crate::core::user::export_me_json_pretty;
 use crate::ui::components::device_add_flow::{DeviceAddFlow, DeviceAddState};
 use crate::ui::components::device_list_item::DeviceListItem;
 use crate::ui::context::VaultContext;
 use dioxus::prelude::*;
+use dioxus_clipboard::prelude::use_clipboard;
 
 #[derive(Clone, PartialEq)]
 pub enum SyncStatus {
@@ -13,7 +16,7 @@ pub enum SyncStatus {
 
 #[component]
 pub fn ProfileScreen() -> Element {
-    let mut self_contact = use_signal(|| None::<crate::core::crypto::ContactRecord>);
+    let mut self_contact = use_signal(|| None::<crypto::ContactRecord>);
     let device_add_state = use_signal(|| DeviceAddState::Idle);
     let sync_status = use_signal(|| SyncStatus::Idle);
     let confirm_delete = use_signal(|| None::<String>);
@@ -44,9 +47,35 @@ pub fn ProfileScreen() -> Element {
 
     rsx! {
         div { class: "max-w-4xl mx-auto p-6",
+
             h1 { class: "text-2xl font-bold text-zinc-100 mb-6", "Profile" }
 
-            // Me section
+            div { class: "mb-6",
+                button {
+                    class: "px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700",
+                    onclick: {
+                        let vault_ctx = vault_ctx.clone();
+                        move |_| {
+                            let vault_ctx = vault_ctx.clone();
+                            spawn(async move {
+                                let vault_path = match vault_ctx.get_vault() {
+                                    Some(path) => path,
+                                    None => {
+                                        tracing::error!("No vault path available");
+                                        return;
+                                    }
+                                };
+
+                                if let Err(e) = copy_contact_record_clipboard(&vault_path).await {
+                                    tracing::error!("Failed to copy contact record: {}", e);
+                                }
+                            });
+                        }
+                    },
+                    "Share Contact"
+                }
+            }
+
             div { class: "mb-8",
                 DeviceAddFlow {
                     device_add_state,
@@ -140,4 +169,11 @@ pub fn ProfileScreen() -> Element {
             }
         }
     }
+}
+
+async fn copy_contact_record_clipboard(vault_path: &std::path::Path) -> anyhow::Result<()> {
+    let json_str = export_me_json_pretty(vault_path).await?;
+    let mut clipboard = use_clipboard();
+    let _ = clipboard.set(json_str);
+    Ok(())
 }

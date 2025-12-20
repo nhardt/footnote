@@ -47,6 +47,11 @@ pub async fn export(vault_path: &std::path::Path, user_name: &str) -> anyhow::Re
 
 /// Export "me" user's contact information
 async fn export_me(vault_path: &std::path::Path) -> anyhow::Result<()> {
+    println!("{}", export_me_json_pretty(vault_path).await?);
+    Ok(())
+}
+
+pub async fn export_me_json_pretty(vault_path: &std::path::Path) -> anyhow::Result<String> {
     let contact_path = vault_path.join(".footnotes").join("contact.json");
 
     if !contact_path.exists() {
@@ -60,9 +65,7 @@ async fn export_me(vault_path: &std::path::Path) -> anyhow::Result<()> {
         anyhow::bail!("Contact record signature verification failed");
     }
 
-    println!("{}", serde_json::to_string_pretty(&contact_record)?);
-
-    Ok(())
+    Ok(serde_json::to_string_pretty(&contact_record)?)
 }
 
 /// Export a trusted user's contact information
