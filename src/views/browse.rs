@@ -3,11 +3,15 @@ use std::path::PathBuf;
 use urlencoding;
 
 use crate::components::PlainTextViewer;
+use crate::context::VaultContext;
 use footnote::core::note;
 
 #[component]
 pub fn Browse(file_path: String) -> Element {
-    let path = PathBuf::from(&file_path);
+    let vault_ctx = use_context::<VaultContext>();
+    let vault_path = vault_ctx.get_vault().unwrap_or_default();
+
+    let path = vault_path.join(&file_path);
     let path_clone = path.clone();
 
     // Load and parse the note

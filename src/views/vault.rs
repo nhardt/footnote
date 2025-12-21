@@ -51,7 +51,7 @@ pub fn VaultCreate() -> Element {
             is_valid: move |path: PathBuf| !path.join(".footnotes").exists(),
             on_select: move |path| {
                 vault_ctx.set_vault(path);
-                nav.replace(Route::Editor {});
+                nav.replace(Route::Browse { file_path:"home.md".to_string() });
             },
             on_cancel: move |_| {
                 nav.replace(Route::VaultHome {});
@@ -71,7 +71,7 @@ pub fn VaultOpen() -> Element {
             is_valid: move |path: PathBuf| path.join(".footnotes").exists(),
             on_select: move |path| {
                 vault_ctx.set_vault(path);
-                nav.replace(Route::Editor {});
+                nav.replace(Route::Browse { file_path:"home.md".to_string() });
             },
             on_cancel: move |_| {
                 nav.replace(Route::VaultHome {});

@@ -3,9 +3,14 @@ use std::path::PathBuf;
 use std::fs;
 use urlencoding;
 
+use crate::context::VaultContext;
+
 #[component]
 pub fn Edit(file_path: String) -> Element {
-    let path = PathBuf::from(&file_path);
+    let vault_ctx = use_context::<VaultContext>();
+    let vault_path = vault_ctx.get_vault().unwrap_or_default();
+
+    let path = vault_path.join(&file_path);
     let mut content = use_signal(String::new);
     let mut error_msg = use_signal(|| None::<String>);
     let mut success_msg = use_signal(|| None::<String>);
