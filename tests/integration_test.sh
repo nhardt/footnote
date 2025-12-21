@@ -8,21 +8,21 @@ cd /tmp/footnotetest
 
 # Alice primary device
 mkdir alice-primary && cd alice-primary
-footnote init --device-name alice-desktop
-footnote user read
+footnote-cli init --device-name alice-desktop
+footnote-cli user read
 cd ..
 
 # Bob primary device
 mkdir bob-primary && cd bob-primary
-footnote init --device-name bob-desktop
-footnote user read
+footnote-cli init --device-name bob-desktop
+footnote-cli user read
 cd ..
 
 # Test export/import (offline contact sharing)
 cd alice-primary
-footnote user export me > ../alice-contact.yaml
+footnote-cli user export me > ../alice-contact.yaml
 cd ../bob-primary
-footnote trust ../alice-contact.yaml --petname alice
-footnote user read  # Should show alice in trusted users
+footnote-cli trust ../alice-contact.yaml --petname alice
+footnote-cli user read  # Should show alice in trusted users
 
 echo "Basic test passed!"

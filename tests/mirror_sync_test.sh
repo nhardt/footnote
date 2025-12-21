@@ -8,7 +8,7 @@ cd /tmp/footnotetest
 
 echo "=== Step 1: Create Alice primary device ==="
 mkdir alice-primary && cd alice-primary
-footnote init --username alice --device-name desktop > /dev/null 2>&1
+footnote-cli init --username alice --device-name desktop > /dev/null 2>&1
 echo "Primary device created"
 cd ..
 
@@ -16,7 +16,7 @@ echo ""
 echo "=== Step 2: Create Alice secondary device ==="
 # Start device authorization in background
 cd alice-primary
-timeout 30 footnote device create > /tmp/device_create_output.txt 2>&1 &
+timeout 30 footnote-cli device create > /tmp/device_create_output.txt 2>&1 &
 DEVICE_PID=$!
 cd ..
 
@@ -38,7 +38,7 @@ echo "Connection URL captured"
 # Create secondary device and join
 mkdir alice-phone && cd alice-phone
 echo "Attempting to join with: $CONNECTION_URL"
-if ! footnote mirror from "$CONNECTION_URL" --device-name phone 2>&1; then
+if ! footnote-cli mirror from "$CONNECTION_URL" --device-name phone 2>&1; then
     echo "ERROR: Failed to create remote device"
     echo "Mirror listen output:"
     cat /tmp/device_create_output.txt || true
@@ -78,7 +78,7 @@ echo "=== Step 4: Sync primary to phone ==="
 
 # Start mirror listener on phone in background
 cd alice-phone
-timeout 30 footnote mirror listen > /tmp/mirror_listen_output.txt 2>&1 &
+timeout 30 footnote-cli mirror listen > /tmp/mirror_listen_output.txt 2>&1 &
 LISTEN_PID=$!
 echo "Phone listening for sync (PID: $LISTEN_PID)"
 cd ..
@@ -89,7 +89,7 @@ sleep 2
 # Push from primary
 cd alice-primary
 echo "Pushing from primary to phone..."
-timeout 15 footnote mirror push --device phone 2>&1 || echo "Push command completed"
+timeout 15 footnote-cli mirror push --device phone 2>&1 || echo "Push command completed"
 cd ..
 
 # Give sync time to complete

@@ -8,14 +8,14 @@ cd /tmp/footnotetest
 
 echo "=== Step 1: Create Alice primary device (desktop) ==="
 mkdir alice-desktop && cd alice-desktop
-footnote init --username alice --device-name desktop > /dev/null 2>&1
+footnote-cli init --username alice --device-name desktop > /dev/null 2>&1
 echo "Alice desktop created"
 cd ..
 
 echo ""
 echo "=== Step 2: Create Alice secondary device (phone) ==="
 cd alice-desktop
-timeout 30 footnote device create > /tmp/device_create_output.txt 2>&1 &
+timeout 30 footnote-cli device create > /tmp/device_create_output.txt 2>&1 &
 DEVICE_PID=$!
 cd ..
 
@@ -29,7 +29,7 @@ if [ -z "$CONNECTION_URL" ]; then
 fi
 
 mkdir alice-phone && cd alice-phone
-footnote mirror from "$CONNECTION_URL" --device-name phone > /dev/null 2>&1
+footnote-cli mirror from "$CONNECTION_URL" --device-name phone > /dev/null 2>&1
 echo "Alice phone created and joined"
 cd ..
 
@@ -38,21 +38,21 @@ wait $DEVICE_PID 2>/dev/null || true
 echo ""
 echo "=== Step 3: Create Bob ==="
 mkdir bob && cd bob
-footnote init --username bob --device-name desktop > /dev/null 2>&1
+footnote-cli init --username bob --device-name desktop > /dev/null 2>&1
 echo "Bob created"
 cd ..
 
 echo ""
 echo "=== Step 4: Exchange contacts (Alice and Bob trust each other) ==="
 cd alice-desktop
-footnote user export me > ../alice-contact.json
+footnote-cli user export me > ../alice-contact.json
 cd ../bob
-footnote trust ../alice-contact.json --petname alice
+footnote-cli trust ../alice-contact.json --petname alice
 echo "Bob now trusts Alice"
 
-footnote user export me > ../bob-contact.json
+footnote-cli user export me > ../bob-contact.json
 cd ../alice-desktop
-footnote trust ../bob-contact.json --petname bob
+footnote-cli trust ../bob-contact.json --petname bob
 echo "Alice now trusts Bob"
 cd ..
 
@@ -93,7 +93,7 @@ cd ..
 echo ""
 echo "=== Step 6: Mirror sync (Alice desktop -> Alice phone) ==="
 cd alice-phone
-timeout 30 footnote mirror listen > /tmp/mirror_listen_output.txt 2>&1 &
+timeout 30 footnote-cli mirror listen > /tmp/mirror_listen_output.txt 2>&1 &
 LISTEN_PID=$!
 cd ..
 
@@ -101,7 +101,7 @@ sleep 2
 
 cd alice-desktop
 echo "Syncing all notes to phone..."
-timeout 15 footnote mirror push --device phone 2>&1 || true
+timeout 15 footnote-cli mirror push --device phone 2>&1 || true
 cd ..
 
 sleep 2
@@ -112,7 +112,7 @@ echo "=== Step 7: Share with Bob (Alice -> Bob) ==="
 
 # Start Bob listening for shares
 cd bob
-timeout 30 footnote mirror listen > /tmp/bob_listen_output.txt 2>&1 &
+timeout 30 footnote-cli mirror listen > /tmp/bob_listen_output.txt 2>&1 &
 BOB_LISTEN_PID=$!
 echo "Bob listening for shares (PID: $BOB_LISTEN_PID)"
 cd ..
@@ -122,7 +122,7 @@ sleep 2
 # Alice shares with Bob
 cd alice-desktop
 echo "Sharing documents with Bob..."
-timeout 15 footnote share bob 2>&1 || echo "Share command completed"
+timeout 15 footnote-cli share bob 2>&1 || echo "Share command completed"
 cd ..
 
 sleep 2

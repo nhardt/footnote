@@ -9,13 +9,13 @@ cd /tmp/footnotetest
 # Create Alice primary device
 mkdir alice-primary && cd alice-primary
 echo "Creating Alice primary device..."
-footnote init --username alice --device-name desktop > /dev/null 2>&1
+footnote-cli init --username alice --device-name desktop > /dev/null 2>&1
 cd ..
 
 # Start device authorization in background and capture connection URL
 echo "Starting device authorization..."
 cd alice-primary
-timeout 30 footnote device create > /tmp/device_create_output.txt 2>&1 &
+timeout 30 footnote-cli device create > /tmp/device_create_output.txt 2>&1 &
 DEVICE_PID=$!
 cd ..
 
@@ -38,7 +38,7 @@ echo "Connection URL: $CONNECTION_URL"
 # Create Alice secondary device and join
 mkdir alice-phone && cd alice-phone
 echo "Creating Alice secondary device..."
-footnote mirror from "$CONNECTION_URL" --device-name phone > /dev/null 2>&1
+footnote-cli mirror from "$CONNECTION_URL" --device-name phone > /dev/null 2>&1
 cd ..
 
 # Wait for background process to finish
