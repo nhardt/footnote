@@ -1,6 +1,3 @@
-mod navbar;
-pub use navbar::Navbar;
-
 mod contacts;
 pub use contacts::Contacts;
 

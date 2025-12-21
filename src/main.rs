@@ -3,7 +3,8 @@ use dioxus::prelude::*;
 mod components;
 mod views;
 
-use views::{Contacts, Editor, Navbar, Profile, Vault};
+use components::Navbar;
+use views::{Contacts, Editor, Profile, Vault};
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]
@@ -36,6 +37,9 @@ fn App() -> Element {
         document::Link { rel: "icon", href: FAVICON }
         document::Link { rel: "stylesheet", href: MAIN_CSS }
         document::Link { rel: "stylesheet", href: TAILWIND_CSS }
-        Router::<Route> {}
+
+        div { class: "h-screen flex flex-col bg-zinc-950",
+            Router::<Route> {}
+        }
     }
 }

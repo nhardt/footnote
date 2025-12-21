@@ -1,26 +1,21 @@
 use crate::Route;
 use dioxus::prelude::*;
 
-const NAVBAR_CSS: Asset = asset!("/assets/styling/navbar.css");
-
 #[component]
 pub fn Navbar() -> Element {
     rsx! {
-        document::Link { rel: "stylesheet", href: NAVBAR_CSS }
-
-        div {
-            id: "navbar",
+        div { class: "flex h-flex",
             Link {
                 to: Route::Vault {},
                 "Vault"
             }
             Link {
-                to: Route::Profile {},
-                "Profile"
-            }
-            Link {
                 to: Route::Editor {},
                 "Editor"
+            }
+            Link {
+                to: Route::Profile {},
+                "Profile"
             }
             Link {
                 to: Route::Contacts {},
