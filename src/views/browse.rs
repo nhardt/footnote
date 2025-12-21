@@ -1,15 +1,18 @@
 use dioxus::prelude::*;
 use std::path::PathBuf;
+use urlencoding;
 
-use crate::{components::PlainTextViewer, core::note};
+use crate::components::PlainTextViewer;
+use footnote::core::note;
 
 #[component]
 pub fn Browse(file_path: String) -> Element {
     let path = PathBuf::from(&file_path);
+    let path_clone = path.clone();
 
     // Load and parse the note
     let note_result = use_resource(move || {
-        let path = path.clone();
+        let path = path_clone.clone();
         async move {
             note::parse_note(&path)
         }

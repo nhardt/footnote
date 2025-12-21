@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 use std::path::PathBuf;
 use std::fs;
+use urlencoding;
 
 #[component]
 pub fn Edit(file_path: String) -> Element {
@@ -10,8 +11,9 @@ pub fn Edit(file_path: String) -> Element {
     let mut success_msg = use_signal(|| None::<String>);
 
     // Load file content on mount
+    let path_for_load = path.clone();
     use_effect(move || {
-        let path = path.clone();
+        let path = path_for_load.clone();
         if let Ok(file_content) = fs::read_to_string(&path) {
             content.set(file_content);
         } else {
@@ -19,8 +21,9 @@ pub fn Edit(file_path: String) -> Element {
         }
     });
 
+    let path_for_save = path.clone();
     let save_file = move |_| {
-        let path = path.clone();
+        let path = path_for_save.clone();
         match fs::write(&path, content()) {
             Ok(_) => {
                 success_msg.set(Some("Saved successfully".to_string()));

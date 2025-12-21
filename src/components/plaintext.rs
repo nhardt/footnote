@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use regex::Regex;
+use footnote::core::note::Footnote;
 
 #[derive(Clone, PartialEq)]
 enum TextSegment {
@@ -10,7 +11,7 @@ enum TextSegment {
 #[component]
 pub fn PlainTextViewer(
     content: String,
-    footnotes: Vec<crate::core::note::Footnote>,
+    footnotes: Vec<Footnote>,
     on_footnote_click: EventHandler<uuid::Uuid>,
 ) -> Element {
     // Regex to match [1], [2], etc.
