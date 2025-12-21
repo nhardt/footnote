@@ -21,7 +21,7 @@ impl VaultContext {
         self.vault_path.cloned()
     }
 
-    pub fn clear_vault(&mut self) {
+    pub fn _clear_vault(&mut self) {
         self.vault_path.set(None);
     }
 }
