@@ -1,5 +1,4 @@
 use dioxus::prelude::*;
-use std::path::PathBuf;
 use urlencoding;
 
 use crate::components::PlainTextViewer;
@@ -17,9 +16,7 @@ pub fn Browse(file_path: String) -> Element {
     // Load and parse the note
     let note_result = use_resource(move || {
         let path = path_clone.clone();
-        async move {
-            note::parse_note(&path)
-        }
+        async move { note::parse_note(&path) }
     });
 
     rsx! {
