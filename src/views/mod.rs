@@ -15,3 +15,6 @@ pub use vault::VaultOpen;
 
 mod browse;
 pub use browse::Browse;
+
+mod edit;
+pub use edit::Edit;

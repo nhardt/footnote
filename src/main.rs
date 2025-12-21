@@ -6,7 +6,7 @@ mod platform;
 mod views;
 
 use components::Navbar;
-use views::{Contacts, Editor, Profile, VaultCreate, VaultHome, VaultJoin, VaultOpen};
+use views::{Browse, Contacts, Edit, Editor, Profile, VaultCreate, VaultHome, VaultJoin, VaultOpen};
 
 use crate::context::VaultContext;
 
@@ -34,6 +34,12 @@ enum Route {
 
         #[route("/contacts")]
         Contacts {},
+
+        #[route("/browse?:file_path")]
+        Browse { file_path: String },
+
+        #[route("/edit?:file_path")]
+        Edit { file_path: String },
 }
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
