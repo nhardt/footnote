@@ -4,7 +4,7 @@ use dioxus::prelude::*;
 #[component]
 pub fn Navbar() -> Element {
     rsx! {
-        div { class: "flex h-flex",
+        div { id: "navbar",
             Link {
                 to: Route::VaultHome {},
                 "Vault"

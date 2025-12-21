@@ -52,8 +52,6 @@ fn App() -> Element {
         document::Link { rel: "stylesheet", href: MAIN_CSS }
         document::Link { rel: "stylesheet", href: TAILWIND_CSS }
 
-        div { class: "h-screen flex flex-col bg-zinc-950",
-            Router::<Route> {}
-        }
+        Router::<Route> {}
     }
 }

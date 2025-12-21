@@ -1,4 +1,3 @@
-use crate::components::Button;
 use crate::components::DirectoryBrowser;
 use crate::context::VaultContext;
 use crate::Route;
@@ -10,26 +9,26 @@ pub fn VaultHome() -> Element {
     let nav = navigator();
 
     rsx! {
-        div { class: "flex items-center justify-center h-full",
-            div { class: "max-w-md w-full p-8 bg-zinc-800 rounded-lg shadow-lg border border-zinc-700",
-                h1 { class: "text-2xl font-bold text-zinc-100 mb-6 text-center", "Welcome to Footnote" }
+        div { class: "vault-home",
+            div { class: "card",
+                h1 { "Welcome to Footnote" }
 
-                div { class: "flex flex-col gap-8",
-                    Button{
+                div { class: "button-group",
+                    button {
                         onclick: move |_| {
                             nav.replace(Route::VaultCreate {});
                         },
-                       "Create Vault"
+                        "Create Vault"
                     }
 
-                    Button{
+                    button {
                         onclick: move |_| {
                             nav.replace(Route::VaultOpen {});
                         },
                         "Open Vault"
                     }
 
-                    Button{
+                    button {
                         onclick: move |_| {
                             nav.replace(Route::VaultJoin {});
                         },
