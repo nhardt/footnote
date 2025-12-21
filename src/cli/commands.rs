@@ -146,7 +146,25 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
             path,
             username,
             device_name,
-        } => crate::core::init::init(path, username.as_deref(), device_name.as_deref()).await,
+        } => {
+            use crate::model::Vault;
+            let vault_path = path.unwrap_or_else(|| std::env::current_dir().expect("Failed to get current directory"));
+            let username = username.as_deref().unwrap_or("me");
+            let device_name = device_name.as_deref().unwrap_or("primary");
+
+            let vault = Vault::create(vault_path, username, device_name)?;
+
+            // Output vault info as JSON for CLI
+            let output = serde_json::json!({
+                "vault_path": vault.path().display().to_string(),
+                "master_public_key": vault.master_public_key()?,
+                "device_name": device_name,
+                "device_endpoint_id": vault.device_endpoint_id()?,
+            });
+            println!("{}", serde_json::to_string_pretty(&output)?);
+
+            Ok(())
+        },
         Commands::Trust { file_path, petname } => {
             let vp = vault_path
                 .as_ref()
