@@ -175,6 +175,21 @@ label {
   flex-direction: row;
 }
 
+/* Horizontal button row with small gap */
+.button-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.button-row button {
+  flex: 1;
+}
+
+/* Form field with label */
+.field {
+  margin-bottom: var(--spacing-md);
+}
+
 /* Generic card container */
 .card {
   width: 100%;
@@ -244,6 +259,71 @@ label {
   align-items: center;
   justify-content: center;
   height: 100%;
+}
+
+/* Directory Browser */
+.directory-browser {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: var(--spacing-md);
+}
+
+.directory-browser .card {
+  max-width: 48rem;
+  padding: 0;
+  gap: 0;
+}
+
+.directory-browser .header {
+  padding: var(--spacing-lg);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.directory-browser .content {
+  padding: var(--spacing-lg);
+}
+
+.directory-browser .footer {
+  padding: var(--spacing-lg);
+  border-top: 1px solid var(--border-primary);
+  display: flex;
+  gap: 0.5rem;
+}
+
+.directory-browser .footer button {
+  flex: 1;
+}
+
+.path-display {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-family: monospace;
+  font-size: 0.875rem;
+  word-break: break-all;
+}
+
+.folder-list {
+  margin-bottom: var(--spacing-md);
+  max-height: 24rem;
+  overflow-y: auto;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+}
+
+.folder-list .empty {
+  padding: var(--spacing-md);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.folder-list .list-item:last-child {
+  border-bottom: none;
 }
 
 /* List Containers */
