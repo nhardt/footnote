@@ -8,14 +8,16 @@ mod views;
 use components::Navbar;
 use views::{Contacts, Editor, Profile, VaultCreate, VaultHome};
 
+use crate::context::VaultContext;
+
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]
 enum Route {
     #[layout(Navbar)]
-        #[route("/vault/home")]
+        #[route("/")]
         VaultHome {},
 
-        #[route("/vault/create")]
+        #[route("/vault-create")]
         VaultCreate {},
 
         #[route("/profile")]
@@ -38,6 +40,7 @@ fn main() {
 
 #[component]
 fn App() -> Element {
+    use_context_provider(|| VaultContext::new());
     rsx! {
         document::Link { rel: "icon", href: FAVICON }
         document::Link { rel: "stylesheet", href: MAIN_CSS }

@@ -7,7 +7,7 @@ pub fn DirectoryBrowser(
     on_select: EventHandler<PathBuf>,
     on_cancel: EventHandler<()>,
     action_label: String,
-    #[props(default)] is_valid: Option<Box<dyn Fn(&PathBuf) -> bool>>,
+    #[props(default)] is_valid: Option<Callback<PathBuf, bool>>,
 ) -> Element {
     let mut current_path = use_signal(|| match crate::platform::get_app_dir() {
         Ok(path) => {
@@ -49,7 +49,7 @@ pub fn DirectoryBrowser(
     // Check if current path is valid
     let path_is_valid = is_valid
         .as_ref()
-        .map_or(true, |validator| validator(&current_path()));
+        .map_or(true, |validator| validator.call(current_path()));
 
     let handle_go_up = move |_| {
         if let Some(parent) = current_path().parent() {
@@ -165,7 +165,7 @@ pub fn DirectoryBrowser(
                                     rsx! {
                                         div {
                                             key: "{folder.display()}",
-                                            class: "px-4 py-2 hover:bg-zinc-700 cursor-pointer border-b border-zinc-700 last:border-b-0",
+                                            class: "px-4 py-2 hover:bg-zinc-700 cursor-pointer border-b border-zinc-700 text-zinc-200 last:border-b-0",
                                             onclick: move |_| current_path.set(folder_path.clone()),
                                             "📁 {folder_name}"
                                         }
