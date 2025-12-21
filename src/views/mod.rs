@@ -8,4 +8,5 @@ mod profile;
 pub use profile::Profile;
 
 mod vault;
-pub use vault::Vault;
+pub use vault::VaultCreate;
+pub use vault::VaultHome;

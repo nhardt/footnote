@@ -1,12 +1,13 @@
-use super::needed::VaultStatus;
 use dioxus::prelude::*;
 use std::path::PathBuf;
 use tracing;
 
 #[component]
-pub fn DirectoryBrowserScreen(
-    mut vault_status: Signal<VaultStatus>,
-    action: &'static str,
+pub fn DirectoryBrowser(
+    on_select: EventHandler<PathBuf>,
+    on_cancel: EventHandler<()>,
+    action_label: String,
+    #[props(default)] is_valid: Option<Box<dyn Fn(&PathBuf) -> bool>>,
 ) -> Element {
     let mut current_path = use_signal(|| match crate::platform::get_app_dir() {
         Ok(path) => {
@@ -21,7 +22,6 @@ pub fn DirectoryBrowserScreen(
     let mut folders = use_signal(|| Vec::<PathBuf>::new());
     let mut new_folder_name = use_signal(|| String::new());
     let mut show_new_folder_input = use_signal(|| false);
-    let mut has_footnotes_dir = use_signal(|| false);
 
     // Load folders whenever current_path changes
     use_effect(move || {
@@ -43,12 +43,13 @@ pub fn DirectoryBrowserScreen(
             }
             folder_list.sort();
             folders.set(folder_list);
-
-            // Check if .footnotes directory exists (for "Open" action)
-            let footnotes_path = path.join(".footnotes");
-            has_footnotes_dir.set(footnotes_path.exists() && footnotes_path.is_dir());
         });
     });
+
+    // Check if current path is valid
+    let path_is_valid = is_valid
+        .as_ref()
+        .map_or(true, |validator| validator(&current_path()));
 
     let handle_go_up = move |_| {
         if let Some(parent) = current_path().parent() {
@@ -57,22 +58,11 @@ pub fn DirectoryBrowserScreen(
     };
 
     let handle_select_here = move |_| {
-        let path = current_path();
-        if action == "Create" {
-            vault_status.set(VaultStatus::Creating { vault_path: path });
-        } else if action == "Join" {
-            vault_status.set(VaultStatus::Joining {
-                vault_path: path,
-                device_name: String::new(),
-                connect_url: String::new(),
-            });
-        } else {
-            vault_status.set(VaultStatus::Opening { vault_path: path });
-        }
+        on_select.call(current_path());
     };
 
     let handle_cancel = move |_| {
-        vault_status.set(VaultStatus::VaultNeeded);
+        on_cancel.call(());
     };
 
     let handle_create_folder = move |_| {
@@ -193,14 +183,14 @@ pub fn DirectoryBrowserScreen(
                         "Cancel"
                     }
                     button {
-                        class: if (action == "Open" && !has_footnotes_dir()) || (action == "Join" && has_footnotes_dir()) || (action == "Create" && has_footnotes_dir()) {
+                        class: if !path_is_valid {
                             "flex-1 px-4 py-2 bg-zinc-700 text-zinc-400 rounded-md cursor-not-allowed"
                         } else {
                             "flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
                         },
-                        disabled: (action == "Open" && !has_footnotes_dir()) || (action == "Join" && has_footnotes_dir()) || (action == "Create" && has_footnotes_dir()),
+                        disabled: !path_is_valid,
                         onclick: handle_select_here,
-                        "{action} Here"
+                        "{action_label}"
                     }
                 }
             }

@@ -6,7 +6,7 @@ pub fn Navbar() -> Element {
     rsx! {
         div { class: "flex h-flex",
             Link {
-                to: Route::Vault {},
+                to: Route::VaultHome {},
                 "Vault"
             }
             Link {

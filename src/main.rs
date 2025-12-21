@@ -1,18 +1,23 @@
 use dioxus::prelude::*;
 
 mod components;
+mod context;
+mod platform;
 mod views;
 
 use components::Navbar;
-use views::{Contacts, Editor, Profile, Vault};
+use views::{Contacts, Editor, Profile, VaultCreate, VaultHome};
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]
 enum Route {
     #[layout(Navbar)]
-        #[route("/")]
-        Vault {},
-        
+        #[route("/vault/home")]
+        VaultHome {},
+
+        #[route("/vault/create")]
+        VaultCreate {},
+
         #[route("/profile")]
         Profile {},
 
