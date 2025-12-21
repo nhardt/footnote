@@ -9,3 +9,6 @@ pub use file_search::FileSearch;
 
 mod title_input;
 pub use title_input::TitleInput;
+
+mod plaintext;
+pub use plaintext::PlainTextViewer;

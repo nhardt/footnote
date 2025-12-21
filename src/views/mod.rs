@@ -12,3 +12,6 @@ pub use vault::VaultCreate;
 pub use vault::VaultHome;
 pub use vault::VaultJoin;
 pub use vault::VaultOpen;
+
+mod browse;
+pub use browse::Browse;
