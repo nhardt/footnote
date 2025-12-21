@@ -58,9 +58,6 @@ pub struct NoteFrontmatter {
 
     #[serde(default)]
     pub share_with: Vec<String>,
-
-    #[serde(default)]
-    pub footnotes: Vec<Footnote>,
 }
 
 fn generate_uuid() -> Uuid {
@@ -93,16 +90,16 @@ impl Default for NoteFrontmatter {
             uuid: generate_uuid(),
             modified: default_vector_time(),
             share_with: Vec::new(),
-            footnotes: Vec::new(),
         }
     }
 }
 
-/// A parsed note with frontmatter and content
+/// A parsed note with frontmatter, content, and footnotes
 #[derive(Debug)]
 pub struct Note {
     pub frontmatter: NoteFrontmatter,
     pub content: String,
+    pub footnotes: Vec<Footnote>,
 }
 
 /// Parse a markdown file and extract frontmatter
@@ -131,10 +128,12 @@ pub fn parse_note(path: &Path) -> Result<Note> {
 pub fn parse_note_from_string(content: &str) -> Result<Note> {
     // Check if content starts with frontmatter delimiter
     if !content.starts_with("---\n") && !content.starts_with("---\r\n") {
-        // No frontmatter - return default
+        // No frontmatter - parse footnotes and return
+        let (body, footnotes) = parse_footnotes(content);
         return Ok(Note {
             frontmatter: NoteFrontmatter::default(),
-            content: content.to_string(),
+            content: body,
+            footnotes,
         });
     }
 
@@ -157,27 +156,122 @@ pub fn parse_note_from_string(content: &str) -> Result<Note> {
         } else {
             end_pos + 5 // Skip "\n---\n"
         };
-        let content = rest[content_start..].to_string();
+        let full_content = &rest[content_start..];
+
+        // Parse footnotes from content
+        let (body, footnotes) = parse_footnotes(full_content);
 
         Ok(Note {
             frontmatter,
-            content,
+            content: body,
+            footnotes,
         })
     } else {
         // Malformed frontmatter - treat entire file as content
+        let (body, footnotes) = parse_footnotes(content);
         Ok(Note {
             frontmatter: NoteFrontmatter::default(),
-            content: content.to_string(),
+            content: body,
+            footnotes,
         })
     }
 }
 
-/// Serialize a note back to markdown with frontmatter
+/// Parse footnotes from content in the format: [1]: uuid:550e8400-... "Title"
+/// Returns (content_without_footnotes, footnotes)
+fn parse_footnotes(content: &str) -> (String, Vec<Footnote>) {
+    let mut footnotes = Vec::new();
+    let lines: Vec<&str> = content.lines().collect();
+
+    // Find where footnotes section starts (first line matching footnote pattern)
+    let mut footnote_start_idx = None;
+    for (idx, line) in lines.iter().enumerate() {
+        if line.trim().starts_with('[') && line.contains("]: uuid:") {
+            footnote_start_idx = Some(idx);
+            break;
+        }
+    }
+
+    let (body_lines, footnote_lines) = if let Some(start_idx) = footnote_start_idx {
+        // Trim empty lines before footnotes section
+        let mut body_end = start_idx;
+        while body_end > 0 && lines[body_end - 1].trim().is_empty() {
+            body_end -= 1;
+        }
+        (&lines[..body_end], &lines[start_idx..])
+    } else {
+        // No footnotes found
+        (&lines[..], &[] as &[&str])
+    };
+
+    // Parse footnote lines: [1]: uuid:550e8400-e29b-41d4-a716-446655440000 "Title"
+    for line in footnote_lines {
+        if let Some(parsed) = parse_footnote_line(line) {
+            footnotes.push(parsed);
+        }
+    }
+
+    let body = body_lines.join("\n");
+    (body, footnotes)
+}
+
+/// Parse a single footnote line: [1]: uuid:550e8400-... "Title"
+fn parse_footnote_line(line: &str) -> Option<Footnote> {
+    let line = line.trim();
+
+    // Match pattern: [number]: uuid:UUID "Title"
+    if !line.starts_with('[') {
+        return None;
+    }
+
+    let rest = &line[1..];
+    let close_bracket = rest.find(']')?;
+    let number_str = &rest[..close_bracket];
+    let number: usize = number_str.parse().ok()?;
+
+    let after_bracket = &rest[close_bracket + 1..].trim();
+    if !after_bracket.starts_with(": uuid:") {
+        return None;
+    }
+
+    let uuid_and_title = &after_bracket[7..]; // Skip ": uuid:"
+
+    // Find the space before the title (title is in quotes)
+    let quote_start = uuid_and_title.find('"')?;
+    let uuid_str = uuid_and_title[..quote_start].trim();
+    let uuid = Uuid::parse_str(uuid_str).ok()?;
+
+    // Extract title from quotes
+    let after_quote = &uuid_and_title[quote_start + 1..];
+    let quote_end = after_quote.find('"')?;
+    let title = after_quote[..quote_end].to_string();
+
+    Some(Footnote {
+        number,
+        title,
+        uuid,
+    })
+}
+
+/// Serialize a note back to markdown with frontmatter and footnotes
 pub fn serialize_note(note: &Note) -> Result<String> {
     let yaml =
         serde_yaml::to_string(&note.frontmatter).context("Failed to serialize frontmatter")?;
 
-    Ok(format!("---\n{}---\n{}", yaml, note.content))
+    let mut result = format!("---\n{}---\n{}", yaml, note.content);
+
+    // Add footnotes at the bottom if there are any
+    if !note.footnotes.is_empty() {
+        result.push_str("\n\n");
+        for footnote in &note.footnotes {
+            result.push_str(&format!(
+                "[{}]: uuid:{} \"{}\"\n",
+                footnote.number, footnote.uuid, footnote.title
+            ));
+        }
+    }
+
+    Ok(result)
 }
 
 /// Update the frontmatter of a file
@@ -256,7 +350,8 @@ This is the content.
             "550e8400-e29b-41d4-a716-446655440000"
         );
         assert_eq!(note.frontmatter.share_with, vec!["alice", "bob"]);
-        assert_eq!(note.content, "# My Note\n\nThis is the content.\n");
+        assert_eq!(note.content, "# My Note\n\nThis is the content.");
+        assert_eq!(note.footnotes.len(), 0);
     }
 
     #[test]
@@ -266,6 +361,7 @@ This is the content.
         let note = parse_note_from_string(content).unwrap();
         assert_eq!(note.content, content);
         assert_eq!(note.frontmatter.share_with.len(), 0);
+        assert_eq!(note.footnotes.len(), 0);
     }
 
     #[test]
@@ -274,12 +370,12 @@ This is the content.
             uuid: Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap(),
             modified: VectorTime(1705316400),
             share_with: vec!["alice".to_string()],
-            footnotes: vec![],
         };
 
         let note = Note {
             frontmatter,
             content: "# Content".to_string(),
+            footnotes: vec![],
         };
 
         let serialized = serialize_note(&note).unwrap();
@@ -310,7 +406,7 @@ This note has an invalid modified timestamp.
         assert!(note.frontmatter.modified.as_i64() > 0);
         assert_eq!(
             note.content,
-            "# Test Note\n\nThis note has an invalid modified timestamp.\n"
+            "# Test Note\n\nThis note has an invalid modified timestamp."
         );
     }
 
@@ -365,32 +461,29 @@ This note has no modified field.
 uuid: 550e8400-e29b-41d4-a716-446655440000
 modified: 1705316400
 share_with: []
-footnotes:
-  - number: 1
-    title: "First Note"
-    uuid: 11111111-1111-1111-1111-111111111111
-  - number: 2
-    title: "Second Note"
-    uuid: 22222222-2222-2222-2222-222222222222
 ---
 This is some text with [1] and [2] references.
+
+[1]: uuid:11111111-1111-1111-1111-111111111111 "First Note"
+[2]: uuid:22222222-2222-2222-2222-222222222222 "Second Note"
 "#;
 
         let note = parse_note_from_string(content).unwrap();
-        assert_eq!(note.frontmatter.footnotes.len(), 2);
-        assert_eq!(note.frontmatter.footnotes[0].number, 1);
-        assert_eq!(note.frontmatter.footnotes[0].title, "First Note");
+        assert_eq!(note.footnotes.len(), 2);
+        assert_eq!(note.footnotes[0].number, 1);
+        assert_eq!(note.footnotes[0].title, "First Note");
         assert_eq!(
-            note.frontmatter.footnotes[0].uuid.to_string(),
+            note.footnotes[0].uuid.to_string(),
             "11111111-1111-1111-1111-111111111111"
         );
-        assert_eq!(note.frontmatter.footnotes[1].number, 2);
-        assert_eq!(note.frontmatter.footnotes[1].title, "Second Note");
+        assert_eq!(note.footnotes[1].number, 2);
+        assert_eq!(note.footnotes[1].title, "Second Note");
+        assert_eq!(note.content, "This is some text with [1] and [2] references.");
     }
 
     #[test]
     fn test_parse_note_without_footnotes_field() {
-        // Test backward compatibility - notes without footnotes field should parse
+        // Test backward compatibility - notes without footnotes should parse
         let content = r#"---
 uuid: 550e8400-e29b-41d4-a716-446655440000
 modified: 1705316400
@@ -398,12 +491,12 @@ share_with: []
 ---
 # Note Without Footnotes
 
-This note has no footnotes field.
+This note has no footnotes.
 "#;
 
         let note = parse_note_from_string(content).unwrap();
         // Should parse without error, footnotes should be empty
-        assert_eq!(note.frontmatter.footnotes.len(), 0);
+        assert_eq!(note.footnotes.len(), 0);
     }
 
     #[test]
@@ -418,21 +511,19 @@ This note has no footnotes field.
             uuid: Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap(),
             modified: VectorTime(1705316400),
             share_with: vec![],
-            footnotes: vec![footnote1],
         };
 
         let note = Note {
             frontmatter,
             content: "Text with [1] reference.".to_string(),
+            footnotes: vec![footnote1],
         };
 
         let serialized = serialize_note(&note).unwrap();
         assert!(serialized.starts_with("---\n"));
-        assert!(serialized.contains("footnotes:"));
-        assert!(serialized.contains("number: 1"));
-        assert!(serialized.contains("title: Test Note"));
-        assert!(serialized.contains("11111111-1111-1111-1111-111111111111"));
+        assert!(serialized.contains("uuid:"));
         assert!(serialized.contains("Text with [1] reference."));
+        assert!(serialized.contains("[1]: uuid:11111111-1111-1111-1111-111111111111 \"Test Note\""));
     }
 
     #[test]
@@ -448,18 +539,18 @@ This note has no footnotes field.
             uuid: Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap(),
             modified: VectorTime(1705316400),
             share_with: vec![],
-            footnotes: vec![footnote.clone()],
         };
 
         let note = Note {
             frontmatter,
             content: "Content".to_string(),
+            footnotes: vec![footnote.clone()],
         };
 
         let serialized = serialize_note(&note).unwrap();
         let parsed = parse_note_from_string(&serialized).unwrap();
 
-        assert_eq!(parsed.frontmatter.footnotes.len(), 1);
-        assert_eq!(parsed.frontmatter.footnotes[0], footnote);
+        assert_eq!(parsed.footnotes.len(), 1);
+        assert_eq!(parsed.footnotes[0], footnote);
     }
 }
