@@ -261,6 +261,30 @@ label {
   height: 100%;
 }
 
+/* File Search */
+.file-search {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.file-search input {
+  font-size: 0.875rem;
+  padding: 0.375rem 0.75rem;
+}
+
+.search-dropdown {
+  position: absolute;
+  z-index: 50;
+  width: 100%;
+  margin-top: 0.25rem;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  max-height: 15rem;
+  overflow-y: auto;
+}
+
 /* Directory Browser */
 .directory-browser {
   display: flex;

@@ -44,10 +44,9 @@ pub fn FileSearch(search_path: PathBuf, on_select: EventHandler<PathBuf>) -> Ele
     });
 
     rsx! {
-        div { class: "relative flex-shrink-0",
+        div { class: "file-search",
             input {
                 r#type: "text",
-                class: "w-full px-3 py-1.5 text-sm bg-zinc-800 border border-zinc-700 rounded-md text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-600",
                 placeholder: "Search files...",
                 value: "{search_input}",
                 onfocus: move |_| dropdown_open.set(true),
@@ -65,14 +64,14 @@ pub fn FileSearch(search_path: PathBuf, on_select: EventHandler<PathBuf>) -> Ele
                 },
             }
             if dropdown_open() && !filtered_files().is_empty() {
-                div { class: "absolute z-50 w-full mt-1 bg-zinc-800 border border-zinc-700 rounded-md shadow-lg max-h-60 overflow-y-auto",
+                div { class: "search-dropdown",
                     for file in filtered_files() {
                         {
                             let file_path = search_path_clone.join(&file);
                             rsx! {
                                 div {
                                     key: "{file}",
-                                    class: "px-3 py-2 hover:bg-zinc-700 cursor-pointer text-sm text-zinc-200",
+                                    class: "list-item",
                                     onclick: move |_| {
                                         on_select.call(file_path.clone());
                                         search_input.set(String::new());
