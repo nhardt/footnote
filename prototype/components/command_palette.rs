@@ -1,4 +1,4 @@
-use crate::ui::context::VaultContext;
+use crate::context::VaultContext;
 use crate::ui::{FootnoteFile, Screen};
 use dioxus::prelude::*;
 use std::path::PathBuf;
