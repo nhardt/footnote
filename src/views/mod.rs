@@ -10,3 +10,5 @@ pub use profile::Profile;
 mod vault;
 pub use vault::VaultCreate;
 pub use vault::VaultHome;
+pub use vault::VaultJoin;
+pub use vault::VaultOpen;
