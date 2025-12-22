@@ -64,7 +64,7 @@ If a device connects that is not known, the connection is immediately dropped.
 If the connection is from a known device, and the endpoint is from our own
 device, a Sync is performed.
 
-### Sync
+### Device Sync
 
 Internal to Footnote, file tranfers between devices owned by the same users is
 called a Sync. Sync ultimately wants all devices belong to a user to be
@@ -84,7 +84,7 @@ The inverse of Import. To establish a share relationship, your partner will
 send you a contact record. The record contains a public key, iroh endpoints
 and devices.
 
-### Share (User)
+### Contact Share
 
 Sharing is the act of transferring files from a user to the users that they have
 shared files with. This will generally be a primary-to-primary connection, but

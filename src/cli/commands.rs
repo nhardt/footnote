@@ -26,13 +26,6 @@ pub enum Commands {
         #[command(subcommand)]
         action: NoteAction,
     },
-    Mirror {
-        #[command(subcommand)]
-        action: MirrorAction,
-    },
-    Share {
-        petname: Option<String>,
-    },
 }
 
 #[derive(Subcommand)]
@@ -75,6 +68,8 @@ pub enum ContactAction {
     Export {
         user_name: String,
     },
+    /// Look up primary device for user, attempt to initiate file transfer
+    Share,
 }
 
 #[derive(Subcommand)]
@@ -99,6 +94,7 @@ pub enum DeviceAction {
 #[derive(Subcommand)]
 pub enum NoteAction {
     Create { path: String, body: String },
+    Update { uuid: String, body: String },
     Delete { uuid: String },
     // Mark note for sharing with <petname>
     // Share {
@@ -282,30 +278,6 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
                     crate::core::device::create_remote(vp, &remote_url, &device_name).await
                 }
             },
-        },
-        Commands::Mirror { action } => match action {
-            MirrorAction::Listen => {
-                let vp = vault_path
-                    .as_ref()
-                    .expect("vault required for this command");
-                crate::core::mirror::listen(vp).await
-            }
-            MirrorAction::From {
-                path,
-                remote_url,
-                device_name,
-            } => {
-                let vault_path = path.unwrap_or_else(|| {
-                    std::env::current_dir().expect("Failed to get current directory")
-                });
-                crate::core::device::create_remote(&vault_path, &remote_url, &device_name).await
-            }
-            MirrorAction::Push { user, device } => {
-                let vp = vault_path
-                    .as_ref()
-                    .expect("vault required for this command");
-                crate::core::mirror::push(vp, user.as_deref(), device.as_deref()).await
-            }
         },
         Commands::Share { petname } => {
             let vp = vault_path

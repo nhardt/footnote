@@ -1,4 +1,5 @@
 use anyhow::Result;
+use core::crypto;
 use iroh::{Endpoint, SecretKey};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -6,31 +7,22 @@ use tokio::sync::mpsc::{self, Receiver};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-use crate::core::{crypto, device, sync};
-
 const FOOTNOTES_DIR: &str = ".footnotes";
 const CONTACTS_DIR: &str = "contacts";
 const TRUSTED_SOURCES_DIR: &str = "footnotes";
 const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
 const MASTER_KEY_FILE: &str = "master_identity";
 const CONTACT_FILE: &str = "contact.json";
-
-/// Events emitted during vault listening
-#[derive(Debug, Clone)]
-pub enum ListenEvent {
-    /// Listener started successfully
-    Started { endpoint_id: String },
-    /// Received sync/share from a device
-    Received { from: String },
-    /// Listener stopped
-    Stopped,
-    /// Error occurred
-    Error(String),
-}
-
-/// Represents a footnote vault at a specific path
 pub struct Vault {
     path: PathBuf,
+}
+
+#[derive(Debug, Clone)]
+pub enum ListenEvent {
+    Started { endpoint_id: String },
+    Received { from: String },
+    Stopped,
+    Error(String),
 }
 
 impl Vault {
