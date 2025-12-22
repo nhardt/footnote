@@ -69,6 +69,8 @@ pub enum VaultAction {
         /// Path to create vault (defaults to current directory)
         path: Option<std::path::PathBuf>,
     },
+    /// Listen for incoming sync/share connections
+    Listen,
 }
 
 #[derive(Subcommand)]
@@ -141,6 +143,7 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
         Commands::Init { .. } => false,
         Commands::Vault { action } => match action {
             VaultAction::Join { .. } => false,
+            VaultAction::Listen => true,
         },
         Commands::Mirror { action } => match action {
             MirrorAction::From { .. } => false,
@@ -171,7 +174,9 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
             device_name,
         } => {
             use crate::model::Vault;
-            let vault_path = path.unwrap_or_else(|| std::env::current_dir().expect("Failed to get current directory"));
+            let vault_path = path.unwrap_or_else(|| {
+                std::env::current_dir().expect("Failed to get current directory")
+            });
             let username = username.as_deref().unwrap_or("me");
             let device_name = device_name.as_deref().unwrap_or("primary");
 
@@ -187,11 +192,74 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
             println!("{}", serde_json::to_string_pretty(&output)?);
 
             Ok(())
-        },
+        }
         Commands::Vault { action } => match action {
-            VaultAction::Join { device_name, url, path } => {
-                let vault_path = path.unwrap_or_else(|| std::env::current_dir().expect("Failed to get current directory"));
+            VaultAction::Join {
+                device_name,
+                url,
+                path,
+            } => {
+                let vault_path = path.unwrap_or_else(|| {
+                    std::env::current_dir().expect("Failed to get current directory")
+                });
                 crate::core::device::create_remote(&vault_path, &url, &device_name).await
+            }
+            VaultAction::Listen => {
+                use crate::model::{ListenEvent, Vault};
+                let vp = vault_path
+                    .as_ref()
+                    .expect("vault required for this command");
+
+                // Open vault and start listening in background
+                let vault = Vault::open(vp.clone())?;
+                let (mut rx, cancel_token) = vault.listen_background().await?;
+
+                // Wait for Started event and print header
+                while let Some(event) = rx.recv().await {
+                    match event {
+                        ListenEvent::Started { endpoint_id } => {
+                            println!("\n📡 Vault - Listening");
+                            println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                            println!("Endpoint ID: {}", endpoint_id);
+                            println!("Ready to receive syncs and shares");
+                            println!("\nPress Ctrl+C to stop listening");
+                            println!();
+                            break;
+                        }
+                        ListenEvent::Error(e) => {
+                            eprintln!("Error starting listener: {}", e);
+                            return Err(anyhow::anyhow!("Failed to start listener: {}", e));
+                        }
+                        _ => {}
+                    }
+                }
+
+                // Handle events until Ctrl+C
+                loop {
+                    tokio::select! {
+                        Some(event) = rx.recv() => {
+                            match event {
+                                ListenEvent::Received { from: _ } => {
+                                    // Events are already printed by sync handler
+                                }
+                                ListenEvent::Error(e) => {
+                                    eprintln!("Error: {}", e);
+                                }
+                                ListenEvent::Stopped => {
+                                    break;
+                                }
+                                _ => {}
+                            }
+                        }
+                        _ = tokio::signal::ctrl_c() => {
+                            println!("\nShutting down...");
+                            cancel_token.cancel();
+                            break;
+                        }
+                    }
+                }
+
+                Ok(())
             }
         },
         Commands::Trust { file_path, petname } => {
@@ -284,7 +352,9 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
                 remote_url,
                 device_name,
             } => {
-                let vault_path = path.unwrap_or_else(|| std::env::current_dir().expect("Failed to get current directory"));
+                let vault_path = path.unwrap_or_else(|| {
+                    std::env::current_dir().expect("Failed to get current directory")
+                });
                 crate::core::device::create_remote(&vault_path, &remote_url, &device_name).await
             }
             MirrorAction::Push { user, device } => {

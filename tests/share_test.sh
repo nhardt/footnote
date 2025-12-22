@@ -93,7 +93,7 @@ cd ..
 echo ""
 echo "=== Step 6: Mirror sync (Alice desktop -> Alice phone) ==="
 cd alice-phone
-timeout 30 footnote-cli mirror listen > /tmp/mirror_listen_output.txt 2>&1 &
+timeout 30 footnote-cli vault listen > /tmp/mirror_listen_output.txt 2>&1 &
 LISTEN_PID=$!
 cd ..
 
@@ -112,7 +112,7 @@ echo "=== Step 7: Share with Bob (Alice -> Bob) ==="
 
 # Start Bob listening for shares
 cd bob
-timeout 30 footnote-cli mirror listen > /tmp/bob_listen_output.txt 2>&1 &
+timeout 30 footnote-cli vault listen > /tmp/bob_listen_output.txt 2>&1 &
 BOB_LISTEN_PID=$!
 echo "Bob listening for shares (PID: $BOB_LISTEN_PID)"
 cd ..

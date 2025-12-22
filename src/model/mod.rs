@@ -1,2 +1,2 @@
 mod vault;
-pub use vault::Vault;
+pub use vault::{ListenEvent, Vault};
