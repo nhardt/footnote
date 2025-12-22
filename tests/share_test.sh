@@ -29,7 +29,7 @@ if [ -z "$CONNECTION_URL" ]; then
 fi
 
 mkdir alice-phone && cd alice-phone
-footnote-cli mirror from "$CONNECTION_URL" --device-name phone > /dev/null 2>&1
+footnote-cli vault join phone "$CONNECTION_URL" > /dev/null 2>&1
 echo "Alice phone created and joined"
 cd ..
 
@@ -62,7 +62,7 @@ cd alice-desktop
 
 # Document 1: Private (not shared)
 UUID1="11111111-1111-1111-1111-111111111111"
-cat > notes/private.md <<ENDOFFILE
+cat > private.md <<ENDOFFILE
 ---
 uuid: $UUID1
 share_with: []
@@ -76,7 +76,7 @@ echo "Created private.md (not shared)"
 
 # Document 2: Shared with Bob
 UUID2="22222222-2222-2222-2222-222222222222"
-cat > notes/shared_with_bob.md <<ENDOFFILE
+cat > shared_with_bob.md <<ENDOFFILE
 ---
 uuid: $UUID2
 share_with:
@@ -135,16 +135,16 @@ echo ""
 echo "=== Step 8: Validation ==="
 echo ""
 echo "Checking Alice's phone (should have 2 documents + home)..."
-ALICE_PHONE_COUNT=$(ls alice-phone/notes/*.md 2>/dev/null | wc -l | xargs)
+ALICE_PHONE_COUNT=$(ls alice-phone/*.md 2>/dev/null | wc -l | xargs)
 echo "Alice phone has $ALICE_PHONE_COUNT documents"
 
-if [ ! -f alice-phone/notes/private.md ]; then
+if [ ! -f alice-phone/private.md ]; then
     echo "[FAIL] private.md not found on Alice's phone"
     exit 1
 fi
 echo "[PASS] private.md exists on Alice's phone"
 
-if [ ! -f alice-phone/notes/shared_with_bob.md ]; then
+if [ ! -f alice-phone/shared_with_bob.md ]; then
     echo "[FAIL] shared_with_bob.md not found on Alice's phone"
     exit 1
 fi

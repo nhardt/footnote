@@ -38,7 +38,7 @@ echo "Connection URL: $CONNECTION_URL"
 # Create Alice secondary device and join
 mkdir alice-phone && cd alice-phone
 echo "Creating Alice secondary device..."
-footnote-cli mirror from "$CONNECTION_URL" --device-name phone > /dev/null 2>&1
+footnote-cli vault join phone "$CONNECTION_URL" > /dev/null 2>&1
 cd ..
 
 # Wait for background process to finish

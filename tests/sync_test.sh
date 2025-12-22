@@ -38,7 +38,8 @@ echo "Connection URL captured"
 # Create secondary device and join
 mkdir alice-phone && cd alice-phone
 echo "Attempting to join with: $CONNECTION_URL"
-if ! footnote-cli mirror from "$CONNECTION_URL" --device-name phone 2>&1; then
+
+if ! footnote-cli vault join phone "$CONNECTION_URL" 2>&1; then
     echo "ERROR: Failed to create remote device"
     echo "Mirror listen output:"
     cat /tmp/device_create_output.txt || true
@@ -58,7 +59,7 @@ cd alice-primary
 
 # Create a test note with UUID
 TEST_UUID="550e8400-e29b-41d4-a716-446655440001"
-cat > notes/test_note.md <<ENDOFFILE
+cat > test_note.md <<ENDOFFILE
 ---
 uuid: $TEST_UUID
 share_with: []
@@ -103,32 +104,32 @@ echo ""
 echo "=== Step 5: Verify sync ==="
 
 # Check if note exists on phone
-if [ -f alice-phone/notes/test_note.md ]; then
-    echo "✓ Note synced successfully to phone"
+if [ -f alice-phone/test_note.md ]; then
+    echo "Note synced successfully to phone"
 
     # Verify UUID matches
-    PHONE_UUID=$(grep "uuid:" alice-phone/notes/test_note.md | awk '{print $2}')
+    PHONE_UUID=$(grep "uuid:" alice-phone/test_note.md | awk '{print $2}')
     if [ "$PHONE_UUID" = "$TEST_UUID" ]; then
-        echo "✓ UUID matches: $PHONE_UUID"
+        echo "UUID matches: $PHONE_UUID"
     else
-        echo "✗ UUID mismatch!"
+        echo "UUID mismatch!"
         echo "  Expected: $TEST_UUID"
         echo "  Got: $PHONE_UUID"
         exit 1
     fi
 
     # Verify content
-    if grep -q "This is a test note created on primary device" alice-phone/notes/test_note.md; then
-        echo "✓ Note content verified"
+    if grep -q "This is a test note created on primary device" alice-phone/test_note.md; then
+        echo "Note content verified"
     else
-        echo "✗ Note content mismatch!"
-        cat alice-phone/notes/test_note.md
+        echo "Note content mismatch!"
+        cat alice-phone/test_note.md
         exit 1
     fi
 else
-    echo "✗ Note not found on phone!"
-    echo "Contents of alice-phone/notes/:"
-    ls -la alice-phone/notes/ || echo "Directory does not exist"
+    echo "Note not found on phone!"
+    echo "Contents of alice-phone/:"
+    ls -la alice-phone/ || echo "Directory does not exist"
     exit 1
 fi
 
@@ -137,4 +138,4 @@ rm -f /tmp/device_create_output.txt
 rm -f /tmp/mirror_listen_output.txt
 
 echo ""
-echo "✓ Mirror sync test passed!"
+echo "Mirror sync test passed!"

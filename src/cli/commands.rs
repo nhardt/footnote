@@ -10,6 +10,11 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Vault operations
+    Vault {
+        #[command(subcommand)]
+        action: VaultAction,
+    },
     /// Initialize vault and create primary device
     Init {
         /// Path to create vault (defaults to current directory)
@@ -50,6 +55,19 @@ pub enum Commands {
     Share {
         /// Petname of the user to share with (or omit to share with all)
         petname: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum VaultAction {
+    /// Join an existing vault from a new device
+    Join {
+        /// Name for this device
+        device_name: String,
+        /// Connection URL from primary device
+        url: String,
+        /// Path to create vault (defaults to current directory)
+        path: Option<std::path::PathBuf>,
     },
 }
 
@@ -121,6 +139,9 @@ pub enum MirrorAction {
 pub async fn execute(cli: Cli) -> anyhow::Result<()> {
     let needs_vault = match &cli.command {
         Commands::Init { .. } => false,
+        Commands::Vault { action } => match action {
+            VaultAction::Join { .. } => false,
+        },
         Commands::Mirror { action } => match action {
             MirrorAction::From { .. } => false,
             _ => true,
@@ -166,6 +187,12 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
             println!("{}", serde_json::to_string_pretty(&output)?);
 
             Ok(())
+        },
+        Commands::Vault { action } => match action {
+            VaultAction::Join { device_name, url, path } => {
+                let vault_path = path.unwrap_or_else(|| std::env::current_dir().expect("Failed to get current directory"));
+                crate::core::device::create_remote(&vault_path, &url, &device_name).await
+            }
         },
         Commands::Trust { file_path, petname } => {
             let vp = vault_path
