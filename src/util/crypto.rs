@@ -1,6 +1,5 @@
-use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
+use ed25519_dalek::{SigningKey, VerifyingKey};
 use rand_core::OsRng;
-use serde::{Deserialize, Serialize};
 
 /// Generate a new Ed25519 identity keypair
 pub fn generate_identity_keypair() -> (SigningKey, VerifyingKey) {

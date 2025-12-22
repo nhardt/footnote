@@ -1,428 +1,208 @@
-use crate::core::crypto;
-use serde::Serialize;
+use crate::model::device::Device;
+use crate::model::lamport_timestamp::LamportTimestamp;
+use crate::util::crypto;
+use anyhow::{Context, Result};
+use ed25519_dalek::{Signature, Signer, SigningKey, Verifier};
+use serde::{Deserialize, Serialize};
 use std::fs;
+use std::path::Path;
 
-#[derive(Debug, Serialize)]
-struct Device {
-    name: String,
-    endpoint_id: String,
-    authorized_by: String,
-    timestamp: String,
-    signature_valid: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ContactRecord {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Contact {
     pub username: String,
     pub nickname: String,
     pub master_public_key: String,
-    pub devices: Vec<ContactDevice>,
-    pub updated_at: String,
+    pub devices: Vec<Device>,
+    pub updated_at: LamportTimestamp,
     #[serde(default)]
-    pub signature: String,
+    signature: String,
 }
 
-#[derive(Debug, Serialize)]
-struct User {
-    name: String,
-    master_public_key: Option<String>,
-    nickname: Option<String>,
-    devices: Vec<Device>,
-}
+impl Contact {
+    pub fn verify(&self) -> Result<bool> {
+        let verifying_key = crypto::verifying_key_from_hex(&self.master_public_key)?;
 
-#[derive(Debug, Serialize)]
-struct UsersOutput {
-    users: Vec<User>,
-}
+        let mut unsigned = self.clone();
+        unsigned.signature = String::new();
 
-/// Create a new user
-pub async fn create(user_name: &str) -> anyhow::Result<()> {
-    println!("TODO: user::create({})", user_name);
-    Ok(())
-}
+        let message = serde_json::to_string(&unsigned)?;
 
-/// Delete a user
-pub async fn delete(user_name: &str) -> anyhow::Result<()> {
-    println!("TODO: user::delete({})", user_name);
-    Ok(())
-}
+        let signature_bytes = match hex::decode(&self.signature) {
+            Ok(bytes) => bytes,
+            Err(_) => return Ok(false),
+        };
 
-/// Export a user's contact information
-pub async fn export(vault_path: &std::path::Path, user_name: &str) -> anyhow::Result<()> {
-    if user_name == "me" {
-        return export_me(vault_path).await;
-    } else {
-        return export_trusted_user(vault_path, user_name).await;
-    }
-}
+        let signature = match Signature::from_slice(&signature_bytes) {
+            Ok(sig) => sig,
+            Err(_) => return Ok(false),
+        };
 
-/// Export "me" user's contact information
-async fn export_me(vault_path: &std::path::Path) -> anyhow::Result<()> {
-    println!("{}", export_me_json_pretty(vault_path).await?);
-    Ok(())
-}
-
-pub async fn export_me_json_pretty(vault_path: &std::path::Path) -> anyhow::Result<String> {
-    let contact_path = vault_path.join(".footnotes").join("contact.json");
-
-    if !contact_path.exists() {
-        anyhow::bail!("Contact record not found. Run 'footnote init' first.");
-    }
-
-    let content = fs::read_to_string(&contact_path)?;
-    let contact_record: crypto::ContactRecord = serde_json::from_str(&content)?;
-
-    if !crypto::verify_contact_signature(&contact_record)? {
-        anyhow::bail!("Contact record signature verification failed");
-    }
-
-    Ok(serde_json::to_string_pretty(&contact_record)?)
-}
-
-/// Export a trusted user's contact information
-async fn export_trusted_user(vault_path: &std::path::Path, petname: &str) -> anyhow::Result<()> {
-    let contact_path = vault_path
-        .join(".footnotes")
-        .join("contacts")
-        .join(format!("{}.json", petname));
-
-    if !contact_path.exists() {
-        anyhow::bail!("Trusted user '{}' not found", petname);
-    }
-
-    let content = fs::read_to_string(&contact_path)?;
-    let contact_record: crypto::ContactRecord = serde_json::from_str(&content)?;
-
-    if !crypto::verify_contact_signature(&contact_record)? {
-        anyhow::bail!(
-            "Trusted user '{}' contact signature verification failed",
-            petname
-        );
-    }
-
-    println!("{}", serde_json::to_string_pretty(&contact_record)?);
-
-    Ok(())
-}
-
-/// Import a user's contact information from a JSON string
-pub async fn import_from_string(
-    vault_path: &std::path::Path,
-    content: &str,
-    petname: &str,
-) -> anyhow::Result<()> {
-    let new_contact: crypto::ContactRecord = serde_json::from_str(content)?;
-
-    if !crypto::verify_contact_signature(&new_contact)? {
-        anyhow::bail!("Contact signature verification failed. Import aborted.");
-    }
-
-    eprintln!(
-        "Contact signature verified ({} devices)",
-        new_contact.devices.len()
-    );
-
-    let contact_path = vault_path
-        .join(".footnotes")
-        .join("contacts")
-        .join(format!("{}.json", petname));
-
-    if contact_path.exists() {
-        let existing_content = fs::read_to_string(&contact_path)?;
-        let existing_contact: crypto::ContactRecord = serde_json::from_str(&existing_content)?;
-
-        let new_timestamp = chrono::DateTime::parse_from_rfc3339(&new_contact.updated_at)?;
-        let existing_timestamp =
-            chrono::DateTime::parse_from_rfc3339(&existing_contact.updated_at)?;
-
-        if new_timestamp <= existing_timestamp {
-            anyhow::bail!(
-                "Trusted user '{}' already has a more recent contact record (existing: {}, new: {}). Skipping update.",
-                petname,
-                existing_contact.updated_at,
-                new_contact.updated_at
-            );
-        }
-
-        eprintln!(
-            "Updating trusted user '{}' (old: {}, new: {})",
-            petname, existing_contact.updated_at, new_contact.updated_at
-        );
-    }
-
-    // Ensure contacts directory and trusted sources directory exist
-    let contacts_dir = vault_path.join(".footnotes").join("contacts");
-    let trusted_user_dir = vault_path.join("footnotes").join(petname);
-    fs::create_dir_all(&contacts_dir)?;
-    fs::create_dir_all(&trusted_user_dir)?;
-
-    fs::write(&contact_path, serde_json::to_string_pretty(&new_contact)?)?;
-    eprintln!("Contact saved to {}", contact_path.display());
-
-    eprintln!("\nImport complete!");
-    eprintln!("Trusted user '{}' contact updated", petname);
-
-    Ok(())
-}
-
-/// Import a user's contact information
-pub async fn import(
-    vault_path: &std::path::Path,
-    file_path: &str,
-    petname: &str,
-) -> anyhow::Result<()> {
-    let content = fs::read_to_string(file_path)?;
-    import_from_string(vault_path, &content, petname).await
-}
-
-/// Read and display all users and their devices
-pub async fn read(vault_path: &std::path::Path) -> anyhow::Result<()> {
-    let mut users = Vec::new();
-
-    // Read "me" user from contact.json
-    let mut me_devices = Vec::new();
-    let mut master_public_key = None;
-    let mut nickname = None;
-    let contact_path = vault_path.join(".footnotes").join("contact.json");
-
-    if contact_path.exists() {
-        let contact_content = fs::read_to_string(&contact_path)?;
-        if let Ok(contact_record) = serde_json::from_str::<crypto::ContactRecord>(&contact_content)
-        {
-            master_public_key = Some(contact_record.master_public_key.clone());
-            nickname = if contact_record.nickname.is_empty() {
-                None
-            } else {
-                Some(contact_record.nickname.clone())
-            };
-
-            for device in &contact_record.devices {
-                me_devices.push(Device {
-                    name: device.device_name.clone(),
-                    endpoint_id: device.iroh_endpoint_id.clone(),
-                    authorized_by: contact_record.master_public_key.clone(),
-                    timestamp: device.added_at.clone(),
-                    signature_valid: true,
-                });
-            }
+        match verifying_key.verify(message.as_bytes(), &signature) {
+            Ok(_) => Ok(true),
+            Err(_) => Ok(false),
         }
     }
 
-    users.push(User {
-        name: "me".to_string(),
-        master_public_key,
-        nickname,
-        devices: me_devices,
-    });
-
-    // Scan .footnotes/contacts/ directory for trusted user contact files
-    let contacts_dir = vault_path.join(".footnotes").join("contacts");
-    if contacts_dir.exists() {
-        for entry in fs::read_dir(&contacts_dir)? {
-            let entry = entry?;
-            let path = entry.path();
-
-            // Look for *.json files
-            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("json") {
-                let petname = path.file_stem().unwrap().to_string_lossy().to_string();
-
-                // Read and parse the contact record
-                let content = fs::read_to_string(&path)?;
-                if let Ok(contact_record) = serde_json::from_str::<crypto::ContactRecord>(&content)
-                {
-                    // Verify signature
-                    let signature_valid =
-                        crypto::verify_contact_signature(&contact_record).unwrap_or(false);
-
-                    if signature_valid {
-                        // Convert devices to Device struct
-                        let mut devices = Vec::new();
-                        for device in &contact_record.devices {
-                            devices.push(Device {
-                                name: device.device_name.clone(),
-                                endpoint_id: device.iroh_endpoint_id.clone(),
-                                authorized_by: contact_record.master_public_key.clone(),
-                                timestamp: device.added_at.clone(),
-                                signature_valid: true,
-                            });
-                        }
-
-                        users.push(User {
-                            name: petname,
-                            master_public_key: Some(contact_record.master_public_key),
-                            nickname: if contact_record.nickname.is_empty() {
-                                None
-                            } else {
-                                Some(contact_record.nickname)
-                            },
-                            devices,
-                        });
-                    }
-                }
-            }
+    pub fn is_valid_successor(&self, previous: &Contact) -> Result<bool> {
+        // Must have same master public key
+        if self.master_public_key != previous.master_public_key {
+            return Ok(false);
         }
+
+        // Both must verify
+        if !self.verify()? || !previous.verify()? {
+            return Ok(false);
+        }
+
+        // Must have newer timestamp
+        if self.updated_at <= previous.updated_at {
+            return Ok(false);
+        }
+
+        Ok(true)
     }
 
-    // Serialize and print as YAML
-    let output = UsersOutput { users };
-    let yaml = serde_yaml::to_string(&output)?;
-    println!("{}", yaml);
-
-    Ok(())
-}
-
-/// Share documents with trusted users based on frontmatter share_with field
-pub async fn share(vault_path: &std::path::Path, petname_filter: Option<&str>) -> Result<()> {
-    // Load this device's Iroh secret key
-    let footnotes_dir = vault_path.join(".footnotes");
-    let key_file = footnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
-    let key_bytes = fs::read(&key_file)?;
-    let key_array: [u8; 32] = key_bytes
-        .try_into()
-        .map_err(|_| anyhow::anyhow!("Invalid key length"))?;
-    let secret_key = SecretKey::from_bytes(&key_array);
-
-    // (Future: could use my contact record to determine my petname from their perspective)
-
-    // Collect all notes and group by share_with users
-    let notes_dir = vault_path.to_path_buf();
-    let mut shared_docs: std::collections::HashMap<String, Vec<PathBuf>> =
-        std::collections::HashMap::new();
-
-    println!("\nDocument Sharing");
-    println!("============================================");
-
-    // Scan all notes
-    for entry in WalkDir::new(&notes_dir).into_iter().filter_map(|e| e.ok()) {
-        if entry.file_type().is_file()
-            && entry.path().extension().and_then(|s| s.to_str()) == Some("md")
-        {
-            // Parse frontmatter
-            if let Ok(frontmatter) = note::get_frontmatter(entry.path()) {
-                // Check if this document is shared with anyone
-                for petname in &frontmatter.share_with {
-                    // If filter is specified, only include that user
-                    if let Some(filter) = petname_filter {
-                        if petname != filter {
-                            continue;
-                        }
-                    }
-
-                    shared_docs
-                        .entry(petname.clone())
-                        .or_insert_with(Vec::new)
-                        .push(entry.path().to_path_buf());
-                }
-            }
-        }
+    pub fn from_file(path: impl AsRef<Path>) -> Result<Self> {
+        let content = fs::read_to_string(path.as_ref())
+            .with_context(|| format!("Failed to read contact file: {}", path.as_ref().display()))?;
+        Self::from_json(&content)
     }
 
-    if shared_docs.is_empty() {
-        println!("No documents marked for sharing");
-        if let Some(filter) = petname_filter {
-            println!("(No documents with share_with: [{}])", filter);
+    pub fn from_json(json: &str) -> Result<Self> {
+        let contact: Contact =
+            serde_json::from_str(json).context("Failed to parse contact JSON")?;
+
+        if !contact.verify()? {
+            anyhow::bail!("Contact signature verification failed");
         }
-        return Ok(());
+
+        Ok(contact)
     }
 
-    println!("Found {} user(s) to share with:\n", shared_docs.len());
-
-    // Share with each user
-    for (petname, docs) in shared_docs {
-        println!("Sharing with '{}':", petname);
-        println!("  {} document(s)", docs.len());
-
-        // Look up the user's contact record
-        let contact_file_path = footnotes_dir
-            .join("contacts")
-            .join(format!("{}.json", petname));
-        if !contact_file_path.exists() {
-            eprintln!(
-                "  Warning: Contact not found for '{}'. Run 'footnote trust' first.",
-                petname
-            );
-            eprintln!("  Skipping...\n");
-            continue;
-        }
-
-        let contact_content = fs::read_to_string(&contact_file_path)?;
-        let user_contact: crypto::ContactRecord = serde_json::from_str(&contact_content)?;
-
-        // Find their primary device
-        let primary_device = user_contact
-            .devices
-            .iter()
-            .find(|d| {
-                d.device_name == user_contact.username
-                    || d.device_name == "desktop"
-                    || d.device_name == "primary"
-            })
-            .or_else(|| user_contact.devices.first())
-            .ok_or_else(|| anyhow::anyhow!("User '{}' has no devices", petname))?;
-
-        let endpoint_id = primary_device.iroh_endpoint_id.parse::<iroh::PublicKey>()?;
-
-        // Create a temporary directory with the documents to share
-        let temp_dir = std::env::temp_dir().join(format!("footnote-share-{}", petname));
-        if temp_dir.exists() {
-            fs::remove_dir_all(&temp_dir)?;
-        }
-        fs::create_dir_all(&temp_dir)?;
-
-        // Copy the shared documents to temp directory
-        for doc_path in &docs {
-            let file_name = doc_path.file_name().unwrap();
-            let dest_path = temp_dir.join(file_name);
-            fs::copy(doc_path, dest_path)?;
-        }
-
-        // Connect and share
-        println!("  Connecting to {}...", endpoint_id);
-
-        // Push the documents using sync protocol
-        match sync::push_to_device(&temp_dir, endpoint_id, secret_key.clone()).await {
-            Ok(_) => println!("  [OK] Shared successfully\n"),
-            Err(e) => {
-                eprintln!("  [FAIL] Failed to share: {}\n", e);
-            }
-        }
-
-        // Cleanup temp directory
-        fs::remove_dir_all(&temp_dir)?;
+    pub fn to_json(&self) -> Result<String> {
+        serde_json::to_string(self).context("Failed to serialize contact")
     }
 
-    println!("============================================");
-    println!("Sharing complete");
+    pub fn to_json_pretty(&self) -> Result<String> {
+        serde_json::to_string_pretty(self).context("Failed to serialize contact")
+    }
 
-    Ok(())
-}
+    pub fn sign(&mut self, signing_key: &SigningKey) -> Result<()> {
+        // Clear existing signature
+        self.signature = String::new();
 
-pub fn verify_contact_signature(record: &ContactRecord) -> anyhow::Result<bool> {
-    let verifying_key = verifying_key_from_hex(&record.master_public_key)?;
+        // Serialize unsigned record
+        let message = serde_json::to_string(self)?;
 
-    let mut unsigned_record = record.clone();
-    unsigned_record.signature = String::new();
+        // Sign
+        let signature = signing_key.sign(message.as_bytes());
+        self.signature = hex::encode(signature.to_bytes());
 
-    let message = serde_json::to_string(&unsigned_record)?;
-
-    let signature_bytes = hex::decode(&record.signature)?;
-    let signature = Signature::from_slice(&signature_bytes)?;
-
-    match verifying_key.verify(message.as_bytes(), &signature) {
-        Ok(_) => Ok(true),
-        Err(_) => Ok(false),
+        Ok(())
     }
 }
 
-pub fn sign_contact_record(
-    record: &ContactRecord,
-    master_key: &SigningKey,
-) -> anyhow::Result<String> {
-    let mut unsigned_record = record.clone();
-    unsigned_record.signature = String::new();
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let message = serde_json::to_string(&unsigned_record)?;
-    let signature = master_key.sign(message.as_bytes());
+    fn create_test_signing_key() -> SigningKey {
+        let (signing_key, _) = crypto::generate_identity_keypair();
+        signing_key
+    }
 
-    Ok(hex::encode(signature.to_bytes()))
+    #[test]
+    fn test_sign_and_verify() {
+        let signing_key = create_test_signing_key();
+        let verifying_key = signing_key.verifying_key();
+
+        let mut contact = Contact {
+            username: "alice".to_string(),
+            nickname: "".to_string(),
+            master_public_key: crypto::verifying_key_to_hex(&verifying_key),
+            devices: vec![Device::new("laptop".to_string(), "abc123".to_string())],
+            updated_at: LamportTimestamp(1000),
+            signature: String::new(),
+        };
+
+        contact.sign(&signing_key).unwrap();
+        assert!(contact.verify().unwrap());
+    }
+
+    #[test]
+    fn test_verify_fails_with_wrong_signature() {
+        let signing_key = create_test_signing_key();
+        let verifying_key = signing_key.verifying_key();
+
+        let mut contact = Contact {
+            username: "alice".to_string(),
+            nickname: "".to_string(),
+            master_public_key: crypto::verifying_key_to_hex(&verifying_key),
+            devices: vec![],
+            updated_at: LamportTimestamp(1000),
+            signature: String::new(),
+        };
+
+        contact.sign(&signing_key).unwrap();
+
+        // Tamper with the signature
+        contact.signature = "0000".to_string();
+        assert!(!contact.verify().unwrap());
+    }
+
+    #[test]
+    fn test_is_valid_successor() {
+        let signing_key = create_test_signing_key();
+        let verifying_key = signing_key.verifying_key();
+        let master_key = crypto::verifying_key_to_hex(&verifying_key);
+
+        let mut contact_v1 = Contact {
+            username: "alice".to_string(),
+            nickname: "".to_string(),
+            master_public_key: master_key.clone(),
+            devices: vec![Device::new("laptop".to_string(), "abc123".to_string())],
+            updated_at: LamportTimestamp(1000),
+            signature: String::new(),
+        };
+        contact_v1.sign(&signing_key).unwrap();
+
+        let mut contact_v2 = Contact {
+            username: "alice".to_string(),
+            nickname: "".to_string(),
+            master_public_key: master_key.clone(),
+            devices: vec![
+                Device::new("laptop".to_string(), "abc123".to_string()),
+                Device::new("phone".to_string(), "def456".to_string()),
+            ],
+            updated_at: LamportTimestamp(2000),
+            signature: String::new(),
+        };
+        contact_v2.sign(&signing_key).unwrap();
+
+        assert!(contact_v2.is_valid_successor(&contact_v1).unwrap());
+        assert!(!contact_v1.is_valid_successor(&contact_v2).unwrap()); // older
+    }
+
+    #[test]
+    fn test_json_round_trip() {
+        let signing_key = create_test_signing_key();
+        let verifying_key = signing_key.verifying_key();
+
+        let mut contact = Contact {
+            username: "alice".to_string(),
+            nickname: "Alice W.".to_string(),
+            master_public_key: crypto::verifying_key_to_hex(&verifying_key),
+            devices: vec![Device::new("laptop".to_string(), "abc123".to_string())],
+            updated_at: LamportTimestamp(1000),
+            signature: String::new(),
+        };
+        contact.sign(&signing_key).unwrap();
+
+        let json = contact.to_json().unwrap();
+        let loaded = Contact::from_json(&json).unwrap();
+
+        assert_eq!(loaded.username, contact.username);
+        assert_eq!(loaded.devices.len(), contact.devices.len());
+        assert!(loaded.verify().unwrap());
+    }
 }
