@@ -50,7 +50,7 @@ pub async fn listen_background(
         // Create Iroh endpoint
         let endpoint_result = Endpoint::builder()
             .secret_key(secret_key)
-            .alpns(vec![sync::ALPN_MIRROR.to_vec()])
+            .alpns(vec![sync::ALPN_FOOTNOTE_FILES.to_vec()])
             .bind()
             .await;
 
@@ -97,7 +97,7 @@ pub async fn listen_background(
                         }
                     };
 
-                    if alpn == sync::ALPN_MIRROR {
+                    if alpn == sync::ALPN_FOOTNOTE_FILES {
                         let remote_id = conn.remote_id();
 
                         // Identify device (could fail, but we still handle the connection)
@@ -158,7 +158,7 @@ pub async fn listen(vault_path: &std::path::Path) -> Result<()> {
     // Create Iroh endpoint with protocol handler
     let endpoint = Endpoint::builder()
         .secret_key(secret_key)
-        .alpns(vec![sync::ALPN_MIRROR.to_vec()])
+        .alpns(vec![sync::ALPN_FOOTNOTE_FILES.to_vec()])
         .bind()
         .await?;
 
@@ -170,7 +170,7 @@ pub async fn listen(vault_path: &std::path::Path) -> Result<()> {
                 let alpn = accepting.alpn().await?;
                 let conn = accepting.await?;
 
-                if alpn == sync::ALPN_MIRROR {
+                if alpn == sync::ALPN_FOOTNOTE_FILES {
                     // Spawn a task to handle the connection
                     let notes_dir_clone = notes_dir.clone();
                     let vault_path_clone = vault_path.to_path_buf();

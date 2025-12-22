@@ -1,16 +1,31 @@
-use std::path::{Path, PathBuf};
-use std::fs;
 use anyhow::Result;
-use iroh::SecretKey;
+use iroh::{Endpoint, SecretKey};
+use std::fs;
+use std::path::{Path, PathBuf};
+use tokio::sync::mpsc::{self, Receiver};
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-use crate::core::{crypto, device};
+use crate::core::{crypto, device, sync};
 
 const FOOTNOTES_DIR: &str = ".footnotes";
 const CONTACTS_DIR: &str = "contacts";
 const TRUSTED_SOURCES_DIR: &str = "footnotes";
 const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
 const MASTER_KEY_FILE: &str = "master_identity";
+
+/// Events emitted during vault listening
+#[derive(Debug, Clone)]
+pub enum ListenEvent {
+    /// Listener started successfully
+    Started { endpoint_id: String },
+    /// Received sync/share from a device
+    Received { from: String },
+    /// Listener stopped
+    Stopped,
+    /// Error occurred
+    Error(String),
+}
 
 /// Represents a footnote vault at a specific path
 pub struct Vault {
@@ -163,5 +178,109 @@ Welcome to footnote! This is your home note.
             .map_err(|_| anyhow::anyhow!("Invalid key length"))?;
         let secret_key = SecretKey::from_bytes(&key_array);
         Ok(secret_key.public().to_string())
+    }
+
+    /// Start listening for incoming sync/share connections in the background
+    /// Returns a receiver for status events and a cancellation token to stop
+    pub async fn listen_background(&self) -> Result<(Receiver<ListenEvent>, CancellationToken)> {
+        let (tx, rx) = mpsc::channel(32);
+        let cancel_token = CancellationToken::new();
+        let cancel_clone = cancel_token.clone();
+
+        // Load device secret key
+        let key_file = self.footnotes_dir().join(LOCAL_DEVICE_KEY_FILE);
+        let key_bytes = fs::read(&key_file)?;
+        let key_array: [u8; 32] = key_bytes
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("Invalid key length"))?;
+        let secret_key = SecretKey::from_bytes(&key_array);
+        let endpoint_id = secret_key.public();
+
+        // Clone vault path for spawned task
+        let vault_path = self.path.clone();
+        let notes_dir = self.path.clone();
+
+        tokio::spawn(async move {
+            // Create Iroh endpoint
+            let endpoint_result = Endpoint::builder()
+                .secret_key(secret_key)
+                .alpns(vec![sync::ALPN_FOOTNOTE_FILES.to_vec()])
+                .bind()
+                .await;
+
+            let endpoint = match endpoint_result {
+                Ok(ep) => ep,
+                Err(e) => {
+                    let _ = tx.send(ListenEvent::Error(e.to_string())).await;
+                    return;
+                }
+            };
+
+            // Notify started
+            let _ = tx
+                .send(ListenEvent::Started {
+                    endpoint_id: endpoint_id.to_string(),
+                })
+                .await;
+
+            // Accept connections loop
+            loop {
+                tokio::select! {
+                    Some(incoming) = endpoint.accept() => {
+                        let mut accepting = match incoming.accept() {
+                            Ok(a) => a,
+                            Err(e) => {
+                                let _ = tx.send(ListenEvent::Error(format!("Accept error: {}", e))).await;
+                                continue;
+                            }
+                        };
+
+                        let alpn = match accepting.alpn().await {
+                            Ok(a) => a,
+                            Err(e) => {
+                                let _ = tx.send(ListenEvent::Error(format!("ALPN error: {}", e))).await;
+                                continue;
+                            }
+                        };
+
+                        let conn = match accepting.await {
+                            Ok(c) => c,
+                            Err(e) => {
+                                let _ = tx.send(ListenEvent::Error(format!("Connection error: {}", e))).await;
+                                continue;
+                            }
+                        };
+
+                        if alpn == sync::ALPN_FOOTNOTE_FILES {
+                            let remote_id = conn.remote_id();
+
+                            // Identify device (could fail, but we still handle the connection)
+                            let device_name = match sync::identify_device(&vault_path, &remote_id).await {
+                                Ok((_, name)) => name,
+                                Err(_) => remote_id.to_string(),
+                            };
+
+                            let _ = tx.send(ListenEvent::Received { from: device_name.clone() }).await;
+
+                            // Spawn task to handle connection
+                            let notes_dir_clone = notes_dir.clone();
+                            let vault_path_for_task = vault_path.clone();
+                            tokio::spawn(async move {
+                                if let Err(e) = sync::handle_sync_accept(&vault_path_for_task, conn, &notes_dir_clone).await {
+                                    eprintln!("Error handling sync: {:?}", e);
+                                }
+                            });
+                        }
+                    }
+                    _ = cancel_clone.cancelled() => {
+                        // Graceful shutdown
+                        let _ = tx.send(ListenEvent::Stopped).await;
+                        break;
+                    }
+                }
+            }
+        });
+
+        Ok((rx, cancel_token))
     }
 }

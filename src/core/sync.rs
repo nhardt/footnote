@@ -6,8 +6,7 @@ use std::path::{Path, PathBuf};
 
 use super::{crypto, manifest};
 
-/// ALPN protocol identifier for mirror sync
-pub const ALPN_MIRROR: &[u8] = b"footnote/mirror";
+pub const ALPN_FOOTNOTE_FILES: &[u8] = b"footnote/files";
 
 /// Identify who a device belongs to
 ///
@@ -197,7 +196,7 @@ pub async fn push_to_device(
         .await?;
 
     let conn = endpoint
-        .connect(remote_endpoint_id, ALPN_MIRROR)
+        .connect(remote_endpoint_id, ALPN_FOOTNOTE_FILES)
         .await
         .context("Failed to connect to remote device")?;
 
