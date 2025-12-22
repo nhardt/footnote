@@ -6,7 +6,9 @@ mod platform;
 mod views;
 
 use components::Navbar;
-use views::{Browse, Contacts, Edit, Editor, Profile, VaultCreate, VaultHome, VaultJoin, VaultOpen};
+use views::{
+    Browse, Contacts, Edit, Editor, Profile, VaultCreate, VaultHome, VaultJoin, VaultOpen,
+};
 
 use crate::context::VaultContext;
 

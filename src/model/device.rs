@@ -10,6 +10,14 @@ const ALPN_DEVICE_AUTH: &[u8] = b"footnote/device-auth";
 const MASTER_KEY_FILE: &str = "master_identity";
 const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Device {
+    pub name: String,
+    pub iroh_endpoint_id: String,
+    pub authorized_by: String, // hex-encoded verifying key
+    pub timestamp: String,
+}
+
 #[derive(Debug, Clone)]
 pub enum DeviceAuthEvent {
     Listening { join_url: String },

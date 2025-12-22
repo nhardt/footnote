@@ -10,190 +10,133 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Vault operations
     Vault {
         #[command(subcommand)]
         action: VaultAction,
     },
-    /// Initialize vault and create primary device
-    Init {
-        /// Path to create vault (defaults to current directory)
-        path: Option<std::path::PathBuf>,
-
-        /// Username for this identity (optional)
-        #[arg(long)]
-        username: Option<String>,
-
-        /// Name for this device (optional)
-        #[arg(long)]
-        device_name: Option<String>,
-    },
-    /// Trust a user by importing their contact information
-    Trust {
-        /// Path to the contact file to import
-        file_path: String,
-        /// Petname for this user (what you call them locally)
-        #[arg(long)]
-        petname: String,
-    },
-    /// User management commands
-    User {
-        #[command(subcommand)]
-        action: UserAction,
-    },
-    /// Device management commands
     Device {
         #[command(subcommand)]
         action: DeviceAction,
     },
-    /// Mirror operations
+    Contact {
+        #[command(subcommand)]
+        action: ContactAction,
+    },
+    Note {
+        #[command(subcommand)]
+        action: NoteAction,
+    },
     Mirror {
         #[command(subcommand)]
         action: MirrorAction,
     },
-    /// Share documents with a trusted user
     Share {
-        /// Petname of the user to share with (or omit to share with all)
         petname: Option<String>,
     },
 }
 
 #[derive(Subcommand)]
 pub enum VaultAction {
-    /// Join an existing vault from a new device
+    Create {
+        path: Option<std::path::PathBuf>,
+
+        #[arg(long)]
+        username: Option<String>,
+
+        #[arg(long)]
+        device_name: Option<String>,
+    },
     Join {
-        /// Name for this device
         device_name: String,
-        /// Connection URL from primary device
         url: String,
-        /// Path to create vault (defaults to current directory)
         path: Option<std::path::PathBuf>,
     },
-    /// Listen for incoming sync/share connections
-    Listen,
+    ListenDevice {
+        remote_url: String,
+
+        #[arg(long)]
+        device_name: String,
+    },
+    ListenFiles,
 }
 
 #[derive(Subcommand)]
-pub enum UserAction {
-    /// Create a new user
-    Create { user_name: String },
-    /// Delete a user
-    Delete { user_name: String },
-    /// Read and display all users and their devices
+pub enum ContactAction {
+    Import {
+        file_path: String,
+
+        #[arg(long)]
+        petname: String,
+    },
     Read,
-    /// Export a user's contact information
-    Export { user_name: String },
+    Delete {
+        user_name: String,
+    },
+    Export {
+        user_name: String,
+    },
 }
 
 #[derive(Subcommand)]
 pub enum DeviceAction {
-    /// Delete a device
-    Delete {
-        user_name: String,
-        device_name: String,
-    },
-    /// Create and authorize a new device (primary device generates join URL, or
-    /// remote device joins)
     Create {
         #[command(subcommand)]
         mode: Option<CreateMode>,
     },
-}
-
-#[derive(Subcommand)]
-pub enum CreateMode {
-    /// Join from a remote device using a connection URL
-    Remote {
-        /// Connection URL from primary device (iroh://endpoint-id?token=xyz)
-        remote_url: String,
-        /// Name for this device
-        #[arg(long)]
+    Delete {
+        user_name: String,
         device_name: String,
     },
-}
-
-#[derive(Subcommand)]
-pub enum MirrorAction {
-    /// Listen for incoming mirror connections
-    Listen,
-    /// Connect from a remote device using a connection URL
-    From {
-        /// Path to create vault (defaults to current directory)
-        path: Option<std::path::PathBuf>,
-        /// Connection URL from primary device
-        remote_url: String,
-        /// Name for this device
-        #[arg(long)]
-        device_name: String,
-    },
-    /// Push mirror data
     Push {
-        /// Optional user name
         #[arg(long)]
         user: Option<String>,
-        /// Optional device name (requires user)
+
         #[arg(long)]
         device: Option<String>,
     },
 }
 
-/// Execute the CLI command
+#[derive(Subcommand)]
+pub enum NoteAction {
+    Create { path: String, body: String },
+    Delete { uuid: String },
+    // Mark note for sharing with <petname>
+    // Share {
+    //     uuid: String,
+    //     petname: String,
+    // },
+    // not sure if we will need this, or if we want ShareAdd/ShareRemove or
+    // Share(vector<String>)
+}
+
 pub async fn execute(cli: Cli) -> anyhow::Result<()> {
-    let needs_vault = match &cli.command {
-        Commands::Init { .. } => false,
-        Commands::Vault { action } => match action {
-            VaultAction::Join { .. } => false,
-            VaultAction::Listen => true,
-        },
-        Commands::Mirror { action } => match action {
-            MirrorAction::From { .. } => false,
-            _ => true,
-        },
-        Commands::Device { action } => match action {
-            DeviceAction::Create {
-                mode: Some(CreateMode::Remote { .. }),
-            } => false,
-            _ => true,
-        },
-        _ => true,
-    };
-
-    // Get vault path for commands that need it
-    let vault_path = if needs_vault {
-        let vp = crate::core::vault::get_vault_path()?;
-        crate::core::vault::verify_vault_layout()?;
-        Some(vp)
-    } else {
-        None
-    };
-
     match cli.command {
-        Commands::Init {
-            path,
-            username,
-            device_name,
-        } => {
-            use crate::model::Vault;
-            let vault_path = path.unwrap_or_else(|| {
-                std::env::current_dir().expect("Failed to get current directory")
-            });
-            let username = username.as_deref().unwrap_or("me");
-            let device_name = device_name.as_deref().unwrap_or("primary");
-
-            let vault = Vault::create(vault_path, username, device_name)?;
-
-            // Output vault info as JSON for CLI
-            let output = serde_json::json!({
-                "vault_path": vault.path().display().to_string(),
-                "master_public_key": vault.master_public_key()?,
-                "device_name": device_name,
-                "device_endpoint_id": vault.device_endpoint_id()?,
-            });
-            println!("{}", serde_json::to_string_pretty(&output)?);
-
-            Ok(())
-        }
         Commands::Vault { action } => match action {
+            VaultAction::Create {
+                path,
+                username,
+                device_name,
+            } => {
+                use crate::model::Vault;
+                let vault_path = path.unwrap_or_else(|| {
+                    std::env::current_dir().expect("Failed to get current directory")
+                });
+                let username = username.as_deref().unwrap_or("me");
+                let device_name = device_name.as_deref().unwrap_or("primary");
+
+                let vault = Vault::create(vault_path, username, device_name)?;
+
+                // Output vault info as JSON for CLI
+                let output = serde_json::json!({
+                    "vault_path": vault.path().display().to_string(),
+                    "master_public_key": vault.master_public_key()?,
+                    "device_name": device_name,
+                    "device_endpoint_id": vault.device_endpoint_id()?,
+                });
+                println!("{}", serde_json::to_string_pretty(&output)?);
+
+                Ok(())
+            }
             VaultAction::Join {
                 device_name,
                 url,
@@ -269,15 +212,15 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
             crate::core::user::import(vp, &file_path, &petname).await
         }
         Commands::User { action } => match action {
-            UserAction::Create { user_name } => crate::core::user::create(&user_name).await,
-            UserAction::Delete { user_name } => crate::core::user::delete(&user_name).await,
-            UserAction::Read => {
+            ContactAction::Create { user_name } => crate::core::user::create(&user_name).await,
+            ContactAction::Delete { user_name } => crate::core::user::delete(&user_name).await,
+            ContactAction::Read => {
                 let vp = vault_path
                     .as_ref()
                     .expect("vault required for this command");
                 crate::core::user::read(vp).await
             }
-            UserAction::Export { user_name } => {
+            ContactAction::Export { user_name } => {
                 let vp = vault_path
                     .as_ref()
                     .expect("vault required for this command");

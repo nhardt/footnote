@@ -13,6 +13,7 @@ const CONTACTS_DIR: &str = "contacts";
 const TRUSTED_SOURCES_DIR: &str = "footnotes";
 const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
 const MASTER_KEY_FILE: &str = "master_identity";
+const CONTACT_FILE: &str = "contact.json";
 
 /// Events emitted during vault listening
 #[derive(Debug, Clone)]
@@ -33,14 +34,11 @@ pub struct Vault {
 }
 
 impl Vault {
-    /// Check if a path contains a valid vault
     pub fn is_valid(path: &Path) -> bool {
         path.join(FOOTNOTES_DIR).exists()
     }
 
-    /// Create a new vault at the given path with initial device
     pub fn create(path: PathBuf, username: &str, device_name: &str) -> Result<Self> {
-        // Check if already initialized
         if Self::is_valid(&path) {
             anyhow::bail!(
                 "Vault already exists at {}. Remove it first if you want to reinitialize.",
@@ -50,7 +48,6 @@ impl Vault {
 
         eprintln!("Initializing vault at {}", path.display());
 
-        // Create directory structure
         let footnotes_dir = path.join(FOOTNOTES_DIR);
         let contacts_dir = footnotes_dir.join(CONTACTS_DIR);
         let trusted_sources_dir = path.join(TRUSTED_SOURCES_DIR);
@@ -59,11 +56,9 @@ impl Vault {
         fs::create_dir_all(&contacts_dir)?;
         fs::create_dir_all(&trusted_sources_dir)?;
 
-        // Generate master identity key pair
         eprintln!("Generating master identity key...");
         let (signing_key, verifying_key) = crypto::generate_identity_keypair();
 
-        // Store master private key
         let master_key_file = footnotes_dir.join(MASTER_KEY_FILE);
         fs::write(&master_key_file, crypto::signing_key_to_hex(&signing_key))?;
         eprintln!(
