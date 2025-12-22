@@ -68,8 +68,13 @@ pub enum ContactAction {
     Export {
         user_name: String,
     },
-    /// Look up primary device for user, attempt to initiate file transfer
-    Share,
+    Share {
+        #[arg(long)]
+        user: String,
+
+        #[arg(long)]
+        device: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -82,7 +87,7 @@ pub enum DeviceAction {
         user_name: String,
         device_name: String,
     },
-    Push {
+    Sync {
         #[arg(long)]
         user: Option<String>,
 
@@ -283,7 +288,7 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
             let vp = vault_path
                 .as_ref()
                 .expect("vault required for this command");
-            crate::core::mirror::share(vp, petname.as_deref()).await
+            crate::model::contact::share(vp, petname.as_deref()).await
         }
     }
 }

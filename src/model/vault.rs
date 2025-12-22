@@ -1,5 +1,4 @@
 use anyhow::Result;
-use core::crypto;
 use iroh::{Endpoint, SecretKey};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -13,6 +12,9 @@ const TRUSTED_SOURCES_DIR: &str = "footnotes";
 const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
 const MASTER_KEY_FILE: &str = "master_identity";
 const CONTACT_FILE: &str = "contact.json";
+
+pub const ALPN_FOOTNOTE_FILES: &[u8] = b"footnote/files";
+
 pub struct Vault {
     path: PathBuf,
 }
@@ -270,4 +272,61 @@ Welcome to footnote! This is your home note.
 
         Ok((rx, cancel_token))
     }
+}
+
+pub async fn listen(vault_path: &std::path::Path) -> Result<()> {
+    // Load this device's Iroh secret key
+    let footnotes_dir = vault_path.join(".footnotes");
+    let key_file = footnotes_dir.join(LOCAL_DEVICE_KEY_FILE);
+    let key_bytes = fs::read(&key_file)?;
+    let key_array: [u8; 32] = key_bytes
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("Invalid key length"))?;
+    let secret_key = SecretKey::from_bytes(&key_array);
+    let endpoint_id = secret_key.public();
+
+    // Get notes directory
+    let notes_dir = vault_path.to_path_buf();
+
+    println!("\n📡 Mirror Sync - Listening");
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    println!("Endpoint ID: {}", endpoint_id);
+    println!("Ready to receive syncs from your other devices");
+    println!("\nPress Ctrl+C to stop listening");
+    println!();
+
+    // Create Iroh endpoint with protocol handler
+    let endpoint = Endpoint::builder()
+        .secret_key(secret_key)
+        .alpns(vec![sync::ALPN_FOOTNOTE_FILES.to_vec()])
+        .bind()
+        .await?;
+
+    // Accept connections in a loop
+    loop {
+        tokio::select! {
+            Some(incoming) = endpoint.accept() => {
+                let mut accepting = incoming.accept()?;
+                let alpn = accepting.alpn().await?;
+                let conn = accepting.await?;
+
+                if alpn == sync::ALPN_FOOTNOTE_FILES {
+                    // Spawn a task to handle the connection
+                    let notes_dir_clone = notes_dir.clone();
+                    let vault_path_clone = vault_path.to_path_buf();
+                    tokio::spawn(async move {
+                        if let Err(e) = sync::handle_sync_accept(&vault_path_clone, conn, &notes_dir_clone).await {
+                            eprintln!("Error handling sync: {:?}", e);
+                        }
+                    });
+                }
+            }
+            _ = tokio::signal::ctrl_c() => {
+                println!("\nShutting down...");
+                break;
+            }
+        }
+    }
+
+    Ok(())
 }

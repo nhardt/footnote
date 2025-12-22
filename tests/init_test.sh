@@ -8,7 +8,7 @@ cd /tmp/footnotetest
 
 # Create Alice vault and capture JSON output
 mkdir alice-vault && cd alice-vault
-OUTPUT=$(footnote-cli init --device-name alice-desktop)
+OUTPUT=$(footnote-cli vault create --device-name alice-desktop)
 
 # Parse JSON with jq
 VAULT_PATH=$(echo "$OUTPUT" | jq -r '.vault_path')

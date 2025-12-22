@@ -13,7 +13,8 @@ which Devices of your Contact's should have which Notes.
 ### Device
 
 Devices are entities capable of storing files and talking over a network,
-generally hardware but virutal hardware works just fine.
+generally hardware but virutal hardware works just fine. User's deal with
+their own devices, contact's devices are managed indirectly via Contact.
 
 #### Primary Device
 
