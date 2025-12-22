@@ -276,7 +276,6 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
                     remote_url,
                     device_name,
                 }) => {
-                    // Remote device: join using URL
                     let vp = vault_path
                         .as_ref()
                         .expect("vault required for this command");

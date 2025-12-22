@@ -2,6 +2,7 @@ use dioxus::prelude::*;
 
 mod components;
 mod context;
+mod model;
 mod platform;
 mod views;
 
