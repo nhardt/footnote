@@ -1,6 +1,5 @@
 pub mod crypto;
 pub mod device;
-pub mod init;
 pub mod manifest;
 pub mod mirror;
 pub mod note;
