@@ -330,3 +330,55 @@ pub async fn listen(vault_path: &std::path::Path) -> Result<()> {
 
     Ok(())
 }
+
+// if we open files through the vault interface, the vault can save the last
+// opened file. but.. maybe that's ui. could go either way.
+fn load_last_session(mut vault_ctx: VaultContext, mut current_file: Signal<Option<FootnoteFile>>) {
+    spawn(async move {
+        if let Some(config) = crate::ui::config::AppConfig::load() {
+            if !config.validate_vault() {
+                tracing::info!("Config vault path invalid, ignoring config");
+                return;
+            }
+            vault_ctx.set_vault(config.last_vault_path.clone());
+
+            if let Some(filename) = config.last_file {
+                let file_path = config.last_vault_path.join(&filename);
+                if file_path.exists() {
+                    if let Ok(note) = crate::core::note::parse_note(&file_path) {
+                        current_file.set(Some(FootnoteFile {
+                            path: file_path,
+                            filename: filename.clone(),
+                            content: note.content,
+                            share_with: note.frontmatter.share_with,
+                            footnotes: note.frontmatter.footnotes,
+                        }));
+                    }
+                }
+            }
+        }
+    });
+}
+
+fn load_device_home_file(vault_path: PathBuf, mut current_file: Signal<Option<FootnoteFile>>) {
+    let vault_path_for_spawn = vault_path.clone();
+    spawn(async move {
+        let device_name = match crate::core::device::get_local_device_name(&vault_path_for_spawn) {
+            Ok(name) => name,
+            Err(_) => return,
+        };
+
+        let home_filename = format!("home-{}.md", device_name);
+        let home_path = vault_path_for_spawn.join(&home_filename);
+
+        if let Ok(note) = crate::core::note::parse_note(&home_path) {
+            current_file.set(Some(FootnoteFile {
+                path: home_path,
+                filename: home_filename,
+                content: note.content,
+                share_with: note.frontmatter.share_with,
+                footnotes: note.frontmatter.footnotes,
+            }));
+        }
+    });
+}
