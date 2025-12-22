@@ -1,8 +1,6 @@
 #!/bin/bash
 set -e
 
-which footnote-cli
-
 # Cleanup and setup
 rm -rf /tmp/footnotetest
 mkdir -p /tmp/footnotetest
