@@ -98,6 +98,8 @@ pub enum MirrorAction {
     Listen,
     /// Connect from a remote device using a connection URL
     From {
+        /// Path to create vault (defaults to current directory)
+        path: Option<std::path::PathBuf>,
         /// Connection URL from primary device
         remote_url: String,
         /// Name for this device
@@ -251,13 +253,12 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
                 crate::core::mirror::listen(vp).await
             }
             MirrorAction::From {
+                path,
                 remote_url,
                 device_name,
             } => {
-                let vp = vault_path
-                    .as_ref()
-                    .expect("vault required for this command");
-                crate::core::device::create_remote(vp, &remote_url, &device_name).await
+                let vault_path = path.unwrap_or_else(|| std::env::current_dir().expect("Failed to get current directory"));
+                crate::core::device::create_remote(&vault_path, &remote_url, &device_name).await
             }
             MirrorAction::Push { user, device } => {
                 let vp = vault_path
