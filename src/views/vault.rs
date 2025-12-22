@@ -79,23 +79,3 @@ pub fn VaultOpen() -> Element {
         }
     }
 }
-
-#[component]
-pub fn VaultJoin() -> Element {
-    let mut vault_ctx = use_context::<VaultContext>();
-    let nav = navigator();
-
-    rsx! {
-        DirectoryBrowser {
-            action_label: "Local Directory To Mirror To".to_string(),
-            is_valid: move |path: PathBuf| path.join(".footnotes").exists(),
-            on_select: move |path| {
-                vault_ctx.set_vault(path);
-                nav.replace(Route::Editor {});
-            },
-            on_cancel: move |_| {
-                nav.replace(Route::VaultHome {});
-            }
-        }
-    }
-}

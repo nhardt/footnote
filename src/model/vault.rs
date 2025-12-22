@@ -274,6 +274,30 @@ Welcome to footnote! This is your home note.
     }
 }
 
+fn contact_read() {
+    // Load trusted contacts
+    let contacts_dir = vault_path.join("contacts");
+    if let Ok(entries) = std::fs::read_dir(contacts_dir) {
+        let mut contacts = Vec::new();
+        for entry in entries.flatten() {
+            if let Ok(file_name) = entry.file_name().into_string() {
+                if file_name.ends_with(".json") {
+                    if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                        if let Ok(contact) =
+                            serde_json::from_str::<crate::core::crypto::ContactRecord>(&content)
+                        {
+                            let petname = file_name.trim_end_matches(".json").to_string();
+                            contacts.push((petname, contact));
+                        }
+                    }
+                }
+            }
+        }
+        contacts.sort_by(|a, b| a.0.cmp(&b.0));
+        trusted_contacts.set(contacts);
+    }
+}
+
 pub async fn listen(vault_path: &std::path::Path) -> Result<()> {
     // Load this device's Iroh secret key
     let footnotes_dir = vault_path.join(".footnotes");
