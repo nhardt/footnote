@@ -1,12 +1,10 @@
-use crate::model::contact::Contact;
-use crate::model::device::Device;
-use crate::util::crypto;
 use anyhow::Result;
-use ed25519_dalek::{SigningKey, VerifyingKey};
-use iroh::{Endpoint, SecretKey};
+use base64::engine::general_purpose;
+use base64::Engine;
+use ed25519_dalek::SigningKey;
 use rand_core::OsRng;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 pub struct Vault {
     path: PathBuf,
@@ -18,7 +16,7 @@ impl Vault {
         let v = Self { path };
         v.create_directory_structure()?;
         v.create_id_key()?;
-        v.create_device_key()?;
+        v.create_device_key(device_name)?;
         Ok(v)
     }
 
@@ -27,12 +25,8 @@ impl Vault {
     pub fn create_secondary(path: PathBuf, device_name: &str) -> Result<Self> {
         let v = Self { path };
         v.create_directory_structure()?;
-        v.create_device_key()?;
+        v.create_device_key(device_name)?;
         Ok(v)
-    }
-
-    pub fn join(&self, connection_string: &str, device_name: &str) -> anyhow::Result<()> {
-        Ok(())
     }
 
     /// inside a footnote vault:
@@ -61,11 +55,13 @@ impl Vault {
 
     /// the device signing key is generated and stored local to each device. it
     /// is used in establishing verified connections between devices via iroh.
-    fn create_device_key(&self) -> anyhow::Result<()> {
+    fn create_device_key(&self, device_name: &str) -> anyhow::Result<()> {
         let footnotes_dir = self.path.join(".footnote");
         let device_key_file = footnotes_dir.join("device_key");
         let device_key = iroh::SecretKey::generate(&mut rand::rng());
-        fs::write(&device_key_file, device_key.to_bytes())?;
+        let encoded_key = general_purpose::STANDARD.encode(device_key.to_bytes());
+        let device_line = format!("{} {}", encoded_key, device_name);
+        fs::write(&device_key_file, device_line)?;
         Ok(())
     }
 }
