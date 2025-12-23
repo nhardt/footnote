@@ -40,7 +40,7 @@ jni = "0.21"
 ndk-context = "0.1"
 
 [features]
-default = ["desktop"]
+default = ["cli"]
 web = ["dioxus/web"]
 desktop = ["dioxus/desktop"]
 mobile = ["dioxus/mobile"]
