@@ -9,23 +9,68 @@ use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Contact {
-    pub username: String,
+    #[serde(skip_serializing_if = "String::is_empty", default)]
     pub nickname: String,
-    pub master_public_key: String,
+    pub username: String,
+    pub identity_verifying_key: String,
     pub devices: Vec<Device>,
     pub updated_at: LamportTimestamp,
     #[serde(default)]
     signature: String,
 }
 
+#[derive(Serialize)]
+struct SignableContact<'a> {
+    username: &'a str,
+    identity_verifying_key: &'a str,
+    devices: &'a [Device],
+    updated_at: LamportTimestamp,
+}
+
 impl Contact {
+    pub fn from_file(path: impl AsRef<Path>) -> Result<Self> {
+        let content = fs::read_to_string(path.as_ref())
+            .with_context(|| format!("Failed to read contact file: {}", path.as_ref().display()))?;
+        Self::from_json(&content)
+    }
+
+    pub fn from_json(json: &str) -> Result<Self> {
+        let contact: Contact =
+            serde_json::from_str(json).context("Failed to parse contact JSON")?;
+
+        if !contact.verify()? {
+            anyhow::bail!("Contact signature verification failed");
+        }
+
+        Ok(contact)
+    }
+
+    pub fn sign(&mut self, signing_key: &SigningKey) -> Result<()> {
+        let signable = SignableContact {
+            username: &self.username,
+            identity_verifying_key: &self.identity_verifying_key,
+            devices: &self.devices,
+            updated_at: self.updated_at,
+        };
+
+        let message = serde_json::to_string(&signable)?;
+        let signature = signing_key.sign(message.as_bytes());
+        self.signature = hex::encode(signature.to_bytes());
+
+        Ok(())
+    }
+
     pub fn verify(&self) -> Result<bool> {
-        let verifying_key = crypto::verifying_key_from_hex(&self.master_public_key)?;
+        let verifying_key = crypto::verifying_key_from_hex(&self.identity_verifying_key)?;
 
-        let mut unsigned = self.clone();
-        unsigned.signature = String::new();
+        let signable = SignableContact {
+            username: &self.username,
+            identity_verifying_key: &self.identity_verifying_key,
+            devices: &self.devices,
+            updated_at: self.updated_at,
+        };
 
-        let message = serde_json::to_string(&unsigned)?;
+        let message = serde_json::to_string(&signable)?;
 
         let signature_bytes = match hex::decode(&self.signature) {
             Ok(bytes) => bytes,
@@ -44,39 +89,19 @@ impl Contact {
     }
 
     pub fn is_valid_successor(&self, previous: &Contact) -> Result<bool> {
-        // Must have same master public key
-        if self.master_public_key != previous.master_public_key {
+        if self.identity_verifying_key != previous.identity_verifying_key {
             return Ok(false);
         }
 
-        // Both must verify
         if !self.verify()? || !previous.verify()? {
             return Ok(false);
         }
 
-        // Must have newer timestamp
         if self.updated_at <= previous.updated_at {
             return Ok(false);
         }
 
         Ok(true)
-    }
-
-    pub fn from_file(path: impl AsRef<Path>) -> Result<Self> {
-        let content = fs::read_to_string(path.as_ref())
-            .with_context(|| format!("Failed to read contact file: {}", path.as_ref().display()))?;
-        Self::from_json(&content)
-    }
-
-    pub fn from_json(json: &str) -> Result<Self> {
-        let contact: Contact =
-            serde_json::from_str(json).context("Failed to parse contact JSON")?;
-
-        if !contact.verify()? {
-            anyhow::bail!("Contact signature verification failed");
-        }
-
-        Ok(contact)
     }
 
     pub fn to_json(&self) -> Result<String> {
@@ -85,20 +110,6 @@ impl Contact {
 
     pub fn to_json_pretty(&self) -> Result<String> {
         serde_json::to_string_pretty(self).context("Failed to serialize contact")
-    }
-
-    pub fn sign(&mut self, signing_key: &SigningKey) -> Result<()> {
-        // Clear existing signature
-        self.signature = String::new();
-
-        // Serialize unsigned record
-        let message = serde_json::to_string(self)?;
-
-        // Sign
-        let signature = signing_key.sign(message.as_bytes());
-        self.signature = hex::encode(signature.to_bytes());
-
-        Ok(())
     }
 }
 
@@ -119,13 +130,34 @@ mod tests {
         let mut contact = Contact {
             username: "alice".to_string(),
             nickname: "".to_string(),
-            master_public_key: crypto::verifying_key_to_hex(&verifying_key),
+            identity_verifying_key: crypto::verifying_key_to_hex(&verifying_key),
             devices: vec![Device::new("laptop".to_string(), "abc123".to_string())],
             updated_at: LamportTimestamp(1000),
             signature: String::new(),
         };
 
         contact.sign(&signing_key).unwrap();
+        assert!(contact.verify().unwrap());
+    }
+
+    #[test]
+    fn test_nickname_not_verified() {
+        let signing_key = create_test_signing_key();
+        let verifying_key = signing_key.verifying_key();
+
+        let mut contact = Contact {
+            username: "alice".to_string(),
+            nickname: "Alice W.".to_string(),
+            identity_verifying_key: crypto::verifying_key_to_hex(&verifying_key),
+            devices: vec![Device::new("laptop".to_string(), "abc123".to_string())],
+            updated_at: LamportTimestamp(1000),
+            signature: String::new(),
+        };
+
+        contact.sign(&signing_key).unwrap();
+
+        // Changing nickname should not break verification
+        contact.nickname = "Different Name".to_string();
         assert!(contact.verify().unwrap());
     }
 
@@ -137,7 +169,7 @@ mod tests {
         let mut contact = Contact {
             username: "alice".to_string(),
             nickname: "".to_string(),
-            master_public_key: crypto::verifying_key_to_hex(&verifying_key),
+            identity_verifying_key: crypto::verifying_key_to_hex(&verifying_key),
             devices: vec![],
             updated_at: LamportTimestamp(1000),
             signature: String::new(),
@@ -145,7 +177,6 @@ mod tests {
 
         contact.sign(&signing_key).unwrap();
 
-        // Tamper with the signature
         contact.signature = "0000".to_string();
         assert!(!contact.verify().unwrap());
     }
@@ -159,7 +190,7 @@ mod tests {
         let mut contact_v1 = Contact {
             username: "alice".to_string(),
             nickname: "".to_string(),
-            master_public_key: master_key.clone(),
+            identity_verifying_key: master_key.clone(),
             devices: vec![Device::new("laptop".to_string(), "abc123".to_string())],
             updated_at: LamportTimestamp(1000),
             signature: String::new(),
@@ -169,7 +200,7 @@ mod tests {
         let mut contact_v2 = Contact {
             username: "alice".to_string(),
             nickname: "".to_string(),
-            master_public_key: master_key.clone(),
+            identity_verifying_key: master_key.clone(),
             devices: vec![
                 Device::new("laptop".to_string(), "abc123".to_string()),
                 Device::new("phone".to_string(), "def456".to_string()),
@@ -180,7 +211,7 @@ mod tests {
         contact_v2.sign(&signing_key).unwrap();
 
         assert!(contact_v2.is_valid_successor(&contact_v1).unwrap());
-        assert!(!contact_v1.is_valid_successor(&contact_v2).unwrap()); // older
+        assert!(!contact_v1.is_valid_successor(&contact_v2).unwrap());
     }
 
     #[test]
@@ -191,7 +222,7 @@ mod tests {
         let mut contact = Contact {
             username: "alice".to_string(),
             nickname: "Alice W.".to_string(),
-            master_public_key: crypto::verifying_key_to_hex(&verifying_key),
+            identity_verifying_key: crypto::verifying_key_to_hex(&verifying_key),
             devices: vec![Device::new("laptop".to_string(), "abc123".to_string())],
             updated_at: LamportTimestamp(1000),
             signature: String::new(),
