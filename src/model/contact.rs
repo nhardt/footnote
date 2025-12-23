@@ -37,11 +37,7 @@ impl Contact {
     pub fn from_json(json: &str) -> Result<Self> {
         let contact: Contact =
             serde_json::from_str(json).context("Failed to parse contact JSON")?;
-
-        if !contact.verify()? {
-            anyhow::bail!("Contact signature verification failed");
-        }
-
+        contact.verify()?;
         Ok(contact)
     }
 
@@ -53,7 +49,44 @@ impl Contact {
         serde_json::to_string_pretty(self).context("Failed to serialize contact")
     }
 
-    pub fn verify(&self) -> Result<bool> {
+    pub fn to_file(&self, path: impl AsRef<Path>) -> Result<()> {
+        let content = self.to_json_pretty()?;
+        fs::write(path, content)?;
+        Ok(())
+    }
+
+    pub fn new_local_user_record(
+        username: &str,
+        id_public_key: &str,
+        primary_device: Device,
+        id_signing_key: &SigningKey,
+    ) -> Result<Contact> {
+        let mut c = Contact {
+            nickname: "".to_string(),
+            username: username.to_string(),
+            id_public_key: id_public_key.to_string(),
+            devices: [primary_device].to_vec(),
+            updated_at: LamportTimestamp(0),
+            signature: "".to_string(),
+        };
+        c.sign(id_signing_key);
+        Ok(c)
+    }
+
+    pub fn sign(&mut self, signing_key: &SigningKey) -> Result<()> {
+        let signable = SignableContact {
+            username: &self.username,
+            id_public_key: &self.id_public_key,
+            devices: &self.devices,
+            updated_at: self.updated_at,
+        };
+        let message = serde_json::to_string(&signable)?;
+        let signature = signing_key.sign(message.as_bytes());
+        self.signature = hex::encode(signature.to_bytes());
+        Ok(())
+    }
+
+    pub fn verify(&self) -> Result<()> {
         let verifying_key = crypto::verifying_key_from_hex(&self.id_public_key)?;
 
         let signable = SignableContact {
@@ -67,33 +100,31 @@ impl Contact {
 
         let signature_bytes = match hex::decode(&self.signature) {
             Ok(bytes) => bytes,
-            Err(_) => return Ok(false),
+            Err(_) => anyhow::bail!("no signature"),
         };
 
         let signature = match Signature::from_slice(&signature_bytes) {
             Ok(sig) => sig,
-            Err(_) => return Ok(false),
+            Err(_) => anyhow::bail!("could no create signature"),
         };
 
         match verifying_key.verify(message.as_bytes(), &signature) {
-            Ok(_) => Ok(true),
-            Err(_) => Ok(false),
+            Ok(_) => Ok(()),
+            Err(_) => anyhow::bail!("contact record not verified!"),
         }
     }
 
-    pub fn is_valid_successor(&self, previous: &Contact) -> Result<bool> {
+    pub fn validate_successor(&self, previous: &Contact) -> Result<()> {
         if self.id_public_key != previous.id_public_key {
-            return Ok(false);
+            anyhow::bail!("successor is older than current")
         }
-
-        if !self.verify()? || !previous.verify()? {
-            return Ok(false);
-        }
+        self.verify()?;
+        previous.verify()?;
 
         if self.updated_at <= previous.updated_at {
-            return Ok(false);
+            anyhow::bail!("successor is older than current")
         }
 
-        Ok(true)
+        Ok(())
     }
 }
