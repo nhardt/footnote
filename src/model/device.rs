@@ -13,6 +13,14 @@ impl Device {
             iroh_endpoint_id,
         }
     }
+
+    /// load the local device based on files
+    pub fn load(name: String, iroh_endpoint_id: String) -> Self {
+        Self {
+            name,
+            iroh_endpoint_id,
+        }
+    }
 }
 
 #[cfg(test)]

@@ -4,6 +4,7 @@ mod components;
 mod context;
 mod model;
 mod platform;
+mod util;
 mod views;
 
 use components::Navbar;

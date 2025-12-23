@@ -31,13 +31,16 @@ pub enum Commands {
 #[derive(Subcommand)]
 pub enum VaultAction {
     Create {
+        #[arg(long)]
+        /// if it's your first device, create it primary. if you're going to
+        /// mirror from an existing vault, create it as secondary
+        is_primary: bool,
+        #[arg(long)]
+        /// give each device a name to know it by, "desktop", "laptop", etc
+        device_name: String,
+        #[arg(long)]
+        /// defaults to current directory
         path: Option<std::path::PathBuf>,
-
-        #[arg(long)]
-        username: Option<String>,
-
-        #[arg(long)]
-        device_name: Option<String>,
     },
     Join {
         device_name: String,
@@ -115,29 +118,9 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
         Commands::Vault { action } => match action {
             VaultAction::Create {
                 path,
-                username,
+                is_primary,
                 device_name,
-            } => {
-                use crate::model::Vault;
-                let vault_path = path.unwrap_or_else(|| {
-                    std::env::current_dir().expect("Failed to get current directory")
-                });
-                let username = username.as_deref().unwrap_or("me");
-                let device_name = device_name.as_deref().unwrap_or("primary");
-
-                let vault = Vault::create(vault_path, username, device_name)?;
-
-                // Output vault info as JSON for CLI
-                let output = serde_json::json!({
-                    "vault_path": vault.path().display().to_string(),
-                    "master_public_key": vault.master_public_key()?,
-                    "device_name": device_name,
-                    "device_endpoint_id": vault.device_endpoint_id()?,
-                });
-                println!("{}", serde_json::to_string_pretty(&output)?);
-
-                Ok(())
-            }
+            } => vault_create(path, is_primary, device_name),
             VaultAction::Join {
                 device_name,
                 url,
@@ -290,4 +273,28 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
             crate::model::contact::share(vp, petname.as_deref()).await
         }
     }
+}
+
+fn vault_create(
+    primary: bool,
+    device_name: Option<String>,
+    path: Option<std::path::PathBuf>,
+) -> anyhow::Result<()> {
+    use crate::model::Vault;
+    let vault_path =
+        path.unwrap_or_else(|| std::env::current_dir().expect("Failed to get current directory"));
+    let device_name = device_name.as_deref().unwrap_or("primary");
+
+    let vault = if primary {
+        Vault::create_primary(vault_path, device_name)?
+    } else {
+        Vault::create_secondary(vault_path, device_name)?
+    };
+
+    let output = serde_json::json!({
+        "result": "success"
+    });
+    println!("{}", serde_json::to_string_pretty(&output)?);
+
+    Ok(())
 }
