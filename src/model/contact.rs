@@ -114,17 +114,152 @@ impl Contact {
         }
     }
 
-    pub fn validate_successor(&self, previous: &Contact) -> Result<()> {
-        if self.id_public_key != previous.id_public_key {
-            anyhow::bail!("successor is older than current")
-        }
+    pub fn is_valid_successor_of(&self, previous: &Contact) -> Result<()> {
+        anyhow::ensure!(
+            self.id_public_key == previous.id_public_key,
+            "Identity mismatch"
+        );
+        anyhow::ensure!(
+            self.updated_at > previous.updated_at,
+            "Successor is not newer"
+        );
+
         self.verify()?;
-        previous.verify()?;
-
-        if self.updated_at <= previous.updated_at {
-            anyhow::bail!("successor is older than current")
-        }
-
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ed25519_dalek::SigningKey;
+    use rand_core::OsRng;
+
+    fn create_test_signing_key() -> SigningKey {
+        let mut csprng = OsRng;
+        SigningKey::generate(&mut csprng)
+    }
+
+    #[test]
+    fn test_sign_and_verify() {
+        let signing_key = create_test_signing_key();
+        let verifying_key = signing_key.verifying_key();
+
+        let mut contact = Contact {
+            username: "alice".to_string(),
+            nickname: "".to_string(),
+            id_public_key: hex::encode(verifying_key.to_bytes()),
+            devices: vec![Device::new("laptop".to_string(), "abc123".to_string())],
+            updated_at: LamportTimestamp(1000),
+            signature: String::new(),
+        };
+
+        contact.sign(&signing_key).unwrap();
+        contact.verify().unwrap();
+    }
+
+    #[test]
+    fn test_nickname_not_verified() {
+        let signing_key = create_test_signing_key();
+        let verifying_key = signing_key.verifying_key();
+
+        let mut contact = Contact {
+            username: "alice".to_string(),
+            nickname: "Alice W.".to_string(),
+            id_public_key: hex::encode(verifying_key.to_bytes()),
+            devices: vec![Device::new("laptop".to_string(), "abc123".to_string())],
+            updated_at: LamportTimestamp(1000),
+            signature: String::new(),
+        };
+
+        contact.sign(&signing_key).unwrap();
+
+        // Changing nickname should not break verification
+        contact.nickname = "Different Name".to_string();
+        contact.verify().unwrap();
+    }
+
+    #[test]
+    fn test_verify_fails_with_wrong_signature() {
+        let signing_key = create_test_signing_key();
+        let verifying_key = signing_key.verifying_key();
+
+        let mut contact = Contact {
+            username: "alice".to_string(),
+            nickname: "".to_string(),
+            id_public_key: hex::encode(verifying_key.to_bytes()),
+            devices: vec![],
+            updated_at: LamportTimestamp(1000),
+            signature: String::new(),
+        };
+
+        contact.sign(&signing_key).unwrap();
+
+        contact.signature = "0000".to_string();
+
+        match contact.verify() {
+            Ok(_) => panic!("did not detect signature mismatch"),
+            Err(_) => println!("detected signature mismatch"),
+        }
+    }
+
+    #[test]
+    fn test_is_valid_successor() {
+        let signing_key = create_test_signing_key();
+        let verifying_key = signing_key.verifying_key();
+        let master_key = hex::encode(verifying_key.to_bytes());
+
+        let mut contact_v1 = Contact {
+            username: "alice".to_string(),
+            nickname: "".to_string(),
+            id_public_key: master_key.clone(),
+            devices: vec![Device::new("laptop".to_string(), "abc123".to_string())],
+            updated_at: LamportTimestamp(1000),
+            signature: String::new(),
+        };
+        contact_v1.sign(&signing_key).unwrap();
+
+        let mut contact_v2 = Contact {
+            username: "alice".to_string(),
+            nickname: "".to_string(),
+            id_public_key: master_key.clone(),
+            devices: vec![
+                Device::new("laptop".to_string(), "abc123".to_string()),
+                Device::new("phone".to_string(), "def456".to_string()),
+            ],
+            updated_at: LamportTimestamp(2000),
+            signature: String::new(),
+        };
+        contact_v2.sign(&signing_key).unwrap();
+
+        contact_v2.is_valid_successor_of(&contact_v1).unwrap();
+
+        match contact_v1.is_valid_successor_of(&contact_v2) {
+            Ok(_) => panic!("allowed invalid successor to contact_v1"),
+            Err(_) => println!("detected invalid successor to contact_v1"),
+        }
+    }
+
+    #[test]
+    fn test_json_round_trip() {
+        let signing_key = create_test_signing_key();
+        let verifying_key = signing_key.verifying_key();
+
+        let mut contact = Contact {
+            username: "alice".to_string(),
+            nickname: "Alice W.".to_string(),
+            id_public_key: hex::encode(verifying_key.to_bytes()),
+            devices: vec![Device::new("laptop".to_string(), "abc123".to_string())],
+            updated_at: LamportTimestamp(1000),
+            signature: String::new(),
+        };
+        contact.sign(&signing_key).unwrap();
+
+        let json = contact.to_json().unwrap();
+        let loaded = Contact::from_json(&json).unwrap();
+
+        assert_eq!(loaded.username, contact.username);
+        assert_eq!(loaded.devices.len(), contact.devices.len());
+        contact.verify().unwrap();
     }
 }
