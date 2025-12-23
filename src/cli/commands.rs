@@ -15,12 +15,33 @@ pub enum Commands {
         #[command(subcommand)]
         action: VaultAction,
     },
+    Device {
+        #[command(subcommand)]
+        action: DeviceAction,
+    },
 }
 
 #[derive(Subcommand)]
 pub enum VaultAction {
-    CreatePrimary { device_name: String },
-    CreateSecondary { device_name: String },
+    CreatePrimary {
+        device_name: String,
+    },
+    CreateSecondary {
+        device_name: String,
+    },
+    /// Call device create on the primary device. The device will create a join code,
+    /// then being listening for the a device to join. The joining device will send
+    /// the one time. If contact can be established, a new contact record will be
+    /// minted on the primary containing the joined device.
+    JoinListen { },
+
+    /// When device create is called on the primary, it will output a connection
+    /// string. The connection string should be passed in here.
+    Join {
+        connect_string: String,
+    },
+
+
 }
 
 pub async fn execute(cli: Cli) -> anyhow::Result<()> {
@@ -28,6 +49,8 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
         Commands::Vault { action } => match action {
             VaultAction::CreatePrimary { device_name } => vault_create_primary(device_name),
             VaultAction::CreateSecondary { device_name } => vault_create_secondary(device_name),
+            VaultAction::JoinListen { } => vault_join_listen(),
+            VaultAction::Join { connect_string } => vault_create_secondary(),
         },
     }
 }
@@ -53,3 +76,19 @@ fn vault_create_secondary(device_name: String) -> anyhow::Result<()> {
 
     Ok(())
 }
+
+fn vault_join_listen(device_name: String) -> anyhow::Result<()> {
+    let vault_path = std::env::current_dir()?;
+    let vault = Vault::new(vault_path)?;
+    vault.create_listen
+
+
+    let output = serde_json::json!({
+        "result": "success"
+    });
+    println!("{}", serde_json::to_string_pretty(&output)?);
+
+    Ok(())
+}
+
+fn vault_join(url: String) -> anyhow::Result<()> {}

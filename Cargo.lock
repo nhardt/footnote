@@ -94,6 +94,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyerr"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25192ec22df6f39fae84483700a4dede76d9768aa51d328e98bda7e41881c6a6"
+
+[[package]]
 name = "anyhow"
 version = "1.0.100"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2262,6 +2268,7 @@ checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 name = "footnote"
 version = "0.1.0"
 dependencies = [
+ "anyerr",
  "anyhow",
  "base64",
  "bincode",
