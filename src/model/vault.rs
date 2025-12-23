@@ -9,8 +9,8 @@ use uuid::Uuid;
 
 use crate::model::user::LocalUser;
 
-//// Device Auth Protocol
-const ALPN_DEVICE_AUTH: &[u8] = b"footnote/device-auth";
+//// Vault join protocol
+const ALPN_VAULT_JOIN: &[u8] = b"footnote/vault-join";
 #[derive(Debug, Clone)]
 pub enum DeviceAuthEvent {
     Listening { join_url: String },
@@ -111,20 +111,18 @@ impl Vault {
         );
         }
         let (tx, rx) = mpsc::channel(32);
-        let token = Uuid::new_v4().to_string();
+        let join_token = Uuid::new_v4().to_string();
         let secret_key = self.device_secret_key()?;
 
-        // Create Iroh endpoint
         let endpoint = Endpoint::builder()
             .secret_key(secret_key.clone())
-            .alpns(vec![ALPN_DEVICE_AUTH.to_vec()])
+            .alpns(vec![ALPN_VAULT_JOIN.to_vec()])
             .bind()
             .await?;
 
         let endpoint_id = secret_key.public();
-        let join_url = format!("iroh://{}?token={}", endpoint_id, token);
+        let join_url = format!("iroh://{}?token={}", endpoint_id, join_token);
 
-        // Send initial listening event with URL
         let _ = tx
             .send(DeviceAuthEvent::Listening {
                 join_url: join_url.clone(),
@@ -148,7 +146,7 @@ impl Vault {
                         })
                         .await;
 
-                    if request.token != token {
+                    if request.token != join_token {
                         anyhow::bail!("Invalid token. Authorization failed.");
                     }
 

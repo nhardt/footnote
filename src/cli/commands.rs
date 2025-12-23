@@ -77,10 +77,48 @@ fn vault_create_secondary(device_name: String) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn vault_join_listen() -> anyhow::Result<()> {
+async fn vault_join_listen() -> anyhow::Result<()> {
     let vault_path = std::env::current_dir()?;
     let vault = Vault::new(vault_path)?;
-    vault.join_listen();
+    let (mut rx, cancel_token) = vault.join_listen().await?;
+    while let Some(event) = rx.recv().await {
+        match event {
+            ListenEvent::Started { endpoint_id } => {
+                eprintln!("Listening for connection to: {}", endpoint_id);
+                break;
+            }
+            ListenEvent::Error(e) => {
+                eprintln!("Error starting listener: {}", e);
+                return Err(anyhow::anyhow!("Failed to start listener: {}", e));
+            }
+            _ => {}
+        }
+    }
+
+    loop {
+        tokio::select! {
+            Some(event) = rx.recv() => {
+                match event {
+                    ListenEvent::Received { from: _ } => {
+                        eprintln!("ListenEvent::Received");
+                    }
+                    ListenEvent::Error(e) => {
+                        eprintln!("ListenEvent::Error: {}", e);
+                    }
+                    ListenEvent::Stopped => {
+                        eprintln!("ListenEvent::Stopped");
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+            _ = tokio::signal::ctrl_c() => {
+                println!("\nShut down requested...");
+                cancel_token.cancel();
+                break;
+            }
+        }
+    }
 
     let output = serde_json::json!({
         "result": "success"
