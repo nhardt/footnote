@@ -52,11 +52,9 @@ impl Contact {
             devices: &self.devices,
             updated_at: self.updated_at,
         };
-
         let message = serde_json::to_string(&signable)?;
         let signature = signing_key.sign(message.as_bytes());
         self.signature = hex::encode(signature.to_bytes());
-
         Ok(())
     }
 
@@ -116,10 +114,11 @@ impl Contact {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand_core::OsRng;
 
     fn create_test_signing_key() -> SigningKey {
-        let (signing_key, _) = crypto::generate_identity_keypair();
-        signing_key
+        let mut csprng = OsRng;
+        SigningKey::generate(&mut csprng)
     }
 
     #[test]
@@ -130,7 +129,7 @@ mod tests {
         let mut contact = Contact {
             username: "alice".to_string(),
             nickname: "".to_string(),
-            identity_verifying_key: crypto::verifying_key_to_hex(&verifying_key),
+            identity_verifying_key: hex::encode(verifying_key.to_bytes()),
             devices: vec![Device::new("laptop".to_string(), "abc123".to_string())],
             updated_at: LamportTimestamp(1000),
             signature: String::new(),
@@ -148,7 +147,7 @@ mod tests {
         let mut contact = Contact {
             username: "alice".to_string(),
             nickname: "Alice W.".to_string(),
-            identity_verifying_key: crypto::verifying_key_to_hex(&verifying_key),
+            identity_verifying_key: hex::encode(verifying_key.to_bytes()),
             devices: vec![Device::new("laptop".to_string(), "abc123".to_string())],
             updated_at: LamportTimestamp(1000),
             signature: String::new(),
@@ -169,7 +168,7 @@ mod tests {
         let mut contact = Contact {
             username: "alice".to_string(),
             nickname: "".to_string(),
-            identity_verifying_key: crypto::verifying_key_to_hex(&verifying_key),
+            identity_verifying_key: hex::encode(verifying_key.to_bytes()),
             devices: vec![],
             updated_at: LamportTimestamp(1000),
             signature: String::new(),
@@ -185,7 +184,7 @@ mod tests {
     fn test_is_valid_successor() {
         let signing_key = create_test_signing_key();
         let verifying_key = signing_key.verifying_key();
-        let master_key = crypto::verifying_key_to_hex(&verifying_key);
+        let master_key = hex::encode(verifying_key.to_bytes());
 
         let mut contact_v1 = Contact {
             username: "alice".to_string(),
@@ -222,7 +221,7 @@ mod tests {
         let mut contact = Contact {
             username: "alice".to_string(),
             nickname: "Alice W.".to_string(),
-            identity_verifying_key: crypto::verifying_key_to_hex(&verifying_key),
+            identity_verifying_key: hex::encode(verifying_key.to_bytes()),
             devices: vec![Device::new("laptop".to_string(), "abc123".to_string())],
             updated_at: LamportTimestamp(1000),
             signature: String::new(),
