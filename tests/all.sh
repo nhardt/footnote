@@ -9,8 +9,7 @@ which footnote-cli
 
 echo "============================== Init Test        ==="
 ./tests/init_test.sh
-sleep 5
-echo "============================== Contacts Test    ==="
+echo "============================== Integration Test ==="
 ./tests/integration_test.sh
 sleep 5
 echo "============================== Device Join Test ==="

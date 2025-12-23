@@ -46,6 +46,10 @@ fn vault_create_primary(device_name: String) -> anyhow::Result<()> {
 fn vault_create_secondary(device_name: String) -> anyhow::Result<()> {
     let vault_path = std::env::current_dir()?;
     Vault::create_secondary(vault_path, &device_name)?;
+    let output = serde_json::json!({
+        "result": "success"
+    });
+    println!("{}", serde_json::to_string_pretty(&output)?);
 
     Ok(())
 }
