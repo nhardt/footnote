@@ -10,7 +10,7 @@ cd /tmp/footnotetest
 
 echo "// Init Primary"
 mkdir alice-vault-desktop && cd alice-vault-desktop
-footnote-cli vault create-primary alice-desktop
+footnote-cli vault create-primary alice alice-desktop
 
 test -d .footnote || { echo "ERROR: .footnotes not found"; exit 1; }
 test -f .footnote/id_key || { echo "ERROR: id_key not found"; exit 1; }

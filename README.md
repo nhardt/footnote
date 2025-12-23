@@ -71,9 +71,9 @@ petnames, but all map to the same master key.
 ```
 vault_root/
 ├── .footnotes/
-│   ├── this_device              # Iroh SecretKey for this device
-│   ├── master_identity          # Ed25519 master key (primary only)
-│   ├── contact.json             # Your contact record
+│   ├── device_key               # Iroh SecretKey for this device
+│   ├── id_key                   # Ed25519 master key (primary only)
+│   ├── user.json                # Usrname and verified devices
 │   └── contacts/
 │       ├── alice.json           # Alice's contact record
 │       └── bob.json             # Bob's contact record

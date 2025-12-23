@@ -1,7 +1,6 @@
 use anyhow::Result;
 use base64::engine::general_purpose;
 use base64::Engine;
-use dioxus::html::i;
 use ed25519_dalek::SigningKey;
 use iroh::{Endpoint, SecretKey};
 use n0_error::StdResultExt;
@@ -42,10 +41,10 @@ pub struct Vault {
 
 impl Vault {
     /// called on the first device when creating a new vault
-    pub fn create_primary(path: PathBuf, device_name: &str) -> Result<Self> {
+    pub fn create_primary(path: PathBuf, username: &str, device_name: &str) -> Result<Self> {
         let v = Self { path };
         v.create_directory_structure()?;
-        v.create_id_key()?;
+        v.create_id_key(username)?;
         v.create_device_key(device_name)?;
         Ok(v)
     }
@@ -76,16 +75,17 @@ impl Vault {
         Ok(())
     }
 
-    /// identity signing key is the master key for the vault. it's generated and
-    /// stored on the primary device. this idenity signing key is used to sign
-    /// the contact record, and represents a user's stable identity.
-    fn create_id_key(&self) -> anyhow::Result<()> {
+    /// the id key is the master public key for the vault. it's generated and
+    /// stored on the primary device. this key is used to sign the contact
+    /// record, and represents a user's stable identity.
+    fn create_id_key(&self, username: &str) -> anyhow::Result<()> {
         let footnotes_dir = self.path.join(".footnote");
         let id_key_file = footnotes_dir.join("id_key");
         let mut csprng = OsRng;
         let id_key = SigningKey::generate(&mut csprng);
-        let id_key_hex = hex::encode(id_key.to_bytes());
-        fs::write(&id_key_file, id_key_hex)?;
+        let encoded_key = general_purpose::STANDARD.encode(id_key.to_bytes());
+        let id_line = format!("{} {}", encoded_key, username);
+        fs::write(&id_key_file, id_line)?;
         Ok(())
     }
 

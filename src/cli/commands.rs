@@ -24,9 +24,14 @@ pub enum Commands {
 #[derive(Subcommand)]
 pub enum VaultAction {
     CreatePrimary {
+        /// this username is stored in your user record and will be exported as
+        /// part of your signed contact record
+        username: String,
+        /// colloquial name of this device
         device_name: String,
     },
     CreateSecondary {
+        /// colloquial name of this device
         device_name: String,
     },
     /// Call device create on the primary device. The device will create a join code,
@@ -47,7 +52,7 @@ pub enum VaultAction {
 pub async fn execute(cli: Cli) -> anyhow::Result<()> {
     match cli.command {
         Commands::Vault { action } => match action {
-            VaultAction::CreatePrimary { device_name } => vault_create_primary(device_name),
+            VaultAction::CreatePrimary { username, device_name } => vault_create_primary(username, device_name),
             VaultAction::CreateSecondary { device_name } => vault_create_secondary(device_name),
             VaultAction::JoinListen { } => vault_join_listen(),
             VaultAction::Join { connect_string } => vault_create_secondary(),
@@ -55,9 +60,9 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
     }
 }
 
-fn vault_create_primary(device_name: String) -> anyhow::Result<()> {
+fn vault_create_primary(username: String, device_name: String) -> anyhow::Result<()> {
     let vault_path = std::env::current_dir()?;
-    Vault::create_primary(vault_path, &device_name)?;
+    Vault::create_primary(vault_path, &username, &device_name)?;
     let output = serde_json::json!({
         "result": "success"
     });

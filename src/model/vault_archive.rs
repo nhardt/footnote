@@ -2,13 +2,6 @@ use tokio::sync::mpsc::{self, Receiver};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-const FOOTNOTES_DIR: &str = ".footnotes";
-const CONTACTS_DIR: &str = "contacts";
-const TRUSTED_SOURCES_DIR: &str = "footnotes";
-const LOCAL_DEVICE_KEY_FILE: &str = "this_device";
-const MASTER_KEY_FILE: &str = "master_identity";
-const CONTACT_FILE: &str = "contact.json";
-
 pub const ALPN_FOOTNOTE_FILES: &[u8] = b"footnote/files";
 
 pub struct Vault {

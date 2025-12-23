@@ -12,7 +12,7 @@ pub struct Contact {
     #[serde(skip_serializing_if = "String::is_empty", default)]
     pub nickname: String,
     pub username: String,
-    pub identity_verifying_key: String,
+    pub id_public_key: String,
     pub devices: Vec<Device>,
     pub updated_at: LamportTimestamp,
     #[serde(default)]
@@ -22,7 +22,7 @@ pub struct Contact {
 #[derive(Serialize)]
 struct SignableContact<'a> {
     username: &'a str,
-    identity_verifying_key: &'a str,
+    id_public_key: &'a str,
     devices: &'a [Device],
     updated_at: LamportTimestamp,
 }
@@ -45,25 +45,12 @@ impl Contact {
         Ok(contact)
     }
 
-    pub fn sign(&mut self, signing_key: &SigningKey) -> Result<()> {
-        let signable = SignableContact {
-            username: &self.username,
-            identity_verifying_key: &self.identity_verifying_key,
-            devices: &self.devices,
-            updated_at: self.updated_at,
-        };
-        let message = serde_json::to_string(&signable)?;
-        let signature = signing_key.sign(message.as_bytes());
-        self.signature = hex::encode(signature.to_bytes());
-        Ok(())
-    }
-
     pub fn verify(&self) -> Result<bool> {
-        let verifying_key = crypto::verifying_key_from_hex(&self.identity_verifying_key)?;
+        let verifying_key = crypto::verifying_key_from_hex(&self.id_public_key)?;
 
         let signable = SignableContact {
             username: &self.username,
-            identity_verifying_key: &self.identity_verifying_key,
+            id_public_key: &self.id_public_key,
             devices: &self.devices,
             updated_at: self.updated_at,
         };
@@ -87,7 +74,7 @@ impl Contact {
     }
 
     pub fn is_valid_successor(&self, previous: &Contact) -> Result<bool> {
-        if self.identity_verifying_key != previous.identity_verifying_key {
+        if self.id_public_key != previous.id_public_key {
             return Ok(false);
         }
 
@@ -129,7 +116,7 @@ mod tests {
         let mut contact = Contact {
             username: "alice".to_string(),
             nickname: "".to_string(),
-            identity_verifying_key: hex::encode(verifying_key.to_bytes()),
+            id_public_key: hex::encode(verifying_key.to_bytes()),
             devices: vec![Device::new("laptop".to_string(), "abc123".to_string())],
             updated_at: LamportTimestamp(1000),
             signature: String::new(),
@@ -147,7 +134,7 @@ mod tests {
         let mut contact = Contact {
             username: "alice".to_string(),
             nickname: "Alice W.".to_string(),
-            identity_verifying_key: hex::encode(verifying_key.to_bytes()),
+            id_public_key: hex::encode(verifying_key.to_bytes()),
             devices: vec![Device::new("laptop".to_string(), "abc123".to_string())],
             updated_at: LamportTimestamp(1000),
             signature: String::new(),
@@ -168,7 +155,7 @@ mod tests {
         let mut contact = Contact {
             username: "alice".to_string(),
             nickname: "".to_string(),
-            identity_verifying_key: hex::encode(verifying_key.to_bytes()),
+            id_public_key: hex::encode(verifying_key.to_bytes()),
             devices: vec![],
             updated_at: LamportTimestamp(1000),
             signature: String::new(),
@@ -189,7 +176,7 @@ mod tests {
         let mut contact_v1 = Contact {
             username: "alice".to_string(),
             nickname: "".to_string(),
-            identity_verifying_key: master_key.clone(),
+            id_public_key: master_key.clone(),
             devices: vec![Device::new("laptop".to_string(), "abc123".to_string())],
             updated_at: LamportTimestamp(1000),
             signature: String::new(),
@@ -199,7 +186,7 @@ mod tests {
         let mut contact_v2 = Contact {
             username: "alice".to_string(),
             nickname: "".to_string(),
-            identity_verifying_key: master_key.clone(),
+            id_public_key: master_key.clone(),
             devices: vec![
                 Device::new("laptop".to_string(), "abc123".to_string()),
                 Device::new("phone".to_string(), "def456".to_string()),
@@ -221,7 +208,7 @@ mod tests {
         let mut contact = Contact {
             username: "alice".to_string(),
             nickname: "Alice W.".to_string(),
-            identity_verifying_key: hex::encode(verifying_key.to_bytes()),
+            id_public_key: hex::encode(verifying_key.to_bytes()),
             devices: vec![Device::new("laptop".to_string(), "abc123".to_string())],
             updated_at: LamportTimestamp(1000),
             signature: String::new(),
