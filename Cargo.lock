@@ -2270,7 +2270,6 @@ version = "0.1.0"
 dependencies = [
  "anyerr",
  "anyhow",
- "base64",
  "bincode",
  "blake3",
  "chrono",

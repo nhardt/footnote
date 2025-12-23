@@ -15,10 +15,6 @@ pub enum Commands {
         #[command(subcommand)]
         action: VaultAction,
     },
-    Device {
-        #[command(subcommand)]
-        action: DeviceAction,
-    },
 }
 
 #[derive(Subcommand)]
@@ -38,24 +34,23 @@ pub enum VaultAction {
     /// then being listening for the a device to join. The joining device will send
     /// the one time. If contact can be established, a new contact record will be
     /// minted on the primary containing the joined device.
-    JoinListen { },
+    JoinListen {},
 
     /// When device create is called on the primary, it will output a connection
     /// string. The connection string should be passed in here.
-    Join {
-        connect_string: String,
-    },
-
-
+    Join { connect_string: String },
 }
 
 pub async fn execute(cli: Cli) -> anyhow::Result<()> {
     match cli.command {
         Commands::Vault { action } => match action {
-            VaultAction::CreatePrimary { username, device_name } => vault_create_primary(username, device_name),
+            VaultAction::CreatePrimary {
+                username,
+                device_name,
+            } => vault_create_primary(username, device_name),
             VaultAction::CreateSecondary { device_name } => vault_create_secondary(device_name),
-            VaultAction::JoinListen { } => vault_join_listen(),
-            VaultAction::Join { connect_string } => vault_create_secondary(),
+            VaultAction::JoinListen {} => vault_join_listen(),
+            VaultAction::Join { connect_string } => vault_join(connect_string),
         },
     }
 }
@@ -82,11 +77,10 @@ fn vault_create_secondary(device_name: String) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn vault_join_listen(device_name: String) -> anyhow::Result<()> {
+fn vault_join_listen() -> anyhow::Result<()> {
     let vault_path = std::env::current_dir()?;
     let vault = Vault::new(vault_path)?;
-    vault.create_listen
-
+    vault.join_listen();
 
     let output = serde_json::json!({
         "result": "success"
@@ -96,4 +90,6 @@ fn vault_join_listen(device_name: String) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn vault_join(url: String) -> anyhow::Result<()> {}
+fn vault_join(_connection_string: String) -> anyhow::Result<()> {
+    Ok(())
+}

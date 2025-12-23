@@ -1,9 +1,7 @@
-use crate::model::contact::{Contact, SignableContact};
+use crate::model::contact::Contact;
 use crate::model::device::Device;
 use crate::model::lamport_timestamp::LamportTimestamp;
 use anyhow::Result;
-use base64::engine::general_purpose;
-use base64::Engine;
 use ed25519_dalek::SigningKey;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -15,22 +13,17 @@ pub struct LocalUser {
 }
 
 impl LocalUser {
-    pub fn new(path: &PathBuf) -> Result<Self> {
+    pub fn new(path: &Path) -> Result<Self> {
         let v = Self {
             vault_path: path.to_path_buf(),
-            devices: [].to_vec(),
+            devices: Vec::new(),
         };
         Ok(v)
     }
 
-    pub fn create_local_user_record(
-        vault_path: &Path,
-        username: &str,
-        device_name: &str,
-    ) -> Result<()> {
+    pub fn create_local_user_record(vault_path: &Path, username: &str) -> Result<()> {
         let local_user = LocalUser::new(vault_path)?;
         local_user.create_id_key(username)?;
-        local_user.create_device_key(device_name)?;
 
         let (id_signing_key, _) = local_user.id_key()?;
         let (device_signing_key, device_name) = local_user.device_key()?;
@@ -39,12 +32,19 @@ impl LocalUser {
             iroh_endpoint_id: device_signing_key.public().to_string(),
             name: device_name,
         };
-        let local_user_contact_record = Contact::new_local_user_record(
+
+        let id_public_key_str = hex::encode(id_signing_key.verifying_key().to_bytes());
+
+        let mut local_user_contact_record = Contact::new_local_user_record(
             username,
-            id_signing_key.verifying_key().to_bytes(),
-            device_name,
-            id_signing_key,
-        );
+            &id_public_key_str,
+            local_device,
+            &id_signing_key,
+        )?;
+
+        local_user_contact_record.sign(&id_signing_key)?;
+        let local_user_file = vault_path.join(".footnote").join("user.json");
+        local_user_contact_record.to_file(local_user_file)?;
 
         Ok(())
     }
@@ -60,18 +60,6 @@ impl LocalUser {
         let encoded_key = hex::encode(id_key.to_bytes());
         let id_line = format!("{} {}", encoded_key, username);
         fs::write(&id_key_file, id_line)?;
-        Ok(())
-    }
-
-    /// the device signing key is generated and stored local to each device. it
-    /// is used in establishing verified connections between devices via iroh.
-    fn create_device_key(&self, device_name: &str) -> anyhow::Result<()> {
-        let footnotes_dir = self.vault_path.join(".footnote");
-        let device_key_file = footnotes_dir.join("device_key");
-        let device_key = iroh::SecretKey::generate(&mut rand::rng());
-        let encoded_key = hex::encode(device_key.to_bytes());
-        let device_line = format!("{} {}", encoded_key, device_name);
-        fs::write(&device_key_file, device_line)?;
         Ok(())
     }
 
@@ -116,7 +104,7 @@ impl LocalUser {
         Ok((device_key.public(), device_name))
     }
 
-    pub fn bless_remote_device(&self, device_name: &str, iroh_endpoint: &str) -> Result<()> {
+    pub fn bless_remote_device(&self, device_name: &str, iroh_endpoint: &str) -> Result<Contact> {
         let local_user_file = self.vault_path.join(".footnote").join("user.json");
         let current_user_record = match Contact::from_file(&local_user_file) {
             Ok(contact) => contact,
@@ -126,14 +114,15 @@ impl LocalUser {
 
         let mut user_record = current_user_record.clone();
         user_record.devices.push(Device {
-            name: device_name,
-            iroh_endpoint_id: iroh_endpoint,
+            name: device_name.to_string(),
+            iroh_endpoint_id: iroh_endpoint.to_string(),
         });
         user_record.updated_at = LamportTimestamp(user_record.updated_at.as_i64());
-        user_record.sign(&self.id_key()?.0);
+        let (signing_key, _) = self.id_key()?;
+        user_record.sign(&signing_key)?;
         current_user_record.validate_successor(&user_record)?;
         user_record.to_file(&local_user_file)?;
-        Ok(())
+        Ok(user_record)
     }
 }
 

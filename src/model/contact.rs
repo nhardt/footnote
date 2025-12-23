@@ -69,7 +69,7 @@ impl Contact {
             updated_at: LamportTimestamp(0),
             signature: "".to_string(),
         };
-        c.sign(id_signing_key);
+        c.sign(id_signing_key)?;
         Ok(c)
     }
 
