@@ -8,9 +8,7 @@ mod util;
 mod views;
 
 use components::Navbar;
-use views::{
-    Browse, Contacts, Edit, Editor, Profile, VaultCreate, VaultHome, VaultJoin, VaultOpen,
-};
+use views::{Browse, Contacts, Edit, Editor, Profile, VaultCreate, VaultHome, VaultOpen};
 
 use crate::context::VaultContext;
 
@@ -26,9 +24,6 @@ enum Route {
 
         #[route("/vault-open")]
         VaultOpen {},
-
-        #[route("/vault-join")]
-        VaultJoin {},
 
         #[route("/profile")]
         Profile {},

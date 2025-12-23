@@ -27,13 +27,6 @@ pub fn VaultHome() -> Element {
                         },
                         "Open Vault"
                     }
-
-                    button {
-                        onclick: move |_| {
-                            nav.replace(Route::VaultJoin {});
-                        },
-                        "Join Vault"
-                    }
                 }
             }
         }
