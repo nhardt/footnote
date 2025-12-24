@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use tokio::sync::mpsc::{self, Receiver};
 use uuid::Uuid;
 
-use crate::model::{contact::Contact, user::LocalUser};
+use crate::model::{contact::Contact, note::Note, user::LocalUser};
 
 pub struct Vault {
     pub path: PathBuf,
@@ -82,5 +82,82 @@ impl Vault {
 
     pub fn is_primary_device(&self) -> anyhow::Result<bool> {
         Ok(self.path.join(".footnote").join("id_key").exists())
+    }
+
+    pub fn can_device_read_note(
+        &self,
+        device_endpoint: &iroh::PublicKey,
+        note_path: &Path,
+    ) -> Result<bool> {
+        if self.owned_device_to_name(device_endpoint).is_ok() {
+            return Ok(true);
+        }
+
+        let contact = match self.find_contact_by_endpoint(device_endpoint) {
+            Ok(c) => c,
+            Err(_) => {
+                return Ok(false);
+            }
+        };
+
+        let note = Note::from_path(note_path)?;
+
+        if note.frontmatter.share_with.contains(&contact.nickname) {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    pub fn owned_device_to_name(&self, endpoint_id: &iroh::PublicKey) -> anyhow::Result<String> {
+        let owned_devices_record =
+            Contact::from_file(self.path.join(".footnote").join("user.json"))?;
+
+        for device in owned_devices_record.devices {
+            if let Ok(device_endpoint_id) = device.iroh_endpoint_id.parse::<iroh::PublicKey>() {
+                if &device_endpoint_id == endpoint_id {
+                    return Ok(device.name.clone());
+                }
+            }
+        }
+
+        anyhow::bail!("Device is unknown")
+    }
+
+    pub fn owned_device_name_to_endpoint(&self, device_name: &str) -> anyhow::Result<String> {
+        let owned_devices_record =
+            Contact::from_file(self.path.join(".footnote").join("user.json"))?;
+
+        for device in owned_devices_record.devices {
+            if device.name == device_name {
+                return Ok(device.iroh_endpoint_id);
+            }
+        }
+
+        anyhow::bail!("Device is unknown")
+    }
+
+    pub fn find_contact_by_endpoint(&self, endpoint: &iroh::PublicKey) -> Result<Contact> {
+        let contacts_dir = self.path.join(".footnote").join("contacts");
+
+        for entry in fs::read_dir(contacts_dir)? {
+            let entry = entry?;
+            if entry.path().extension().and_then(|s| s.to_str()) == Some("json") {
+                let contact = Contact::from_file(entry.path())?;
+
+                for device in &contact.devices {
+                    if let Ok(device_endpoint) = device.iroh_endpoint_id.parse::<iroh::PublicKey>()
+                    {
+                        if &device_endpoint == endpoint {
+                            // note: storing the user's share name by file name
+                            // would ensure locally unique names
+                            return Ok(contact);
+                        }
+                    }
+                }
+            }
+        }
+
+        anyhow::bail!("No contact found with endpoint {}", endpoint)
     }
 }
