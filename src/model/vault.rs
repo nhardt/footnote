@@ -3,7 +3,7 @@ use iroh::Endpoint;
 use n0_error::StdResultExt;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tokio::sync::mpsc::{self, Receiver};
 use uuid::Uuid;
 
@@ -39,8 +39,10 @@ impl Vault {
     }
 
     /// Call on an existing vault to use vault API
-    pub fn new(path: PathBuf) -> Result<Self> {
-        let v = Self { path };
+    pub fn new(path: &Path) -> Result<Self> {
+        let v = Self {
+            path: path.to_path_buf(),
+        };
         Ok(v)
     }
 

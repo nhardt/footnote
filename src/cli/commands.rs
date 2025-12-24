@@ -84,7 +84,7 @@ fn vault_create_secondary(device_name: String) -> anyhow::Result<()> {
 }
 
 async fn vault_join_listen() -> anyhow::Result<()> {
-    let vault = Vault::new(std::env::current_dir()?)?;
+    let vault = Vault::new(&std::env::current_dir()?)?;
     let mut rx = JoinService::listen(&vault).await?;
 
     while let Some(event) = rx.recv().await {
@@ -130,7 +130,7 @@ async fn vault_join_listen() -> anyhow::Result<()> {
 }
 
 async fn vault_join(connection_string: String) -> anyhow::Result<()> {
-    let vault = Vault::new(std::env::current_dir()?)?;
+    let vault = Vault::new(&std::env::current_dir()?)?;
     JoinService::join(&vault, &connection_string).await?;
     println!(
         "{}",
