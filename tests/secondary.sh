@@ -9,10 +9,7 @@ cd /tmp/footnotetest
 # Create Alice primary device
 mkdir alice-primary && cd alice-primary
 echo "Creating Alice primary device..."
-footnote-cli init --username alice --device-name desktop > /dev/null 2>&1
-cd ..
-
-# Start device authorization in background and capture connection URL
+footnote-cli vault create-primary alice alice-desktop
 echo "Starting device authorization..."
 cd alice-primary
 timeout 30 footnote-cli device create > /tmp/device_create_output.txt 2>&1 &

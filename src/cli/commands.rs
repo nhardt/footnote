@@ -11,6 +11,7 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Base commands to create and join vaults
     Vault {
         #[command(subcommand)]
         action: VaultAction,
@@ -19,13 +20,16 @@ pub enum Commands {
 
 #[derive(Subcommand)]
 pub enum VaultAction {
+    /// START HERE. Initialize a vault on the device that is on the most often
     CreatePrimary {
-        /// this username is stored in your user record and will be exported as
-        /// part of your signed contact record
+        /// this username is stored locally and is part of your signed
+        /// contact record, if you choose to share footnotes with friends
         username: String,
-        /// colloquial name of this device
+        /// your name of this device, "desktop", "laptop"
         device_name: String,
     },
+    /// After establishing a primary vault on your main computer, secondary
+    /// devices can be added
     CreateSecondary {
         /// colloquial name of this device
         device_name: String,
@@ -61,7 +65,7 @@ fn vault_create_primary(username: String, device_name: String) -> anyhow::Result
     let output = serde_json::json!({
         "result": "success"
     });
-    println!("{}", serde_json::to_string_pretty(&output)?);
+    println!("{}", serde_json::to_string(&output)?);
 
     Ok(())
 }
@@ -72,7 +76,7 @@ fn vault_create_secondary(device_name: String) -> anyhow::Result<()> {
     let output = serde_json::json!({
         "result": "success"
     });
-    println!("{}", serde_json::to_string_pretty(&output)?);
+    println!("{}", serde_json::to_string(&output)?);
 
     Ok(())
 }
@@ -132,5 +136,15 @@ async fn vault_join(connection_string: String) -> anyhow::Result<()> {
     let vault_path = std::env::current_dir()?;
     let vault = Vault::new(vault_path)?;
     vault.join(&connection_string).await?;
+
+    println!(
+        "{}",
+        serde_json::json!(
+            {
+                "event": "join.success",
+                "detail": ""
+            }
+        )
+    );
     Ok(())
 }
