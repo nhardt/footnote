@@ -6,24 +6,20 @@ rm -rf /tmp/footnotetest
 mkdir -p /tmp/footnotetest
 cd /tmp/footnotetest
 
-echo "=== Step 1: Create Alice primary device ==="
+# Create Alice primary device
 mkdir alice-primary && cd alice-primary
-footnote-cli init --username alice --device-name desktop > /dev/null 2>&1
-echo "Primary device created"
+echo "Creating Alice primary device..."
+footnote-cli vault create-primary alice alice-desktop
+echo "Starting device authorization..."
+timeout 30 footnote-cli vault join-listen > /tmp/device_create_output.txt 2>&1 &
+JOIN_LISTEN_PID=$!
 cd ..
 
-echo ""
-echo "=== Step 2: Create Alice secondary device ==="
-# Start device authorization in background
-cd alice-primary
-timeout 30 footnote-cli device create > /tmp/device_create_output.txt 2>&1 &
-DEVICE_PID=$!
-cd ..
+# Wait for connection URL to appear
+echo "Waiting for connection URL..."
+sleep 3
 
-# Wait for connection URL and endpoint initialization
-sleep 5
-
-# Extract connection URL
+# Extract connection URL from output
 CONNECTION_URL=$(grep -o 'iroh://[^[:space:]]*' /tmp/device_create_output.txt | head -1)
 
 if [ -z "$CONNECTION_URL" ]; then
@@ -33,28 +29,20 @@ if [ -z "$CONNECTION_URL" ]; then
     exit 1
 fi
 
-echo "Connection URL captured"
+echo "Connection URL: $CONNECTION_URL"
 
-# Create secondary device and join
+# Create Alice secondary device and join
 mkdir alice-phone && cd alice-phone
-echo "Attempting to join with: $CONNECTION_URL"
-
-if ! footnote-cli vault join phone "$CONNECTION_URL" 2>&1; then
-    echo "ERROR: Failed to create remote device"
-    echo "Mirror listen output:"
-    cat /tmp/device_create_output.txt || true
-    cd ..
-    kill $DEVICE_PID 2>/dev/null || true
-    exit 1
-fi
-echo "Secondary device created and joined"
+echo "Creating Alice secondary device..."
+footnote-cli vault create-secondary alice-phone
+footnote-cli vault join "$CONNECTION_URL" > /dev/null 2>&1
 cd ..
 
-# Wait for authorization to complete
-wait $DEVICE_PID 2>/dev/null || true
+wait $JOIN_LISTEN_PID 2>/dev/null || true
 
+echo "Pairing complete"
 echo ""
-echo "=== Step 3: Add note on primary device ==="
+echo "Creating note on primary"
 cd alice-primary
 
 # Create a test note with UUID
@@ -75,11 +63,11 @@ echo "Created notes/test_note.md with UUID: $TEST_UUID"
 cd ..
 
 echo ""
-echo "=== Step 4: Sync primary to phone ==="
+echo "Sync primary to secondary"
 
 # Start mirror listener on phone in background
 cd alice-phone
-timeout 30 footnote-cli mirror listen > /tmp/mirror_listen_output.txt 2>&1 &
+timeout 30 footnote-cli sync listen > /tmp/mirror_listen_output.txt 2>&1 &
 LISTEN_PID=$!
 echo "Phone listening for sync (PID: $LISTEN_PID)"
 cd ..

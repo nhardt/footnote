@@ -40,6 +40,7 @@ cd ..
 
 wait $JOIN_LISTEN_PID 2>/dev/null || true
 
+echo "Pairing complete"
 echo ""
 echo "Verifying setup..."
 
