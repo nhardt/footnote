@@ -7,17 +7,14 @@ cargo install --features cli --bin footnote-cli --path .
 
 which footnote-cli
 
-echo "============================== Init Test        ==="
-./tests/init_test.sh
-echo "============================== Integration Test ==="
-./tests/integration_test.sh
-sleep 5
-echo "============================== Device Join Test ==="
-./tests/device_join_test.sh
-sleep 5
+echo "============================== Primary Test     ==="
+./tests/primary.sh
+echo "============================== Secondary Test   ==="
+./tests/secondary.sh
 echo "============================== Sync Test        ==="
-./tests/sync_test.sh
-sleep 5
+./tests/sync.sh
+echo "============================== Contact Test     ==="
+./tests/contact.sh
 echo "============================== Share Test       ==="
-./tests/share_test.sh
+./tests/share.sh
 echo "=== ALL CLI TESTS PASS                          ==="
