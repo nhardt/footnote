@@ -50,7 +50,7 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
             } => vault_create_primary(username, device_name),
             VaultAction::CreateSecondary { device_name } => vault_create_secondary(device_name),
             VaultAction::JoinListen {} => vault_join_listen().await,
-            VaultAction::Join { connect_string } => vault_join(connect_string),
+            VaultAction::Join { connect_string } => vault_join(connect_string).await,
         },
     }
 }
@@ -128,6 +128,9 @@ async fn vault_join_listen() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn vault_join(connection_string: String) -> anyhow::Result<()> {
+async fn vault_join(connection_string: String) -> anyhow::Result<()> {
+    let vault_path = std::env::current_dir()?;
+    let vault = Vault::new(vault_path)?;
+    vault.join(&connection_string).await?;
     Ok(())
 }
