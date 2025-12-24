@@ -202,6 +202,10 @@ impl Vault {
         let contact_record = Contact::from_json(&response.contact_json)?;
         contact_record.verify()?;
 
+        let footnotes_dir = self.path.join(".footnote");
+        let device_key_file = footnotes_dir.join("user.json");
+        contact_record.to_file(device_key_file)?;
+
         Ok(())
     }
 
