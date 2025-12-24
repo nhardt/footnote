@@ -175,7 +175,7 @@ impl Vault {
         Ok(rx)
     }
 
-    pub async fn join(&self, connection_string: &str) -> Result<()> {
+    pub async fn join(&self, connection_string: &str) -> anyhow::Result<()> {
         let (endpoint_id, token) = parse_connection_string(connection_string)?;
         let (secret_key, device_name) = self.device_secret_key()?;
         let endpoint = Endpoint::builder()

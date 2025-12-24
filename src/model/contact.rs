@@ -66,7 +66,7 @@ impl Contact {
             username: username.to_string(),
             id_public_key: id_public_key.to_string(),
             devices: [primary_device].to_vec(),
-            updated_at: LamportTimestamp(0),
+            updated_at: LamportTimestamp::new(None),
             signature: "".to_string(),
         };
         c.sign(id_signing_key)?;
@@ -74,6 +74,8 @@ impl Contact {
     }
 
     pub fn sign(&mut self, signing_key: &SigningKey) -> Result<()> {
+        self.updated_at = LamportTimestamp::new(Some(self.updated_at));
+
         let signable = SignableContact {
             username: &self.username,
             id_public_key: &self.id_public_key,
@@ -117,7 +119,7 @@ impl Contact {
     pub fn is_valid_successor_of(&self, previous: &Contact) -> Result<()> {
         anyhow::ensure!(
             self.id_public_key == previous.id_public_key,
-            "Identity mismatch"
+            "cannot update user record, public key id mismatch"
         );
         anyhow::ensure!(
             self.updated_at > previous.updated_at,
@@ -214,7 +216,7 @@ mod tests {
             nickname: "".to_string(),
             id_public_key: master_key.clone(),
             devices: vec![Device::new("laptop".to_string(), "abc123".to_string())],
-            updated_at: LamportTimestamp(1000),
+            updated_at: LamportTimestamp::new(None),
             signature: String::new(),
         };
         contact_v1.sign(&signing_key).unwrap();
@@ -227,7 +229,7 @@ mod tests {
                 Device::new("laptop".to_string(), "abc123".to_string()),
                 Device::new("phone".to_string(), "def456".to_string()),
             ],
-            updated_at: LamportTimestamp(2000),
+            updated_at: LamportTimestamp::new(Some(contact_v1.updated_at)),
             signature: String::new(),
         };
         contact_v2.sign(&signing_key).unwrap();
