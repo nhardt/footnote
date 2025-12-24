@@ -1,5 +1,7 @@
-use crate::model::vault::Vault;
+use crate::service::join_service::JoinService;
+use crate::{model::vault::Vault, service::join_service::JoinEvent};
 use clap::{Parser, Subcommand};
+use futures::future::Join;
 
 #[derive(Parser)]
 #[command(name = "footnote")]
@@ -82,39 +84,34 @@ fn vault_create_secondary(device_name: String) -> anyhow::Result<()> {
 }
 
 async fn vault_join_listen() -> anyhow::Result<()> {
-    use crate::model::vault::VaultEvent;
-
-    let vault_path = std::env::current_dir()?;
-    let vault = Vault::new(vault_path)?;
-
-    let mut rx = vault.join_listen().await?;
+    let vault = Vault::new(std::env::current_dir()?)?;
+    let mut rx = JoinService::listen(&vault).await?;
 
     while let Some(event) = rx.recv().await {
         match event {
-            VaultEvent::Status { name, detail } => {
+            JoinEvent::Listening { join_url } => {
                 println!(
                     "{}",
                     serde_json::json!(
                         {
-                            "event": name,
-                            "detail": detail
+                            "event": "listening",
+                            "join_url": join_url
                         }
                     )
                 );
             }
-            VaultEvent::Success(detail) => {
+            JoinEvent::Success => {
                 println!(
                     "{}",
                     serde_json::json!(
                         {
                             "event": "success",
-                            "detail": detail
                         }
                     )
                 );
                 break;
             }
-            VaultEvent::Error(detail) => {
+            JoinEvent::Error(detail) => {
                 println!(
                     "{}",
                     serde_json::json!(
@@ -133,10 +130,8 @@ async fn vault_join_listen() -> anyhow::Result<()> {
 }
 
 async fn vault_join(connection_string: String) -> anyhow::Result<()> {
-    let vault_path = std::env::current_dir()?;
-    let vault = Vault::new(vault_path)?;
-    vault.join(&connection_string).await?;
-
+    let vault = Vault::new(std::env::current_dir()?)?;
+    JoinService::join(&vault, &connection_string).await?;
     println!(
         "{}",
         serde_json::json!(
