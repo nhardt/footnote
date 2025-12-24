@@ -7,17 +7,14 @@ use std::path::PathBuf;
 use tokio::sync::mpsc::{self, Receiver};
 use uuid::Uuid;
 
-use crate::model::user::LocalUser;
+use crate::model::{contact::Contact, user::LocalUser};
 
 //// Vault join protocol
 const ALPN_VAULT_JOIN: &[u8] = b"footnote/vault-join";
 #[derive(Debug, Clone)]
-pub enum DeviceAuthEvent {
-    Listening { join_url: String },
-    Connecting,
-    ReceivedRequest { device_name: String },
-    Verifying,
-    Success { device_name: String },
+pub enum VaultEvent {
+    Status { name: String, detail: String },
+    Success(String),
     Error(String),
 }
 #[derive(Debug, Serialize, Deserialize)]
@@ -85,11 +82,11 @@ impl Vault {
         Ok(())
     }
 
-    fn device_secret_key(&self) -> Result<iroh::SecretKey> {
+    fn device_secret_key(&self) -> Result<(iroh::SecretKey, String)> {
         let footnotes_dir = self.path.join(".footnote");
         let device_key_file = footnotes_dir.join("device_key");
         let content = fs::read_to_string(device_key_file)?;
-        let (encoded_key, _) = match content.split_once(' ') {
+        let (encoded_key, device_name) = match content.split_once(' ') {
             Some((a, b)) => (a, b),
             None => anyhow::bail!("username not found in key"),
         };
@@ -98,12 +95,12 @@ impl Vault {
             .try_into()
             .map_err(|_| anyhow::anyhow!("Device key must be exactly 32 bytes"))?;
         let secret_key = iroh::SecretKey::from_bytes(&key_array);
-        Ok(secret_key)
+        Ok((secret_key, device_name.to_string()))
     }
 
     /// put this primary device into join listen mode. an iroh url and join code will be
     /// returned that the joiner is expected to connect to and present.
-    pub async fn join_listen(&self) -> anyhow::Result<Receiver<DeviceAuthEvent>> {
+    pub async fn join_listen(&self) -> anyhow::Result<Receiver<VaultEvent>> {
         if !self.is_primary_device()? {
             anyhow::bail!(
             "This device is not marked as primary. Only the primary device can create join URLs.\n\
@@ -112,7 +109,7 @@ impl Vault {
         }
         let (tx, rx) = mpsc::channel(32);
         let join_token = Uuid::new_v4().to_string();
-        let secret_key = self.device_secret_key()?;
+        let (secret_key, _) = self.device_secret_key()?;
 
         let endpoint = Endpoint::builder()
             .secret_key(secret_key.clone())
@@ -124,38 +121,27 @@ impl Vault {
         let join_url = format!("iroh://{}?token={}", endpoint_id, join_token);
 
         let _ = tx
-            .send(DeviceAuthEvent::Listening {
-                join_url: join_url.clone(),
+            .send(VaultEvent::Status {
+                name: "primary.listening".to_string(),
+                detail: join_url.clone(),
             })
             .await;
 
         let path = self.path.clone();
         tokio::spawn(async move {
             if let Some(incoming) = endpoint.accept().await {
-                let _ = tx.send(DeviceAuthEvent::Connecting).await;
-
                 match async {
                     let conn = incoming.accept()?.await?;
                     let (mut send, mut recv) = conn.accept_bi().await.anyerr()?;
                     let request_bytes = recv.read_to_end(10000).await.anyerr()?;
                     let request: DeviceJoinRequest = serde_json::from_slice(&request_bytes)?;
-
-                    let _ = tx
-                        .send(DeviceAuthEvent::ReceivedRequest {
-                            device_name: request.device_name.clone(),
-                        })
-                        .await;
-
                     if request.token != join_token {
+                        let _ = tx
+                            .send(VaultEvent::Error("invalid join token".to_string()))
+                            .await;
                         anyhow::bail!("Invalid token. Authorization failed.");
                     }
 
-                    let _ = tx.send(DeviceAuthEvent::Verifying).await;
-
-                    // we were waiting for a connection from a device with our
-                    // auth code. we recieved it. we could ask the user to type
-                    // the device on both sides for additional security.
-                    //
                     let device_name = request.device_name.clone();
                     let iroh_endpoint_id = request.iroh_endpoint_id;
                     let local_user = LocalUser::new(&path)?;
@@ -172,15 +158,15 @@ impl Vault {
 
                     conn.closed().await;
 
-                    Ok::<_, anyhow::Error>(request.device_name.clone())
+                    anyhow::Ok(())
                 }
                 .await
                 {
-                    Ok(device_name) => {
-                        let _ = tx.send(DeviceAuthEvent::Success { device_name }).await;
+                    Ok(_) => {
+                        let _ = tx.send(VaultEvent::Success("".to_string())).await;
                     }
                     Err(e) => {
-                        let _ = tx.send(DeviceAuthEvent::Error(e.to_string())).await;
+                        let _ = tx.send(VaultEvent::Error(e.to_string())).await;
                     }
                 }
             }
@@ -189,7 +175,67 @@ impl Vault {
         Ok(rx)
     }
 
+    pub async fn join(&self, connection_string: &str) -> Result<()> {
+        let (endpoint_id, token) = parse_connection_string(connection_string)?;
+        let (secret_key, device_name) = self.device_secret_key()?;
+        let endpoint = Endpoint::builder()
+            .secret_key(secret_key.clone())
+            .bind()
+            .await?;
+
+        let conn = endpoint.connect(endpoint_id, ALPN_VAULT_JOIN).await?;
+        let (mut send, mut recv) = conn.open_bi().await.anyerr()?;
+
+        let request = DeviceJoinRequest {
+            device_name: device_name.to_string(),
+            iroh_endpoint_id: secret_key.public().to_string(),
+            token,
+        };
+
+        let request_bytes = serde_json::to_vec(&request)?;
+        send.write_all(&request_bytes).await.anyerr()?;
+        send.finish().anyerr()?;
+
+        let response_bytes = recv.read_to_end(100000).await.anyerr()?;
+        let response: DeviceJoinResponse = serde_json::from_slice(&response_bytes)?;
+
+        let contact_record = Contact::from_json(&response.contact_json)?;
+        contact_record.verify()?;
+
+        Ok(())
+    }
+
     pub fn is_primary_device(&self) -> anyhow::Result<bool> {
         Ok(self.path.join(".footnote").join("id_key").exists())
     }
+}
+
+fn parse_connection_string(conn_str: &str) -> anyhow::Result<(iroh::PublicKey, String)> {
+    // Expected format: iroh://endpoint-id?token=xyz
+    let conn_str = conn_str.trim();
+
+    if !conn_str.starts_with("iroh://") {
+        anyhow::bail!("Invalid connection string. Expected format: iroh://endpoint-id?token=xyz");
+    }
+
+    let without_prefix = conn_str.strip_prefix("iroh://").unwrap();
+    let parts: Vec<&str> = without_prefix.split('?').collect();
+
+    if parts.len() != 2 {
+        anyhow::bail!("Invalid connection string. Expected format: iroh://endpoint-id?token=xyz");
+    }
+
+    let endpoint_id: iroh::PublicKey = parts[0]
+        .parse()
+        .map_err(|_| anyhow::anyhow!("Invalid endpoint ID"))?;
+
+    let query = parts[1];
+    let token = query
+        .split('&')
+        .find(|s| s.starts_with("token="))
+        .and_then(|s| s.strip_prefix("token="))
+        .ok_or_else(|| anyhow::anyhow!("Token not found in connection string"))?
+        .to_string();
+
+    Ok((endpoint_id, token))
 }

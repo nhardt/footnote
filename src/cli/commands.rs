@@ -49,7 +49,7 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
                 device_name,
             } => vault_create_primary(username, device_name),
             VaultAction::CreateSecondary { device_name } => vault_create_secondary(device_name),
-            VaultAction::JoinListen {} => vault_join_listen(),
+            VaultAction::JoinListen {} => vault_join_listen().await,
             VaultAction::Join { connect_string } => vault_join(connect_string),
         },
     }
@@ -78,56 +78,56 @@ fn vault_create_secondary(device_name: String) -> anyhow::Result<()> {
 }
 
 async fn vault_join_listen() -> anyhow::Result<()> {
+    use crate::model::vault::VaultEvent;
+
     let vault_path = std::env::current_dir()?;
     let vault = Vault::new(vault_path)?;
-    let (mut rx, cancel_token) = vault.join_listen().await?;
+
+    let mut rx = vault.join_listen().await?;
+
     while let Some(event) = rx.recv().await {
         match event {
-            ListenEvent::Started { endpoint_id } => {
-                eprintln!("Listening for connection to: {}", endpoint_id);
+            VaultEvent::Status { name, detail } => {
+                println!(
+                    "{}",
+                    serde_json::json!(
+                        {
+                            "event": name,
+                            "detail": detail
+                        }
+                    )
+                );
+            }
+            VaultEvent::Success(detail) => {
+                println!(
+                    "{}",
+                    serde_json::json!(
+                        {
+                            "event": "success",
+                            "detail": detail
+                        }
+                    )
+                );
                 break;
             }
-            ListenEvent::Error(e) => {
-                eprintln!("Error starting listener: {}", e);
-                return Err(anyhow::anyhow!("Failed to start listener: {}", e));
-            }
-            _ => {}
-        }
-    }
-
-    loop {
-        tokio::select! {
-            Some(event) = rx.recv() => {
-                match event {
-                    ListenEvent::Received { from: _ } => {
-                        eprintln!("ListenEvent::Received");
-                    }
-                    ListenEvent::Error(e) => {
-                        eprintln!("ListenEvent::Error: {}", e);
-                    }
-                    ListenEvent::Stopped => {
-                        eprintln!("ListenEvent::Stopped");
-                        break;
-                    }
-                    _ => {}
-                }
-            }
-            _ = tokio::signal::ctrl_c() => {
-                println!("\nShut down requested...");
-                cancel_token.cancel();
+            VaultEvent::Error(detail) => {
+                println!(
+                    "{}",
+                    serde_json::json!(
+                        {
+                            "event": "error",
+                            "detail": detail
+                        }
+                    )
+                );
                 break;
             }
         }
     }
-
-    let output = serde_json::json!({
-        "result": "success"
-    });
-    println!("{}", serde_json::to_string_pretty(&output)?);
 
     Ok(())
 }
 
-fn vault_join(_connection_string: String) -> anyhow::Result<()> {
+fn vault_join(connection_string: String) -> anyhow::Result<()> {
     Ok(())
 }
