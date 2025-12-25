@@ -11,16 +11,18 @@ mkdir alice-primary && cd alice-primary
 echo "Creating Alice primary device..."
 footnote-cli vault create-primary alice alice-desktop
 echo "Starting device authorization..."
-timeout 30 footnote-cli vault join-listen > /tmp/device_create_output.txt 2>&1 &
+timeout 30 footnote-cli service join-listen > /tmp/device_create_output.txt 2>&1 &
 JOIN_LISTEN_PID=$!
 cd ..
 
 # Wait for connection URL to appear
 echo "Waiting for connection URL..."
 sleep 3
+echo "Extracting connection url from "
+cat /tmp/device_create_output.txt
 
 # Extract connection URL from output
-CONNECTION_URL=$(grep -o 'iroh://[^[:space:]]*' /tmp/device_create_output.txt | head -1)
+CONNECTION_URL=$(cat /tmp/device_create_output.txt | jq -r '.join_url')
 
 if [ -z "$CONNECTION_URL" ]; then
     echo "ERROR: Could not capture connection URL"
@@ -35,7 +37,7 @@ echo "Connection URL: $CONNECTION_URL"
 mkdir alice-phone && cd alice-phone
 echo "Creating Alice secondary device..."
 footnote-cli vault create-secondary alice-phone
-footnote-cli vault join "$CONNECTION_URL" > /dev/null 2>&1
+footnote-cli service join "$CONNECTION_URL"
 cd ..
 
 wait $JOIN_LISTEN_PID 2>/dev/null || true
@@ -67,7 +69,7 @@ echo "Sync primary to secondary"
 
 # Start mirror listener on phone in background
 cd alice-phone
-timeout 30 footnote-cli sync listen > /tmp/mirror_listen_output.txt 2>&1 &
+timeout 30 footnote-cli service replicate-listen > /tmp/replicate_listen_output.txt 2>&1 &
 LISTEN_PID=$!
 echo "Phone listening for sync (PID: $LISTEN_PID)"
 cd ..
@@ -78,7 +80,7 @@ sleep 2
 # Push from primary
 cd alice-primary
 echo "Pushing from primary to phone..."
-timeout 15 footnote-cli mirror push --device phone 2>&1 || echo "Push command completed"
+footnote-cli service replicate phone
 cd ..
 
 # Give sync time to complete
