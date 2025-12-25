@@ -43,24 +43,23 @@ pub async fn receive_bytes(stream: &mut RecvStream) -> Result<Vec<u8>> {
     Ok(buf)
 }
 
-pub async fn send_file_request(stream: &mut SendStream, path: &Path) -> Result<()> {
-    let path_str = path
-        .to_str()
-        .ok_or_else(|| anyhow::anyhow!("Invalid path"))?;
-    send_bytes(stream, path_str.as_bytes()).await
+pub async fn send_file_request(stream: &mut SendStream, uuid: &uuid::Uuid) -> Result<()> {
+    SendStream::write_all(stream, uuid.as_bytes())
+        .await
+        .anyerr()?;
+    Ok(())
 }
 
-pub async fn receive_file_request(stream: &mut RecvStream) -> Result<Option<PathBuf>> {
-    let len = receive_u32(stream).await?;
+pub async fn receive_file_request(stream: &mut RecvStream) -> Result<Option<uuid::Uuid>> {
+    let mut buf = [0u8; 16];
+    RecvStream::read_exact(stream, &mut buf).await.anyerr()?;
 
-    if len == 0 {
+    // Check for EOF signal (all zeros)
+    if buf == [0u8; 16] {
         return Ok(None);
     }
 
-    let mut buf = vec![0u8; len as usize];
-    RecvStream::read_exact(stream, &mut buf).await.anyerr()?;
-    let path_str = String::from_utf8(buf)?;
-    Ok(Some(PathBuf::from(path_str)))
+    Ok(Some(uuid::Uuid::from_bytes(buf)))
 }
 
 pub async fn send_file_contents(stream: &mut SendStream, contents: &[u8]) -> Result<()> {
@@ -77,5 +76,9 @@ pub async fn receive_file_contents(stream: &mut RecvStream) -> Result<Vec<u8>> {
 }
 
 pub async fn send_eof(stream: &mut SendStream) -> Result<()> {
-    send_u32(stream, 0).await
+    let zero_uuid = uuid::Uuid::nil();
+    SendStream::write_all(stream, zero_uuid.as_bytes())
+        .await
+        .anyerr()?;
+    Ok(())
 }
