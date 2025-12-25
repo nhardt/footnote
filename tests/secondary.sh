@@ -11,16 +11,18 @@ mkdir alice-primary && cd alice-primary
 echo "Creating Alice primary device..."
 footnote-cli vault create-primary alice alice-desktop
 echo "Starting device authorization..."
-timeout 30 footnote-cli vault join-listen > /tmp/device_create_output.txt 2>&1 &
+timeout 30 footnote-cli service join-listen > /tmp/device_create_output.txt 2>&1 &
 JOIN_LISTEN_PID=$!
 cd ..
 
 # Wait for connection URL to appear
 echo "Waiting for connection URL..."
 sleep 3
+echo "Extracting connection url from "
+cat /tmp/device_create_output.txt
 
 # Extract connection URL from output
-CONNECTION_URL=$(grep -o 'iroh://[^[:space:]]*' /tmp/device_create_output.txt | head -1)
+CONNECTION_URL=$(cat /tmp/device_create_output.txt | jq -r '.join_url')
 
 if [ -z "$CONNECTION_URL" ]; then
     echo "ERROR: Could not capture connection URL"
@@ -35,7 +37,7 @@ echo "Connection URL: $CONNECTION_URL"
 mkdir alice-phone && cd alice-phone
 echo "Creating Alice secondary device..."
 footnote-cli vault create-secondary alice-phone
-footnote-cli vault join "$CONNECTION_URL" > /dev/null 2>&1
+footnote-cli service join "$CONNECTION_URL"
 cd ..
 
 wait $JOIN_LISTEN_PID 2>/dev/null || true
@@ -45,7 +47,7 @@ echo ""
 echo "Verifying setup..."
 
 # Verify primary contact.json
-PRIMARY_CONTACT=$(cat alice-primary/.footnotes/user.json)
+PRIMARY_CONTACT=$(cat alice-primary/.footnote/user.json)
 PRIMARY_DEVICES=$(echo "$PRIMARY_CONTACT" | jq '.devices | length')
 PRIMARY_SIGNATURE=$(echo "$PRIMARY_CONTACT" | jq -r '.signature')
 
@@ -56,7 +58,7 @@ test "$PRIMARY_DEVICES" -eq 2 || { echo "ERROR: Primary should have 2 devices, g
 test -n "$PRIMARY_SIGNATURE" || { echo "ERROR: Primary signature is empty"; exit 1; }
 
 # Verify secondary device contact.json
-PHONE_CONTACT=$(cat alice-phone/.footnotes/user.json)
+PHONE_CONTACT=$(cat alice-phone/.footnote/user.json)
 PHONE_DEVICES=$(echo "$PHONE_CONTACT" | jq '.devices | length')
 PHONE_SIGNATURE=$(echo "$PHONE_CONTACT" | jq -r '.signature')
 
@@ -77,8 +79,8 @@ fi
 echo "Signatures match!"
 
 # Verify device names in contact
-DEVICE1=$(echo "$PRIMARY_CONTACT" | jq -r '.devices[0].device_name')
-DEVICE2=$(echo "$PRIMARY_CONTACT" | jq -r '.devices[1].device_name')
+DEVICE1=$(echo "$PRIMARY_CONTACT" | jq -r '.devices[0].name')
+DEVICE2=$(echo "$PRIMARY_CONTACT" | jq -r '.devices[1].name')
 
 echo "Device 1: $DEVICE1"
 echo "Device 2: $DEVICE2"
