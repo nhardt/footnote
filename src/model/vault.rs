@@ -89,7 +89,7 @@ impl Vault {
         device_endpoint: &iroh::PublicKey,
         note_path: &Path,
     ) -> Result<bool> {
-        if self.owned_device_to_name(device_endpoint).is_ok() {
+        if self.owned_device_endpoint_to_name(device_endpoint).is_ok() {
             return Ok(true);
         }
 
@@ -109,7 +109,10 @@ impl Vault {
         }
     }
 
-    pub fn owned_device_to_name(&self, endpoint_id: &iroh::PublicKey) -> anyhow::Result<String> {
+    pub fn owned_device_endpoint_to_name(
+        &self,
+        endpoint_id: &iroh::PublicKey,
+    ) -> anyhow::Result<String> {
         let owned_devices_record =
             Contact::from_file(self.path.join(".footnote").join("user.json"))?;
 
