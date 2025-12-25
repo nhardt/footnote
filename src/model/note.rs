@@ -123,6 +123,35 @@ impl Note {
             .with_context(|| format!("Failed to write note: {}", path.as_ref().display()))?;
         Ok(())
     }
+
+    pub fn create(path: &Path, content: &str) -> Result<Self> {
+        let (body, footnotes) = Self::parse_body_and_footnotes(&content);
+
+        let frontmatter = Frontmatter {
+            uuid: Uuid::new_v4(),
+            modified: LamportTimestamp::now(),
+            share_with: Vec::new(),
+            extra: serde_yaml::Value::Mapping(serde_yaml::Mapping::new()),
+        };
+
+        let note = Note {
+            frontmatter,
+            content: body,
+            footnotes,
+        };
+
+        note.save(path)?;
+        Ok(note)
+    }
+
+    pub fn update(&mut self, path: &Path, content: &str) -> Result<()> {
+        let (body, footnotes) = Self::parse_body_and_footnotes(&content);
+        self.content = body;
+        self.footnotes = footnotes;
+        self.frontmatter.modified = LamportTimestamp::new(Some(self.frontmatter.modified));
+        self.save(path)?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

@@ -12,7 +12,7 @@ echo "============================== Primary Test     ==="
 echo "============================== Secondary Test   ==="
 ./tests/secondary.sh
 echo "============================== Sync Test        ==="
-./tests/sync.sh
+./tests/replicate.sh
 echo "============================== Contact Test     ==="
 ./tests/contact.sh
 echo "============================== Share Test       ==="

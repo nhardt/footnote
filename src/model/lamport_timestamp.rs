@@ -23,6 +23,11 @@ impl LamportTimestamp {
         }
     }
 
+    pub fn now() -> Self {
+        let current_unix = Utc::now().timestamp();
+        LamportTimestamp(current_unix)
+    }
+
     pub fn as_i64(self) -> i64 {
         self.0
     }

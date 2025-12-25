@@ -7,7 +7,7 @@ mkdir -p /tmp/footnotetest
 cd /tmp/footnotetest
 
 # Create Alice primary device
-mkdir alice-primary && cd alice-primary
+mkdir alice-desktop && cd alice-desktop
 echo "Creating Alice primary device..."
 footnote-cli vault create-primary alice alice-desktop
 echo "Starting device authorization..."
@@ -34,7 +34,7 @@ fi
 echo "Connection URL: $CONNECTION_URL"
 
 # Create Alice secondary device and join
-mkdir alice-phone && cd alice-phone
+mkdir alice-laptop && cd alice-laptop
 echo "Creating Alice secondary device..."
 footnote-cli vault create-secondary alice-phone
 footnote-cli service join "$CONNECTION_URL"
@@ -45,7 +45,7 @@ wait $JOIN_LISTEN_PID 2>/dev/null || true
 echo "Pairing complete"
 echo ""
 echo "Creating note on primary"
-cd alice-primary
+cd alice-desktop
 
 # Create a test note with UUID
 TEST_UUID="550e8400-e29b-41d4-a716-446655440001"
@@ -80,7 +80,7 @@ sleep 2
 # Push from primary
 cd alice-primary
 echo "Pushing from primary to phone..."
-footnote-cli service replicate phone
+footnote-cli service replicate alice-phone
 cd ..
 
 # Give sync time to complete

@@ -1,3 +1,6 @@
+use std::path::{Path, PathBuf};
+
+use crate::model::note::Note;
 use crate::service::join_service::JoinService;
 use crate::service::replica_service::{ReplicaEvent, ReplicaService};
 use crate::{model::vault::Vault, service::join_service::JoinEvent};
@@ -23,6 +26,10 @@ pub enum Commands {
     Service {
         #[command(subcommand)]
         action: ServiceAction,
+    },
+    Note {
+        #[command(subcommand)]
+        action: NoteAction,
     },
 }
 
@@ -67,6 +74,13 @@ pub enum ServiceAction {
     Replicate { to_device_name: String },
 }
 
+#[derive(Subcommand)]
+pub enum NoteAction {
+    Create { path: PathBuf, content: String },
+    Update { path: PathBuf, content: String },
+    Delete { path: PathBuf },
+}
+
 pub async fn execute(cli: Cli) -> anyhow::Result<()> {
     match cli.command {
         Commands::Vault { action } => match action {
@@ -81,6 +95,11 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
             ServiceAction::Join { connect_string } => service_join(connect_string).await,
             ServiceAction::ReplicateListen {} => service_replicate_listen().await,
             ServiceAction::Replicate { to_device_name } => service_replicate(to_device_name).await,
+        },
+        Commands::Note { action } => match action {
+            NoteAction::Create { path, content } => note_create(&path, &content),
+            NoteAction::Update { path, content } => note_update(&path, &content),
+            NoteAction::Delete { path } => note_delete(&path),
         },
     }
 }
@@ -238,5 +257,23 @@ async fn service_replicate(to_device_name: String) -> anyhow::Result<()> {
             }
         )
     );
+    Ok(())
+}
+
+fn note_create(path: &Path, content: &str) -> anyhow::Result<()> {
+    let note_path = std::env::current_dir()?.join(path);
+    Note::create(&note_path, content)?;
+    Ok(())
+}
+
+fn note_update(path: &Path, content: &str) -> anyhow::Result<()> {
+    let note_path = std::env::current_dir()?.join(path);
+    let mut n = Note::from_path(note_path)?;
+    n.update(path, content)?;
+    Ok(())
+}
+
+fn note_delete(path: &Path) -> anyhow::Result<()> {
+    println!("unimpl");
     Ok(())
 }
