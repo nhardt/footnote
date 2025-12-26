@@ -64,7 +64,7 @@ impl ShareService {
                     }
                 };
 
-                if let Err(e) = transfer::receive_replication(&vault, connection).await {
+                if let Err(e) = transfer::receive_share(&vault, &nickname, connection).await {
                     eprintln!("Error handling share from {}: {:?}", nickname, e);
                 }
             });

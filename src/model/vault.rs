@@ -51,6 +51,8 @@ impl Vault {
         fs::create_dir_all(&footnotes_dir)?;
         let contacts_dir = footnotes_dir.join("contacts");
         fs::create_dir_all(&contacts_dir)?;
+        let footnotes_dir = footnotes_dir.join("footnotes");
+        fs::create_dir_all(&footnotes_dir)?;
         Ok(())
     }
 
