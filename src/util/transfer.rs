@@ -17,6 +17,32 @@ use std::path::PathBuf;
 /// A verifies B can read requested file
 /// A sends file to B
 
+pub async fn receive_files(vault: &Vault, connection: Connection) -> Result<()> {
+    let (mut send, mut recv) = connection.accept_bi().await?;
+
+    let manifest_bytes = network::receive_bytes(&mut recv).await?;
+    let remote_manifest: Manifest =
+        serde_json::from_slice(&manifest_bytes).context("Failed to deserialize manifest")?;
+
+    let local_manifest =
+        create_manifest_full(&vault.path).context("Failed to create local manifest")?;
+    let files_to_sync = diff_manifests(&local_manifest, &remote_manifest);
+
+    for file_to_sync in &files_to_sync {
+        network::send_file_request(&mut send, &file_to_sync.uuid).await?;
+        let file_contents = network::receive_file_contents(&mut recv).await?;
+        let full_path = vault.path.join(&file_to_sync.path);
+        if let Some(parent) = full_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&full_path, file_contents)?;
+    }
+
+    network::send_eof(&mut send).await?;
+    connection.closed().await;
+    Ok(())
+}
+
 pub async fn push_manifest_to_endpoint(
     vault: &Vault,
     manifest: Manifest,
@@ -58,31 +84,5 @@ pub async fn push_manifest_to_endpoint(
     conn.close(0u8.into(), b"done");
     conn.closed().await;
 
-    Ok(())
-}
-
-pub async fn receive_files(vault: &Vault, connection: Connection) -> Result<()> {
-    let (mut send, mut recv) = connection.accept_bi().await?;
-
-    let manifest_bytes = network::receive_bytes(&mut recv).await?;
-    let remote_manifest: Manifest =
-        serde_json::from_slice(&manifest_bytes).context("Failed to deserialize manifest")?;
-
-    let local_manifest =
-        create_manifest_full(&vault.path).context("Failed to create local manifest")?;
-    let files_to_sync = diff_manifests(&local_manifest, &remote_manifest);
-
-    for file_to_sync in &files_to_sync {
-        network::send_file_request(&mut send, &file_to_sync.uuid).await?;
-        let file_contents = network::receive_file_contents(&mut recv).await?;
-        let full_path = vault.path.join(&file_to_sync.path);
-        if let Some(parent) = full_path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::write(&full_path, file_contents)?;
-    }
-
-    network::send_eof(&mut send).await?;
-    connection.closed().await;
     Ok(())
 }
