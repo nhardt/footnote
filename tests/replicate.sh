@@ -36,7 +36,7 @@ echo "Connection URL: $CONNECTION_URL"
 # Create Alice secondary device and join
 mkdir alice-laptop && cd alice-laptop
 echo "Creating Alice secondary device..."
-footnote-cli vault create-secondary alice-phone
+footnote-cli vault create-secondary alice-laptop
 footnote-cli service join "$CONNECTION_URL"
 cd ..
 
@@ -58,7 +58,7 @@ echo "Sync primary to secondary"
 cd alice-laptop
 timeout 30 footnote-cli service replicate-listen > /tmp/replicate_listen_output.txt 2>&1 &
 LISTEN_PID=$!
-echo "Phone listening for sync (PID: $LISTEN_PID)"
+echo "Laptop listening for sync (PID: $LISTEN_PID)"
 cd ..
 
 # Wait for listener to start
@@ -80,21 +80,21 @@ wait $LISTEN_PID 2>/dev/null || true
 echo ""
 echo "=== Verify replication ==="
 
-# Check if note exists on phone
-if [ -f alice-phone/created_on_primary.md ]; then
-    echo "Note synced successfully to phone"
+# Check if note exists on laptop
+if [ -f alice-laptop/created_on_primary.md ]; then
+    echo "Note synced successfully to laptop"
 
-    if grep -q "$NOTE_CONTENT" alice-phone/created_on_primary.md; then
+    if grep -q "$NOTE_CONTENT" alice-laptop/created_on_primary.md; then
         echo "Note content verified"
     else
         echo "Note content mismatch!"
-        cat alice-phone/test_note.md
+        cat alice-laptop/test_note.md
         exit 1
     fi
 else
-    echo "Note not found on phone!"
-    echo "Contents of alice-phone/:"
-    ls -la alice-phone/ || echo "Directory does not exist"
+    echo "Note not found on laptop!"
+    echo "Contents of alice-laptop/:"
+    ls -la alice-laptop/ || echo "Directory does not exist"
     exit 1
 fi
 
