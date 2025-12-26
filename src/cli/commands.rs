@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use crate::model::contact::Contact;
 use crate::model::note::Note;
 use crate::service::join_service::JoinService;
 use crate::service::replica_service::{ReplicaEvent, ReplicaService};
@@ -31,6 +32,10 @@ pub enum Commands {
     Note {
         #[command(subcommand)]
         action: NoteAction,
+    },
+    Contact {
+        #[command(subcommand)]
+        action: ContactAction,
     },
 }
 
@@ -85,6 +90,15 @@ pub enum ServiceAction {
 }
 
 #[derive(Subcommand)]
+pub enum ContactAction {
+    /// Export your information as a sharable contact
+    Export {},
+    /// Record the contact details of a friend so you can publish your shared
+    /// notes to them.
+    Import { nickname: String, path: PathBuf },
+}
+
+#[derive(Subcommand)]
 pub enum NoteAction {
     Create { path: PathBuf, content: String },
     Update { path: PathBuf, content: String },
@@ -112,6 +126,10 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
             NoteAction::Create { path, content } => note_create(&path, &content),
             NoteAction::Update { path, content } => note_update(&path, &content),
             NoteAction::Delete { path } => note_delete(&path),
+        },
+        Commands::Contact { action } => match action {
+            ContactAction::Export {} => contact_export(),
+            ContactAction::Import { nickname, path } => contact_import(&nickname, &path),
         },
     }
 }
@@ -256,5 +274,25 @@ fn note_update(path: &Path, content: &str) -> anyhow::Result<()> {
 
 fn note_delete(path: &Path) -> anyhow::Result<()> {
     println!("unimpl");
+    Ok(())
+}
+
+fn contact_export() -> anyhow::Result<()> {
+    let vault_path = std::env::current_dir()?;
+    // by running our user record through Contact we get file verification
+    let mut my_contact_record = Contact::from_file(vault_path.join(".footnote").join("user.json"))?;
+    my_contact_record.nickname.clear();
+    println!("{}", my_contact_record.to_json_pretty()?);
+    Ok(())
+}
+
+fn contact_import(nickname: &str, path: &Path) -> anyhow::Result<()> {
+    let contact_path = std::env::current_dir()?
+        .join(".footnote")
+        .join("contacts")
+        .join(format!("{}.json", nickname));
+    let mut c = Contact::from_file(path)?;
+    c.nickname = nickname.to_string();
+    c.to_file(contact_path)?;
     Ok(())
 }

@@ -6,41 +6,84 @@ rm -rf /tmp/footnotetest
 mkdir -p /tmp/footnotetest
 cd /tmp/footnotetest
 
-echo "=== Step 1: Create Alice primary device (desktop) ==="
+# Create Alice primary device
 mkdir alice-desktop && cd alice-desktop
-footnote-cli init --username alice --device-name desktop > /dev/null 2>&1
-echo "Alice desktop created"
+echo "Creating Alice primary device..."
+footnote-cli vault create-primary alice alice-desktop
+echo "Starting device authorization..."
+timeout 30 footnote-cli service join-listen > /tmp/device_create_output.txt 2>&1 &
+JOIN_LISTEN_PID=$!
 cd ..
 
-echo ""
-echo "=== Step 2: Create Alice secondary device (phone) ==="
-cd alice-desktop
-timeout 30 footnote-cli device create > /tmp/device_create_output.txt 2>&1 &
-DEVICE_PID=$!
-cd ..
-
+# Wait for connection URL to appear
+echo "Waiting for connection URL..."
 sleep 3
+echo "Extracting connection url from "
+cat /tmp/device_create_output.txt
 
-CONNECTION_URL=$(grep -o 'iroh://[^[:space:]]*' /tmp/device_create_output.txt | head -1)
+# Extract connection URL from output
+CONNECTION_URL=$(cat /tmp/device_create_output.txt | jq -r '.join_url')
+
 if [ -z "$CONNECTION_URL" ]; then
     echo "ERROR: Could not capture connection URL"
+    cat /tmp/device_create_output.txt
     kill $DEVICE_PID 2>/dev/null || true
     exit 1
 fi
 
-mkdir alice-phone && cd alice-phone
-footnote-cli vault join phone "$CONNECTION_URL" > /dev/null 2>&1
-echo "Alice phone created and joined"
+echo "Connection URL: $CONNECTION_URL"
+
+# Create Alice secondary device and join
+mkdir alice-laptop && cd alice-laptop
+echo "Creating Alice secondary device..."
+footnote-cli vault create-secondary alice-laptop
+footnote-cli service join "$CONNECTION_URL"
 cd ..
 
-wait $DEVICE_PID 2>/dev/null || true
+wait $JOIN_LISTEN_PID 2>/dev/null || true
 
+echo "Alice Pairing complete"
 echo ""
-echo "=== Step 3: Create Bob ==="
-mkdir bob && cd bob
-footnote-cli init --username bob --device-name desktop > /dev/null 2>&1
-echo "Bob created"
+
+# Create Bob primary device
+mkdir bob-desktop && cd bob-desktop
+echo "Creating Bob primary device..."
+footnote-cli vault create-primary bob bob-desktop
+echo "Starting device authorization..."
+timeout 30 footnote-cli service join-listen > /tmp/device_create_output.txt 2>&1 &
+JOIN_LISTEN_PID=$!
 cd ..
+
+# Wait for connection URL to appear
+echo "Waiting for connection URL..."
+sleep 3
+echo "Extracting connection url from "
+cat /tmp/device_create_output.txt
+
+# Extract connection URL from output
+CONNECTION_URL=$(cat /tmp/device_create_output.txt | jq -r '.join_url')
+
+if [ -z "$CONNECTION_URL" ]; then
+    echo "ERROR: Could not capture connection URL"
+    cat /tmp/device_create_output.txt
+    kill $DEVICE_PID 2>/dev/null || true
+    exit 1
+fi
+
+echo "Connection URL: $CONNECTION_URL"
+
+# Create Bob secondary device and join
+mkdir bob-laptop && cd bob-laptop
+echo "Creating Bob secondary device..."
+footnote-cli vault create-secondary bob-laptop
+footnote-cli service join "$CONNECTION_URL"
+cd ..
+
+wait $JOIN_LISTEN_PID 2>/dev/null || true
+
+echo "Bob Pairing complete"
+echo ""
+
 
 echo ""
 echo "=== Step 4: Exchange contacts (Alice and Bob trust each other) ==="
