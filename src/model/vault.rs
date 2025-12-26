@@ -49,6 +49,8 @@ impl Vault {
     fn create_directory_structure(&self) -> anyhow::Result<()> {
         let footnotes_dir = self.path.join(".footnote");
         fs::create_dir_all(&footnotes_dir)?;
+        let contacts_dir = footnotes_dir.join("contacts");
+        fs::create_dir_all(&contacts_dir)?;
         Ok(())
     }
 
@@ -188,5 +190,24 @@ impl Vault {
             "No contact found with nickname {} or they have no devices",
             nickname
         )
+    }
+
+    pub fn contact_read(&self) -> anyhow::Result<Vec<Contact>> {
+        let contacts_dir = self.path.join(".footnote").join("contacts");
+
+        fs::read_dir(contacts_dir)?
+            .filter_map(|entry| {
+                let entry = match entry {
+                    Ok(e) => e,
+                    Err(e) => return Some(Err(e.into())),
+                };
+
+                if entry.path().extension()?.to_str()? == "json" {
+                    Some(Contact::from_file(entry.path()))
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 }

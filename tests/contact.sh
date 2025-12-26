@@ -6,23 +6,22 @@ rm -rf /tmp/footnotetest
 mkdir -p /tmp/footnotetest
 cd /tmp/footnotetest
 
-# Alice primary device
-mkdir alice-primary && cd alice-primary
-footnote-cli init --device-name alice-desktop
-footnote-cli user read
+# Alice desktop device
+mkdir alice-desktop && cd alice-desktop
+footnote-cli vault create-primary ali desktop
 cd ..
 
 # Bob primary device
-mkdir bob-primary && cd bob-primary
-footnote-cli init --device-name bob-desktop
-footnote-cli user read
+mkdir bob-desktop && cd bob-desktop
+footnote-cli vault create-primary bob bob-desktop
 cd ..
 
 # Test export/import (offline contact sharing)
-cd alice-primary
-footnote-cli user export me > ../alice-contact.yaml
-cd ../bob-primary
-footnote-cli trust ../alice-contact.yaml --petname alice
-footnote-cli user read  # Should show alice in trusted users
+cd alice-desktop
+footnote-cli contact export > ../alice-contact.json
+cd ../bob-desktop
+footnote-cli contact import alice-from-work ../alice-contact.json
+footnote-cli contact read | grep alice-from-work
+footnote-cli contact read | grep ali
 
-echo "Basic test passed!"
+echo "Contact import/export passed!"

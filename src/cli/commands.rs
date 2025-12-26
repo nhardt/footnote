@@ -96,6 +96,8 @@ pub enum ContactAction {
     /// Record the contact details of a friend so you can publish your shared
     /// notes to them.
     Import { nickname: String, path: PathBuf },
+    /// show all trusted contacts
+    Read {},
 }
 
 #[derive(Subcommand)]
@@ -130,6 +132,7 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
         Commands::Contact { action } => match action {
             ContactAction::Export {} => contact_export(),
             ContactAction::Import { nickname, path } => contact_import(&nickname, &path),
+            ContactAction::Read {} => contact_read(),
         },
     }
 }
@@ -294,5 +297,14 @@ fn contact_import(nickname: &str, path: &Path) -> anyhow::Result<()> {
     let mut c = Contact::from_file(path)?;
     c.nickname = nickname.to_string();
     c.to_file(contact_path)?;
+    Ok(())
+}
+
+fn contact_read() -> anyhow::Result<()> {
+    let vault = Vault::new(&std::env::current_dir()?)?;
+    let contacts = vault.contact_read()?;
+    for contact in contacts {
+        println!("{}:{}", contact.nickname, contact.username);
+    }
     Ok(())
 }
