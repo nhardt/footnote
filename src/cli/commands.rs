@@ -189,59 +189,7 @@ async fn service_join(connection_string: String) -> anyhow::Result<()> {
 
 async fn service_replicate_listen() -> anyhow::Result<()> {
     let vault = Vault::new(&std::env::current_dir()?)?;
-    let (mut rx, _cancel_token) = ReplicaService::listen(&vault).await?;
-
-    while let Some(event) = rx.recv().await {
-        match event {
-            ReplicaEvent::Listening { endpoint_id } => {
-                println!(
-                    "{}",
-                    serde_json::json!(
-                        {
-                            "event": "listening",
-                            "endpoint": endpoint_id,
-                        }
-                    )
-                );
-            }
-            ReplicaEvent::Received { from_device } => {
-                println!(
-                    "{}",
-                    serde_json::json!(
-                        {
-                            "event": "recieved",
-                            "from": from_device
-                        }
-                    )
-                );
-                break;
-            }
-            ReplicaEvent::Stopped {} => {
-                println!(
-                    "{}",
-                    serde_json::json!(
-                        {
-                            "event": "stopped",
-                        }
-                    )
-                );
-                break;
-            }
-            ReplicaEvent::Error(detail) => {
-                println!(
-                    "{}",
-                    serde_json::json!(
-                        {
-                            "event": "error",
-                            "detail": detail
-                        }
-                    )
-                );
-                break;
-            }
-        }
-    }
-
+    ReplicaService::listen(&vault).await?;
     Ok(())
 }
 

@@ -21,94 +21,56 @@ pub enum ReplicaEvent {
 pub struct ReplicaService;
 
 impl ReplicaService {
-    pub async fn listen(vault: &Vault) -> Result<(Receiver<ReplicaEvent>, CancellationToken)> {
-        let (tx, rx) = mpsc::channel(32);
-        let cancel_token = CancellationToken::new();
-        let cancel_clone = cancel_token.clone();
-
+    pub async fn listen(vault: &Vault) -> Result<()> {
         let (secret_key, _) = vault.device_secret_key()?;
-        let endpoint_id = secret_key.public();
-
         let vault_path = vault.path.to_path_buf();
 
-        tokio::spawn(async move {
-            let endpoint_result = Endpoint::builder()
-                .secret_key(secret_key)
-                .alpns(vec![ALPN_REPLICA.to_vec()])
-                .bind()
-                .await;
+        let endpoint = Endpoint::builder()
+            .secret_key(secret_key.clone())
+            .alpns(vec![ALPN_REPLICA.to_vec()])
+            .bind()
+            .await?;
 
-            let endpoint = match endpoint_result {
-                Ok(ep) => ep,
-                Err(e) => {
-                    let _ = tx.send(ReplicaEvent::Error(e.to_string())).await;
-                    return;
-                }
-            };
+        println!("Listening on endpoint: {}", secret_key.public());
 
-            let _ = tx
-                .send(ReplicaEvent::Listening {
-                    endpoint_id: endpoint_id.to_string(),
-                })
-                .await;
-
-            loop {
-                tokio::select! {
-                    Some(incoming) = endpoint.accept() => {
-                        let accepting = match incoming.accept() {
-                            Ok(a) => a,
-                            Err(e) => {
-                                let _ = tx.send(ReplicaEvent::Error(format!("Accept error: {}", e))).await;
-                                continue;
-                            }
-                        };
-
-                        let conn = match accepting.await {
-                            Ok(c) => c,
-                            Err(e) => {
-                                let _ = tx.send(ReplicaEvent::Error(format!("Connection error: {}", e))).await;
-                                continue;
-                            }
-                        };
-
-                        let remote_id = conn.remote_id();
-                        let vault = match Vault::new(&vault_path) {
-                            Ok(v) => v,
-                            Err(e) => {
-                                let _ = tx.send(ReplicaEvent::Error(format!("Vault error: {}", e))).await;
-                                continue;
-                            }
-                        };
-
-                        let device_name = match vault.owned_device_endpoint_to_name(&remote_id) {
-                            Ok(name) => {
-                                let _ = tx.send(ReplicaEvent::Received { from_device: name.clone() }).await;
-                                name
-                            }
-                            Err(e) => {
-                                let _ = tx.send(ReplicaEvent::Error(format!("Not my device: {}", e))).await;
-                                continue;
-                            }
-                        };
-
-                        let endpoint = endpoint.clone();
-                        let conn = conn.clone();
-
-                        tokio::spawn(async move {
-                            if let Err(e) = transfer::receive_replication(&vault, endpoint, conn).await {
-                                eprintln!("Error handling replica from {}: {:?}", device_name, e);
-                            }
-                        });
+        while let Some(incoming) = endpoint.accept().await {
+            let vault_path = vault_path.clone();
+            tokio::spawn(async move {
+                let connection = match incoming.await {
+                    Ok(c) => c,
+                    Err(e) => {
+                        eprintln!("Connection error: {}", e);
+                        return;
                     }
-                    _ = cancel_clone.cancelled() => {
-                        let _ = tx.send(ReplicaEvent::Stopped).await;
-                        break;
-                    }
-                }
-            }
-        });
+                };
 
-        Ok((rx, cancel_token))
+                let vault = match Vault::new(&vault_path) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        eprintln!("Vault error: {}", e);
+                        return;
+                    }
+                };
+
+                let remote_id = connection.remote_id();
+                let device_name = match vault.owned_device_endpoint_to_name(&remote_id) {
+                    Ok(name) => {
+                        println!("Receiving from device: {}", name);
+                        name
+                    }
+                    Err(e) => {
+                        eprintln!("Not my device: {}", e);
+                        return;
+                    }
+                };
+
+                if let Err(e) = transfer::receive_replication(&vault, connection).await {
+                    eprintln!("Error handling replica from {}: {:?}", device_name, e);
+                }
+            });
+        }
+
+        Ok(())
     }
 
     pub async fn push(vault: &Vault, device_name: &str) -> Result<()> {
