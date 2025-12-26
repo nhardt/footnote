@@ -10,6 +10,7 @@ cd /tmp/footnotetest
 mkdir alice-desktop && cd alice-desktop
 echo "Creating Alice primary device..."
 footnote-cli vault create-primary alice alice-desktop
+footnote-cli contact export > ../alice-contact.json
 cd ..
 
 # Create Bob primary device
@@ -17,6 +18,7 @@ mkdir bob-desktop && cd bob-desktop
 echo "Creating Bob primary device..."
 footnote-cli vault create-primary bob bob-desktop
 footnote-cli contact export > ../bob-contact.json
+footnote-cli contact import alice ../alice-contact.json
 
 cd ../alice-desktop
 footnote-cli contact import bob ../bob-contact.json
@@ -29,19 +31,17 @@ footnote-cli note update shared_with_bob.md "a story to share with bob" --share 
 
 echo "Share with Bob (Alice -> Bob) ==="
 cd ../bob-desktop
-timeout 30 footnote-cli service listen-share > /tmp/bob_listen_output.txt 2>&1 &
+timeout 30 footnote-cli service share-listen > /tmp/bob_listen_output.txt 2>&1 &
 BOB_LISTEN_PID=$!
 echo "Bob listening for shares (PID: $BOB_LISTEN_PID)"
 
-sleep 2
+sleep 10
 
 # Alice shares with Bob
 cd ../alice-desktop
 echo "Sharing documents with Bob..."
 timeout 15 footnote-cli service share bob 2>&1 || echo "Share command completed"
 cd ..
-
-sleep 2
 
 # Stop Bob's listener
 kill $BOB_LISTEN_PID 2>/dev/null || true
