@@ -102,9 +102,19 @@ pub enum ContactAction {
 
 #[derive(Subcommand)]
 pub enum NoteAction {
-    Create { path: PathBuf, content: String },
-    Update { path: PathBuf, content: String },
-    Delete { path: PathBuf },
+    Create {
+        path: PathBuf,
+        content: String,
+    },
+    Update {
+        path: PathBuf,
+        content: String,
+        #[arg(long, num_args = 1..)]
+        share: Option<Vec<String>>,
+    },
+    Delete {
+        path: PathBuf,
+    },
 }
 
 pub async fn execute(cli: Cli) -> anyhow::Result<()> {
@@ -126,7 +136,11 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
         },
         Commands::Note { action } => match action {
             NoteAction::Create { path, content } => note_create(&path, &content),
-            NoteAction::Update { path, content } => note_update(&path, &content),
+            NoteAction::Update {
+                path,
+                content,
+                share,
+            } => note_update(&path, &content, share),
             NoteAction::Delete { path } => note_delete(&path),
         },
         Commands::Contact { action } => match action {
@@ -268,9 +282,12 @@ fn note_create(path: &Path, content: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn note_update(path: &Path, content: &str) -> anyhow::Result<()> {
+fn note_update(path: &Path, content: &str, shares: Option<Vec<String>>) -> anyhow::Result<()> {
     let note_path = std::env::current_dir()?.join(path);
     let mut n = Note::from_path(note_path)?;
+    if let Some(updated_shares) = shares {
+        n.frontmatter.share_with = updated_shares;
+    }
     n.update(path, content)?;
     Ok(())
 }

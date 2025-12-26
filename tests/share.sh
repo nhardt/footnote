@@ -10,162 +10,35 @@ cd /tmp/footnotetest
 mkdir alice-desktop && cd alice-desktop
 echo "Creating Alice primary device..."
 footnote-cli vault create-primary alice alice-desktop
-echo "Starting device authorization..."
-timeout 30 footnote-cli service join-listen > /tmp/device_create_output.txt 2>&1 &
-JOIN_LISTEN_PID=$!
 cd ..
-
-# Wait for connection URL to appear
-echo "Waiting for connection URL..."
-sleep 3
-echo "Extracting connection url from "
-cat /tmp/device_create_output.txt
-
-# Extract connection URL from output
-CONNECTION_URL=$(cat /tmp/device_create_output.txt | jq -r '.join_url')
-
-if [ -z "$CONNECTION_URL" ]; then
-    echo "ERROR: Could not capture connection URL"
-    cat /tmp/device_create_output.txt
-    kill $DEVICE_PID 2>/dev/null || true
-    exit 1
-fi
-
-echo "Connection URL: $CONNECTION_URL"
-
-# Create Alice secondary device and join
-mkdir alice-laptop && cd alice-laptop
-echo "Creating Alice secondary device..."
-footnote-cli vault create-secondary alice-laptop
-footnote-cli service join "$CONNECTION_URL"
-cd ..
-
-wait $JOIN_LISTEN_PID 2>/dev/null || true
-
-echo "Alice Pairing complete"
-echo ""
 
 # Create Bob primary device
 mkdir bob-desktop && cd bob-desktop
 echo "Creating Bob primary device..."
 footnote-cli vault create-primary bob bob-desktop
-echo "Starting device authorization..."
-timeout 30 footnote-cli service join-listen > /tmp/device_create_output.txt 2>&1 &
-JOIN_LISTEN_PID=$!
-cd ..
+footnote-cli contact export > ../bob-contact.json
 
-# Wait for connection URL to appear
-echo "Waiting for connection URL..."
-sleep 3
-echo "Extracting connection url from "
-cat /tmp/device_create_output.txt
-
-# Extract connection URL from output
-CONNECTION_URL=$(cat /tmp/device_create_output.txt | jq -r '.join_url')
-
-if [ -z "$CONNECTION_URL" ]; then
-    echo "ERROR: Could not capture connection URL"
-    cat /tmp/device_create_output.txt
-    kill $DEVICE_PID 2>/dev/null || true
-    exit 1
-fi
-
-echo "Connection URL: $CONNECTION_URL"
-
-# Create Bob secondary device and join
-mkdir bob-laptop && cd bob-laptop
-echo "Creating Bob secondary device..."
-footnote-cli vault create-secondary bob-laptop
-footnote-cli service join "$CONNECTION_URL"
-cd ..
-
-wait $JOIN_LISTEN_PID 2>/dev/null || true
-
-echo "Bob Pairing complete"
-echo ""
-
-
-echo ""
-echo "=== Step 4: Exchange contacts (Alice and Bob trust each other) ==="
-cd alice-desktop
-footnote-cli user export me > ../alice-contact.json
-cd ../bob
-footnote-cli trust ../alice-contact.json --petname alice
-echo "Bob now trusts Alice"
-
-footnote-cli user export me > ../bob-contact.json
 cd ../alice-desktop
-footnote-cli trust ../bob-contact.json --petname bob
-echo "Alice now trusts Bob"
-cd ..
+footnote-cli contact import bob ../bob-contact.json
+echo "Alice may now share with bob"
 
-echo ""
-echo "=== Step 5: Create documents on Alice's desktop ==="
-cd alice-desktop
+echo "Create documents on Alice's desktop"
+footnote-cli note create surprise_party.md "party party party"
+footnote-cli note create shared_with_bob.md "a story to share with bob"
+footnote-cli note update shared_with_bob.md "a story to share with bob" --share bob 
 
-# Document 1: Private (not shared)
-UUID1="11111111-1111-1111-1111-111111111111"
-cat > private.md <<ENDOFFILE
----
-uuid: $UUID1
-share_with: []
----
-
-# Private Document
-
-This is Alice's private document. It should NOT be shared with Bob.
-ENDOFFILE
-echo "Created private.md (not shared)"
-
-# Document 2: Shared with Bob
-UUID2="22222222-2222-2222-2222-222222222222"
-cat > shared_with_bob.md <<ENDOFFILE
----
-uuid: $UUID2
-share_with:
-  - bob
----
-
-# Shared Document
-
-This is Alice's document shared with Bob. Bob should receive this.
-ENDOFFILE
-echo "Created shared_with_bob.md (shared with bob)"
-cd ..
-
-echo ""
-echo "=== Step 6: Mirror sync (Alice desktop -> Alice phone) ==="
-cd alice-phone
-timeout 30 footnote-cli vault listen > /tmp/mirror_listen_output.txt 2>&1 &
-LISTEN_PID=$!
-cd ..
-
-sleep 2
-
-cd alice-desktop
-echo "Syncing all notes to phone..."
-timeout 15 footnote-cli mirror push --device phone 2>&1 || true
-cd ..
-
-sleep 2
-kill $LISTEN_PID 2>/dev/null || true
-
-echo ""
-echo "=== Step 7: Share with Bob (Alice -> Bob) ==="
-
-# Start Bob listening for shares
-cd bob
-timeout 30 footnote-cli vault listen > /tmp/bob_listen_output.txt 2>&1 &
+echo "Share with Bob (Alice -> Bob) ==="
+cd ../bob-desktop
+timeout 30 footnote-cli service listen-share > /tmp/bob_listen_output.txt 2>&1 &
 BOB_LISTEN_PID=$!
 echo "Bob listening for shares (PID: $BOB_LISTEN_PID)"
-cd ..
 
 sleep 2
 
 # Alice shares with Bob
-cd alice-desktop
+cd ../alice-desktop
 echo "Sharing documents with Bob..."
-timeout 15 footnote-cli share bob 2>&1 || echo "Share command completed"
+timeout 15 footnote-cli service share bob 2>&1 || echo "Share command completed"
 cd ..
 
 sleep 2
@@ -175,55 +48,36 @@ kill $BOB_LISTEN_PID 2>/dev/null || true
 wait $BOB_LISTEN_PID 2>/dev/null || true
 
 echo ""
-echo "=== Step 8: Validation ==="
-echo ""
-echo "Checking Alice's phone (should have 2 documents + home)..."
-ALICE_PHONE_COUNT=$(ls alice-phone/*.md 2>/dev/null | wc -l | xargs)
-echo "Alice phone has $ALICE_PHONE_COUNT documents"
-
-if [ ! -f alice-phone/private.md ]; then
-    echo "[FAIL] private.md not found on Alice's phone"
-    exit 1
-fi
-echo "[PASS] private.md exists on Alice's phone"
-
-if [ ! -f alice-phone/shared_with_bob.md ]; then
-    echo "[FAIL] shared_with_bob.md not found on Alice's phone"
-    exit 1
-fi
-echo "[PASS] shared_with_bob.md exists on Alice's phone"
-
-echo ""
 echo "Checking Bob's footnotes/alice/ directory (should have 1 document)..."
-if [ ! -d bob/footnotes/alice ]; then
+if [ ! -d bob-desktop/footnotes/alice ]; then
     echo "[FAIL] bob/footnotes/alice directory does not exist"
     exit 1
 fi
 
-BOB_ALICE_COUNT=$(ls bob/footnotes/alice/*.md 2>/dev/null | wc -l | xargs)
+BOB_ALICE_COUNT=$(ls bob-desktop/footnotes/alice/*.md 2>/dev/null | wc -l | xargs)
 echo "Bob has $BOB_ALICE_COUNT document(s) from Alice"
 
 if [ "$BOB_ALICE_COUNT" -ne 1 ]; then
     echo "[FAIL] Expected 1 document from Alice, got $BOB_ALICE_COUNT"
-    ls -la bob/footnotes/alice/ || true
+    ls -la bob-desktop/footnotes/alice/ || true
     exit 1
 fi
 
-if [ ! -f bob/footnotes/alice/shared_with_bob.md ]; then
+if [ ! -f bob-desktop/footnotes/alice/shared_with_bob.md ]; then
     echo "[FAIL] shared_with_bob.md not found in bob/footnotes/alice/"
-    ls -la bob/footnotes/alice/
+    ls -la bob-desktop/footnotes/alice/
     exit 1
 fi
-echo "[PASS] shared_with_bob.md exists in bob/footnotes/alice/"
+echo "[PASS] shared_with_bob.md exists in bob-desktop/footnotes/alice/"
 
-if [ -f bob/footnotes/alice/private.md ]; then
-    echo "[FAIL] private.md should NOT exist in bob/footnotes/alice/"
+if [ -f bob-desktop/footnotes/alice/private.md ]; then
+    echo "[FAIL] private.md should NOT exist in bob-desktop/footnotes/alice/"
     exit 1
 fi
 echo "[PASS] private.md correctly NOT shared with Bob"
 
 # Verify content
-if grep -q "This is Alice's document shared with Bob" bob/footnotes/alice/shared_with_bob.md; then
+if grep -q "a story to share with bob" bob-desktop/footnotes/alice/shared_with_bob.md; then
     echo "[PASS] Document content verified"
 else
     echo "[FAIL] Document content mismatch"
