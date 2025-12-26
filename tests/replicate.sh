@@ -47,28 +47,15 @@ echo ""
 echo "Creating note on primary"
 cd alice-desktop
 
-# Create a test note with UUID
-TEST_UUID="550e8400-e29b-41d4-a716-446655440001"
-cat > test_note.md <<ENDOFFILE
----
-uuid: $TEST_UUID
-share_with: []
----
+NOTE_CONTENT=`uuidgen`
 
-# Test Note
-
-This is a test note created on primary device.
-It should sync to the secondary device.
-ENDOFFILE
-
-echo "Created notes/test_note.md with UUID: $TEST_UUID"
+footnote-cli note create created_on_primary.md $NOTE_CONTENT
 cd ..
 
 echo ""
 echo "Sync primary to secondary"
 
-# Start mirror listener on phone in background
-cd alice-phone
+cd alice-laptop
 timeout 30 footnote-cli service replicate-listen > /tmp/replicate_listen_output.txt 2>&1 &
 LISTEN_PID=$!
 echo "Phone listening for sync (PID: $LISTEN_PID)"
@@ -78,9 +65,9 @@ cd ..
 sleep 2
 
 # Push from primary
-cd alice-primary
-echo "Pushing from primary to phone..."
-footnote-cli service replicate alice-phone
+cd alice-desktop
+echo "Pushing from desktop to laptop..."
+footnote-cli service replicate alice-laptop
 cd ..
 
 # Give sync time to complete
@@ -91,25 +78,13 @@ kill $LISTEN_PID 2>/dev/null || true
 wait $LISTEN_PID 2>/dev/null || true
 
 echo ""
-echo "=== Step 5: Verify sync ==="
+echo "=== Verify replication ==="
 
 # Check if note exists on phone
-if [ -f alice-phone/test_note.md ]; then
+if [ -f alice-phone/created_on_primary.md ]; then
     echo "Note synced successfully to phone"
 
-    # Verify UUID matches
-    PHONE_UUID=$(grep "uuid:" alice-phone/test_note.md | awk '{print $2}')
-    if [ "$PHONE_UUID" = "$TEST_UUID" ]; then
-        echo "UUID matches: $PHONE_UUID"
-    else
-        echo "UUID mismatch!"
-        echo "  Expected: $TEST_UUID"
-        echo "  Got: $PHONE_UUID"
-        exit 1
-    fi
-
-    # Verify content
-    if grep -q "This is a test note created on primary device" alice-phone/test_note.md; then
+    if grep -q "$NOTE_CONTENT" alice-phone/created_on_primary.md; then
         echo "Note content verified"
     else
         echo "Note content mismatch!"
