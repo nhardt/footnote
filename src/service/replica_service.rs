@@ -100,8 +100,9 @@ impl ReplicaService {
                                 }
                             };
 
+                            let conn_clone = conn.clone();
                             tokio::spawn(async move {
-                                if let Err(e) = transfer::receive_files(&vault, conn).await {
+                                if let Err(e) = transfer::receive_replication(&vault, conn_clone).await {
                                     eprintln!("Error handling replica from {}: {:?}", device_name, e);
                                 }
                             });
@@ -125,7 +126,7 @@ impl ReplicaService {
         let manifest =
             manifest::create_manifest_full(&vault.path).context("Failed to create manifest")?;
 
-        transfer::push_manifest_to_endpoint(vault, manifest, endpoint_id, ALPN_REPLICA).await?;
+        transfer::replicate_to_target(vault, manifest, endpoint_id, ALPN_REPLICA).await?;
 
         Ok(())
     }

@@ -17,7 +17,7 @@ use std::path::PathBuf;
 /// A verifies B can read requested file
 /// A sends file to B
 
-pub async fn receive_files(vault: &Vault, connection: Connection) -> Result<()> {
+pub async fn receive_replication(vault: &Vault, connection: Connection) -> Result<()> {
     let (mut send, mut recv) = connection.accept_bi().await?;
 
     let manifest_bytes = network::receive_bytes(&mut recv).await?;
@@ -43,7 +43,7 @@ pub async fn receive_files(vault: &Vault, connection: Connection) -> Result<()> 
     Ok(())
 }
 
-pub async fn push_manifest_to_endpoint(
+pub async fn replicate_to_target(
     vault: &Vault,
     manifest: Manifest,
     remote_endpoint_id: iroh::PublicKey,
@@ -56,9 +56,9 @@ pub async fn push_manifest_to_endpoint(
         .await
         .context("Failed to connect to remote device")?;
     let (mut send, mut recv) = conn.open_bi().await?;
-    let encoded = serde_json::to_vec(&manifest).context("Failed to serialize manifest")?;
-
-    network::send_bytes(&mut send, &encoded).await?;
+    let serialised_manifest =
+        serde_json::to_vec(&manifest).context("Failed to serialize manifest")?;
+    network::send_bytes(&mut send, &serialised_manifest).await?;
 
     loop {
         let file_uuid = match network::receive_file_request(&mut recv).await? {
