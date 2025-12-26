@@ -55,18 +55,10 @@ impl ReplicaService {
             loop {
                 tokio::select! {
                     Some(incoming) = endpoint.accept() => {
-                        let mut accepting = match incoming.accept() {
+                        let accepting = match incoming.accept() {
                             Ok(a) => a,
                             Err(e) => {
                                 let _ = tx.send(ReplicaEvent::Error(format!("Accept error: {}", e))).await;
-                                continue;
-                            }
-                        };
-
-                        let alpn = match accepting.alpn().await {
-                            Ok(a) => a,
-                            Err(e) => {
-                                let _ = tx.send(ReplicaEvent::Error(format!("ALPN error: {}", e))).await;
                                 continue;
                             }
                         };
@@ -79,34 +71,34 @@ impl ReplicaService {
                             }
                         };
 
-                        if alpn == ALPN_REPLICA {
-                            let remote_id = conn.remote_id();
-                            let vault = match Vault::new(&vault_path) {
-                                Ok(v) => v,
-                                Err(e) => {
-                                    let _ = tx.send(ReplicaEvent::Error(format!("Vault error: {}", e))).await;
-                                    continue;
-                                }
-                            };
+                        let remote_id = conn.remote_id();
+                        let vault = match Vault::new(&vault_path) {
+                            Ok(v) => v,
+                            Err(e) => {
+                                let _ = tx.send(ReplicaEvent::Error(format!("Vault error: {}", e))).await;
+                                continue;
+                            }
+                        };
 
-                            let device_name = match vault.owned_device_endpoint_to_name(&remote_id) {
-                                Ok(name) => {
-                                    let _ = tx.send(ReplicaEvent::Received { from_device: name.clone() }).await;
-                                    name
-                                }
-                                Err(e) => {
-                                    let _ = tx.send(ReplicaEvent::Error(format!("Not my device: {}", e))).await;
-                                    continue;
-                                }
-                            };
+                        let device_name = match vault.owned_device_endpoint_to_name(&remote_id) {
+                            Ok(name) => {
+                                let _ = tx.send(ReplicaEvent::Received { from_device: name.clone() }).await;
+                                name
+                            }
+                            Err(e) => {
+                                let _ = tx.send(ReplicaEvent::Error(format!("Not my device: {}", e))).await;
+                                continue;
+                            }
+                        };
 
-                            let conn_clone = conn.clone();
-                            tokio::spawn(async move {
-                                if let Err(e) = transfer::receive_replication(&vault, conn_clone).await {
-                                    eprintln!("Error handling replica from {}: {:?}", device_name, e);
-                                }
-                            });
-                        }
+                        let endpoint = endpoint.clone();
+                        let conn = conn.clone();
+
+                        tokio::spawn(async move {
+                            if let Err(e) = transfer::receive_replication(&vault, endpoint, conn).await {
+                                eprintln!("Error handling replica from {}: {:?}", device_name, e);
+                            }
+                        });
                     }
                     _ = cancel_clone.cancelled() => {
                         let _ = tx.send(ReplicaEvent::Stopped).await;

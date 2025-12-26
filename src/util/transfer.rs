@@ -17,13 +17,20 @@ use std::path::PathBuf;
 /// A verifies B can read requested file
 /// A sends file to B
 
-pub async fn receive_replication(vault: &Vault, connection: Connection) -> Result<()> {
+pub async fn receive_replication(
+    vault: &Vault,
+    endpoint: Endpoint,
+    connection: Connection,
+) -> Result<()> {
+    // Important Note: The peer that calls open_bi must write to its SendStream
+    // before the peer Connection is able to accept the stream using
+    // accept_bi(). Calling open_bi then waiting on the RecvStream without
+    // writing anything to the connected SendStream will never succeed.
     let (mut send, mut recv) = connection.accept_bi().await?;
-
     let manifest_bytes = network::receive_bytes(&mut recv).await?;
+
     let remote_manifest: Manifest =
         serde_json::from_slice(&manifest_bytes).context("Failed to deserialize manifest")?;
-
     let local_manifest =
         create_manifest_full(&vault.path).context("Failed to create local manifest")?;
     let files_to_sync = diff_manifests(&local_manifest, &remote_manifest);
@@ -55,9 +62,12 @@ pub async fn replicate_to_target(
         .connect(remote_endpoint_id, alpn)
         .await
         .context("Failed to connect to remote device")?;
-    let (mut send, mut recv) = conn.open_bi().await?;
+
     let serialised_manifest =
         serde_json::to_vec(&manifest).context("Failed to serialize manifest")?;
+    // Calling open_bi then waiting on the RecvStream without writing anything
+    // to SendStream will never succeed.
+    let (mut send, mut recv) = conn.open_bi().await?;
     network::send_bytes(&mut send, &serialised_manifest).await?;
 
     loop {
