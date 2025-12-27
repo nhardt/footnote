@@ -7,43 +7,34 @@ mod platform;
 mod util;
 mod views;
 
-use components::Navbar;
-use views::{Browse, Contacts, Edit, Editor, Profile, VaultCreate, VaultHome, VaultOpen};
+use views::contact_browser::ContactBrowser;
+use views::contact_view::ContactView;
+use views::note_browser::NoteBrowser;
+use views::note_view::NoteView;
+use views::profile::Profile;
 
 use crate::context::VaultContext;
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]
 enum Route {
-    #[layout(Navbar)]
-        #[route("/")]
-        VaultHome {},
-
-        #[route("/vault-create")]
-        VaultCreate {},
-
-        #[route("/vault-open")]
-        VaultOpen {},
-
-        #[route("/profile")]
-        Profile {},
-
-        #[route("/editor")]
-        Editor {},
-
-        #[route("/contacts")]
-        Contacts {},
-
-        #[route("/browse?:file_path")]
-        Browse { file_path: String },
-
-        #[route("/edit?:file_path")]
-        Edit { file_path: String },
+    #[route("/")]
+    NoteBrowser {},
+    
+    #[route("/notes/:file_path")]
+    NoteView { file_path: String },
+    
+    #[route("/contacts")]
+    ContactBrowser {},
+    
+    #[route("/contacts/:nickname")]
+    ContactView { nickname: String },
+    
+    #[route("/profile")]
+    Profile {},
 }
-
 const FAVICON: Asset = asset!("/assets/favicon.ico");
 const MAIN_CSS: Asset = asset!("/assets/styling/main.css");
-const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
 
 fn main() {
     dioxus::launch(App);
@@ -55,8 +46,28 @@ fn App() -> Element {
     rsx! {
         document::Link { rel: "icon", href: FAVICON }
         document::Link { rel: "stylesheet", href: MAIN_CSS }
-        document::Link { rel: "stylesheet", href: TAILWIND_CSS }
 
+        div { class: "app-container",
+            div { style: "flex-shrink: 0; height: 50px; border-bottom: 1px solid var(--bg-color-tertiary);",
+                Link {
+                    to: Route::NoteBrowser{},
+                    "Notes"
+                }
+                Link {
+                    to: Route::ContactBrowser{},
+                    "Contacts"
+                }
+                Link {
+                    to: Route::Profile{},
+                    "Profile"
+                }
+            }
+
+
+            div { style:"display: flex; flex-direction: column; height: 100vh;",
+                Router::<Route> {}
+            }
+        }
         Router::<Route> {}
     }
 }

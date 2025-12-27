@@ -1,19 +1,5 @@
-mod contacts;
-pub use contacts::Contacts;
-
-mod editor;
-pub use editor::Editor;
-
-mod profile;
-pub use profile::Profile;
-
-mod vault;
-pub use vault::VaultCreate;
-pub use vault::VaultHome;
-pub use vault::VaultOpen;
-
-mod browse;
-pub use browse::Browse;
-
-mod edit;
-pub use edit::Edit;
+pub mod contact_browser;
+pub mod contact_view;
+pub mod note_browser;
+pub mod note_view;
+pub mod profile;

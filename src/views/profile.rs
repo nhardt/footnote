@@ -5,10 +5,6 @@ use dioxus_clipboard::prelude::use_clipboard;
 pub fn Profile() -> Element {
     rsx! {
        "Profile",
-        button {
-            "Share Contact"
-        }
-
     }
 }
 

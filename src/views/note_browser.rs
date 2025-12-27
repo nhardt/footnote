@@ -1,8 +1,8 @@
 use dioxus::prelude::*;
 
 #[component]
-pub fn Contacts() -> Element {
+pub fn NoteBrowser() -> Element {
     rsx! {
-        "Contacts"
+       "Note Browser",
     }
 }
