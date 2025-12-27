@@ -19,8 +19,8 @@ use crate::context::VaultContext;
 #[rustfmt::skip]
 enum Route {
     #[layout(Main)]
-    #[route("/")]
-    NoteBrowser {},
+    #[route("/notes")]
+    NoteBrowser{},
     
     #[route("/notes/:file_path")]
     NoteView { file_path: String },
@@ -31,7 +31,7 @@ enum Route {
     #[route("/contacts/:nickname")]
     ContactView { nickname: String },
     
-    #[route("/profile")]
+    #[route("/")]
     Profile {},
 }
 const FAVICON: Asset = asset!("/assets/favicon.ico");
@@ -55,7 +55,8 @@ fn App() -> Element {
 #[component]
 fn Main() -> Element {
     rsx! {
-        div { class: "flex w-full flex-row justify-evenly bg-zinc-500",
+        div { class: "flex flex-col h-screen w-screen",
+            div { class: "flex w-full flex-row justify-evenly bg-zinc-400 font-bold",
                 Link {
                     to: Route::NoteBrowser{},
                     "Notes"
@@ -68,10 +69,11 @@ fn Main() -> Element {
                     to: Route::Profile{},
                     "Profile"
                 }
-            }
+            },
 
-            div { style:"display: flex; flex-direction: column; height: 100vh;",
+            div { class:"flex flex-1 bg-indigo-200",
                 Outlet::<Route> {}
             }
+        }
     }
 }
