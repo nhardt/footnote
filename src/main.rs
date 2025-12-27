@@ -43,7 +43,9 @@ fn main() {
 
 #[component]
 fn App() -> Element {
-    use_context_provider(|| VaultContext::new());
+    let vault_path = ensure_default_vault()?;
+    use_context_provider(|| VaultContext::new(Some(vault_path)));
+
     rsx! {
         document::Link { rel: "icon", href: FAVICON }
         document::Link { rel: "stylesheet", href: TAILWIND_CSS }

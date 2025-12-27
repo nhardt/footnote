@@ -21,8 +21,10 @@ pub struct Vault {
 ///    user.json            : signed record of the local user's devices
 impl Vault {
     /// called on the first device when creating a new vault
-    pub fn create_primary(path: PathBuf, username: &str, device_name: &str) -> Result<Self> {
-        let v = Self { path };
+    pub fn create_primary(path: &Path, username: &str, device_name: &str) -> Result<Self> {
+        let v = Self {
+            path: path.to_path_buf(),
+        };
         v.create_directory_structure()?;
         v.create_device_key(device_name)?;
         LocalUser::create_local_user_record(&v.path, username)?;
@@ -31,8 +33,10 @@ impl Vault {
 
     /// called on non-primary device to put vault into state where it's ready to
     /// join
-    pub fn create_secondary(path: PathBuf, device_name: &str) -> Result<Self> {
-        let v = Self { path };
+    pub fn create_secondary(path: &Path, device_name: &str) -> Result<Self> {
+        let v = Self {
+            path: path.to_path_buf(),
+        };
         v.create_directory_structure()?;
         v.create_device_key(device_name)?;
         Ok(v)
@@ -86,6 +90,10 @@ impl Vault {
 
     pub fn is_primary_device(&self) -> anyhow::Result<bool> {
         Ok(self.path.join(".footnote").join("id_key").exists())
+    }
+
+    pub fn is_created(&self) -> Result<bool> {
+        Ok(self.path.join(".footnote").join("device_key").exists())
     }
 
     pub fn can_device_read_note(
