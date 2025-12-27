@@ -57,27 +57,3 @@ body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
 }
-
-.content {
-  flex: 1;
-  /* take remaining space */
-  overflow-y: auto;
-  /* scroll if content is tall */
-}
-
-#navbar {
-  display: flex;
-  flex-direction: row;
-}
-
-#navbar a {
-  color: #ffffff;
-  margin-right: 20px;
-  text-decoration: none;
-  transition: color 0.2s ease;
-}
-
-#navbar a:hover {
-  cursor: pointer;
-  color: #91a4d2;
-}

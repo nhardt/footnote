@@ -18,6 +18,7 @@ use crate::context::VaultContext;
 #[derive(Debug, Clone, Routable, PartialEq)]
 #[rustfmt::skip]
 enum Route {
+    #[layout(Main)]
     #[route("/")]
     NoteBrowser {},
     
@@ -47,7 +48,13 @@ fn App() -> Element {
         document::Link { rel: "icon", href: FAVICON }
         document::Link { rel: "stylesheet", href: MAIN_CSS }
 
-        div { class: "app-container",
+        Router::<Route> {}
+    }
+}
+
+#[component]
+fn Main() -> Element {
+    rsx! {
             div { style: "flex-shrink: 0; height: 50px; border-bottom: 1px solid var(--bg-color-tertiary);",
                 Link {
                     to: Route::NoteBrowser{},
@@ -63,11 +70,8 @@ fn App() -> Element {
                 }
             }
 
-
             div { style:"display: flex; flex-direction: column; height: 100vh;",
-                Router::<Route> {}
+                Outlet::<Route> {}
             }
-        }
-        Router::<Route> {}
     }
 }
