@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use dioxus::prelude::*;
 
 mod components;
@@ -6,6 +8,9 @@ mod model;
 mod platform;
 mod util;
 mod views;
+
+use model::vault::Vault;
+use util::filesystem::ensure_default_vault;
 
 use views::contact_browser::ContactBrowser;
 use views::contact_view::ContactView;

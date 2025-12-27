@@ -7,9 +7,9 @@ pub struct VaultContext {
 }
 
 impl VaultContext {
-    pub fn new() -> Self {
+    pub fn new(path: Option<PathBuf>) -> Self {
         Self {
-            vault_path: Signal::new(None),
+            vault_path: Signal::new(path),
         }
     }
 
