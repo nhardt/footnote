@@ -1,25 +1,19 @@
 use dioxus::prelude::*;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tracing;
 
 #[component]
 pub fn DirectoryBrowser(
+    base_path: PathBuf,
+    only_directories: bool,
     on_select: EventHandler<PathBuf>,
     on_cancel: EventHandler<()>,
     action_label: String,
     #[props(default)] is_valid: Option<Callback<PathBuf, bool>>,
 ) -> Element {
-    let mut current_path = use_signal(|| match crate::platform::get_app_dir() {
-        Ok(path) => {
-            tracing::info!("Directory browser starting at: {}", path.display());
-            path
-        }
-        Err(e) => {
-            tracing::error!("Failed to get app directory: {}", e);
-            PathBuf::from("/")
-        }
-    });
+    let mut current_path = use_signal(|| base_path.to_path_buf());
     let mut folders = use_signal(|| Vec::<PathBuf>::new());
+    let mut files = use_signal(|| Vec::<PathBuf>::new());
     let mut new_folder_name = use_signal(|| String::new());
     let mut show_new_folder_input = use_signal(|| false);
 
@@ -37,6 +31,13 @@ pub fn DirectoryBrowser(
                     if let Ok(metadata) = entry.metadata() {
                         if metadata.is_dir() {
                             folder_list.push(entry.path());
+                            if only_directories {
+                                continue;
+                            }
+                        }
+
+                        if metadata.is_file() {
+                            files.push(entry.path());
                         }
                     }
                 }
@@ -103,88 +104,91 @@ pub fn DirectoryBrowser(
     };
 
     rsx! {
-        div { class: "directory-browser",
-            div { class: "card",
-                div { class: "header",
-                    h1 { "Select Directory" }
+        div { class: "max-w-2xl",
+            h1 { "Select Directory" }
+
+            // Current path with actions
+            div { class: "grid grid-cols-[auto_1fr_auto_auto]",
+                label { "Current Path" }
+                div { "{current_path().display()}" }
+                button { onclick: handle_go_up, "↑ Up" }
+                button { onclick: handle_toggle_new_folder, "+ Folder" }
+            }
+
+            // New folder input (conditional)
+            if show_new_folder_input() {
+                div { class: "grid grid-cols-[auto_1fr_auto]",
+                    label { "New Folder Name" }
+                    input {
+                        r#type: "text",
+                        placeholder: "folder-name",
+                        value: "{new_folder_name}",
+                        oninput: move |evt| new_folder_name.set(evt.value()),
+                        autofocus: true,
+                    }
+                    button {
+                        disabled: new_folder_name().trim().is_empty(),
+                        onclick: handle_create_folder,
+                        "Create"
+                    }
                 }
+            }
 
-                div { class: "content",
-                    div { class: "field",
-                        label { "Current Path" }
-                        div { class: "button-row",
-                            div { class: "path-display",
-                                "{current_path().display()}"
-                            }
-                            button {
-                                class: "secondary",
-                                onclick: handle_go_up,
-                                "↑ Up"
-                            }
-                            button {
-                                class: "secondary",
-                                onclick: handle_toggle_new_folder,
-                                "+ Folder"
-                            }
-                        }
-                    }
-
-                    if show_new_folder_input() {
-                        div { class: "field",
-                            label { "New Folder Name" }
-                            div { class: "button-row",
-                                input {
-                                    r#type: "text",
-                                    placeholder: "folder-name",
-                                    value: "{new_folder_name}",
-                                    oninput: move |evt| new_folder_name.set(evt.value()),
-                                    autofocus: true,
-                                }
-                                button {
-                                    disabled: new_folder_name().trim().is_empty(),
-                                    onclick: handle_create_folder,
-                                    "Create"
-                                }
-                            }
-                        }
-                    }
-
-                    div { class: "folder-list",
-                        if folders().is_empty() {
-                            div { class: "empty", "No subdirectories" }
-                        } else {
-                            for folder in folders() {
-                                {
-                                    let folder_name = folder
-                                        .file_name()
-                                        .and_then(|n| n.to_str())
-                                        .unwrap_or("?");
-                                    let folder_path = folder.clone();
-                                    rsx! {
-                                        div {
-                                            key: "{folder.display()}",
-                                            class: "list-item",
-                                            onclick: move |_| current_path.set(folder_path.clone()),
-                                            "📁 {folder_name}"
-                                        }
-                                    }
+            // Folder list
+            div {
+                if folders().is_empty() {
+                    div { "No subdirectories" }
+                } else {
+                    for folder in folders() {
+                        {
+                            let folder_name = folder
+                                .file_name()
+                                .and_then(|n| n.to_str())
+                                .unwrap_or("?");
+                            let folder_path = folder.clone();
+                            rsx! {
+                                div {
+                                    key: "{folder.display()}",
+                                    class: "font-bold",
+                                    onclick: move |_| current_path.set(folder_path.clone()),
+                                    "{folder_name}"
                                 }
                             }
                         }
                     }
                 }
+            }
 
-                div { class: "footer",
-                    button {
-                        class: "secondary",
-                        onclick: handle_cancel,
-                        "Cancel"
+            // File list
+            div {
+                for file in files() {
+                    {
+                        let file_name = file
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("?");
+                        let file_path = file_name.clone();
+                        rsx! {
+                            div {
+                                key: "{file_path}",
+                                onclick: move |_| on_select.call(file.clone()),
+                                "{file_name}"
+                            }
+                        }
                     }
-                    button {
-                        disabled: !path_is_valid,
-                        onclick: handle_select_here,
-                        "{action_label}"
-                    }
+                }
+            }
+
+
+            div { class: "flex",
+                button {
+                    onclick: handle_cancel,
+                    "Cancel"
+                }
+                button {
+                    disabled: !path_is_valid,
+                    onclick: handle_select_here,
+                    "{action_label}"
                 }
             }
         }
