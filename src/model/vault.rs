@@ -241,4 +241,15 @@ impl Vault {
         let (iroh_endpoint_id, device_name) = self.device_public_key()?;
         Ok([Device::new(device_name, iroh_endpoint_id.to_string())].to_vec())
     }
+
+    pub fn user_read(&self) -> anyhow::Result<Option<Contact>> {
+        let user_record = self.path.join(".footnote").join("user.json");
+
+        if user_record.exists() {
+            let user_record = Contact::from_file(user_record)?;
+            return Ok(Some(user_record));
+        }
+        // probably want to grab username from id_key if it exists
+        Ok(None)
+    }
 }

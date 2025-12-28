@@ -81,6 +81,19 @@ impl LocalUser {
         Ok((secret_key, username.to_string()))
     }
 
+    pub fn id_key_update(&self, username: &str) -> anyhow::Result<()> {
+        let footnotes_dir = self.vault_path.join(".footnote");
+        let id_key_file = footnotes_dir.join("id_key");
+        let content = fs::read_to_string(&id_key_file)?;
+        let (encoded_key, _) = match content.split_once(' ') {
+            Some((a, b)) => (a, b),
+            None => anyhow::bail!("username not found in key"),
+        };
+        let id_line = format!("{} {}", encoded_key, username);
+        fs::write(&id_key_file, id_line)?;
+        Ok(())
+    }
+
     pub fn id_pub_key_read(&self) -> Result<(ed25519_dalek::VerifyingKey, String)> {
         let (private_key, username) = self.id_key_read()?;
         Ok((private_key.verifying_key(), username))
@@ -131,6 +144,8 @@ impl LocalUser {
     // from that to maintain a single source of truth. or, should update the username
     // in both places.
     pub fn username_update(&self, username: &str) -> Result<Contact> {
+        self.id_key_update(username)?;
+
         let local_user_file = self.vault_path.join(".footnote").join("user.json");
         let current_user_record = match Contact::from_file(&local_user_file) {
             Ok(contact) => contact,
