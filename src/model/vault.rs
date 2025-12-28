@@ -252,4 +252,9 @@ impl Vault {
         // probably want to grab username from id_key if it exists
         Ok(None)
     }
+
+    pub fn note_create(&self, path: &Path, content: &str) -> anyhow::Result<()> {
+        Note::create(path, content)?;
+        Ok(())
+    }
 }
