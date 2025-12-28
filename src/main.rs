@@ -63,7 +63,7 @@ fn App() -> Element {
 fn Main() -> Element {
     rsx! {
         div { class: "flex flex-col h-screen w-screen",
-            div { class: "flex w-full flex-row justify-evenly",
+            div { class: "flex flex-row w-full items-center justify-evenly h-12 bg-gray-200 mb-4 text-sm",
                 Link {
                     to: Route::NoteBrowser{},
                     "Notes"
