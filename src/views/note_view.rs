@@ -25,13 +25,13 @@ pub fn NoteView(file_path: String) -> Element {
             div { class: "grid grid-cols-[auto_1fr] gap-4",
                 label { "Title" }
                 input {
-                    class: "border-1",
+                    class: "border-1 px-2",
                     r#type: "text",
                     value: "{decoded}",
                 }
                 label { "Shared with:" }
                 input {
-                    class: "border-1",
+                    class: "border-1 px-2",
                     r#type: "text",
                     value: "{share_with}",
                     oninput: move |e| share_with.set(e.value())
