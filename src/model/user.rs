@@ -25,10 +25,10 @@ impl LocalUser {
     /// has a public key and username used to sign the collected device records.
     pub fn create_local_user_record(vault_path: &Path, username: &str) -> Result<()> {
         let local_user = LocalUser::new(vault_path)?;
-        local_user.create_id_key(username)?;
+        local_user.id_key_create(username)?;
 
-        let (id_signing_key, _) = local_user.id_key()?;
-        let (device_signing_key, device_name) = local_user.device_key()?;
+        let (id_signing_key, _) = local_user.id_key_read()?;
+        let (device_signing_key, device_name) = local_user.device_key_read()?;
 
         let local_device = Device {
             iroh_endpoint_id: device_signing_key.public().to_string(),
@@ -54,7 +54,7 @@ impl LocalUser {
     /// the id key is the master public key for the vault. it's generated and
     /// stored on the primary device. this key is used to sign the contact
     /// record, and represents a user's stable identity.
-    fn create_id_key(&self, username: &str) -> anyhow::Result<()> {
+    fn id_key_create(&self, username: &str) -> anyhow::Result<()> {
         let footnotes_dir = self.vault_path.join(".footnote");
         let id_key_file = footnotes_dir.join("id_key");
         let mut csprng = OsRng;
@@ -65,7 +65,7 @@ impl LocalUser {
         Ok(())
     }
 
-    pub fn id_key(&self) -> Result<(ed25519_dalek::SigningKey, String)> {
+    pub fn id_key_read(&self) -> Result<(ed25519_dalek::SigningKey, String)> {
         let footnotes_dir = self.vault_path.join(".footnote");
         let id_key_file = footnotes_dir.join("id_key");
         let content = fs::read_to_string(id_key_file)?;
@@ -81,12 +81,12 @@ impl LocalUser {
         Ok((secret_key, username.to_string()))
     }
 
-    pub fn id_key_pub(&self) -> Result<(ed25519_dalek::VerifyingKey, String)> {
-        let (private_key, username) = self.id_key()?;
+    pub fn id_pub_key_read(&self) -> Result<(ed25519_dalek::VerifyingKey, String)> {
+        let (private_key, username) = self.id_key_read()?;
         Ok((private_key.verifying_key(), username))
     }
 
-    pub fn device_key(&self) -> Result<(iroh::SecretKey, String)> {
+    pub fn device_key_read(&self) -> Result<(iroh::SecretKey, String)> {
         let footnotes_dir = self.vault_path.join(".footnote");
         let device_key_file = footnotes_dir.join("device_key");
         let content = fs::read_to_string(device_key_file)?;
@@ -101,8 +101,8 @@ impl LocalUser {
         let secret_key = iroh::SecretKey::from_bytes(&key_array);
         Ok((secret_key, device_name.to_string()))
     }
-    pub fn device_key_pub(&self) -> Result<(iroh::PublicKey, String)> {
-        let (device_key, device_name) = self.device_key()?;
+    pub fn device_key_pub_read(&self) -> Result<(iroh::PublicKey, String)> {
+        let (device_key, device_name) = self.device_key_read()?;
         Ok((device_key.public(), device_name))
     }
 
@@ -120,7 +120,7 @@ impl LocalUser {
             iroh_endpoint_id: iroh_endpoint.to_string(),
         });
         user_record.updated_at = LamportTimestamp(user_record.updated_at.as_i64());
-        let (signing_key, _) = self.id_key()?;
+        let (signing_key, _) = self.id_key_read()?;
         user_record.sign(&signing_key)?;
         user_record.is_valid_successor_of(&current_user_record)?;
         user_record.to_file(&local_user_file)?;
@@ -130,7 +130,7 @@ impl LocalUser {
     // it's potentially better to update the id record, then rebuild the record
     // from that to maintain a single source of truth. or, should update the username
     // in both places.
-    pub fn update_username(&self, username: &str) -> Result<Contact> {
+    pub fn username_update(&self, username: &str) -> Result<Contact> {
         let local_user_file = self.vault_path.join(".footnote").join("user.json");
         let current_user_record = match Contact::from_file(&local_user_file) {
             Ok(contact) => contact,
@@ -141,7 +141,7 @@ impl LocalUser {
         let mut user_record = current_user_record.clone();
         user_record.username = username.to_string();
         user_record.updated_at = LamportTimestamp(user_record.updated_at.as_i64());
-        let (signing_key, _) = self.id_key()?;
+        let (signing_key, _) = self.id_key_read()?;
         user_record.sign(&signing_key)?;
         user_record.is_valid_successor_of(&current_user_record)?;
         user_record.to_file(&local_user_file)?;

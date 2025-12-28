@@ -14,13 +14,16 @@ pub fn Profile() -> Element {
     //     LocalUserSection = LocalUserView()
     // }
     let local_user = LocalUser::new(&vault_path).expect("No local user record");
-    let (public_key, username) = local_user.id_key().expect("local user not initialized");
+    let (public_key, username) = local_user
+        .id_key_read()
+        .expect("local user not initialized");
     let (device_public_key, device_name) = local_user
-        .device_key_pub()
+        .device_key_pub_read()
         .expect("local user not initialized");
 
     let mut username_value = use_signal(|| username.clone());
     let mut device_name_value = use_signal(|| device_name.clone());
+    let mut err_message = use_signal(|| String::new());
 
     let devices = vault
         .device_read()
@@ -28,7 +31,9 @@ pub fn Profile() -> Element {
 
     let save_username = move |_| {
         let username_update = username_value.read();
-        local_user.update_username(&*username_update);
+        if let Err(e) = local_user.username_update(&*username_update) {
+            err_message.set(format!("err updating username: {}", e));
+        }
     };
 
     // ok, here's a plan for the local device record, vault, local-user:
@@ -42,6 +47,22 @@ pub fn Profile() -> Element {
     //   - user.json exists: return all. our local device should be there
     //   - no user.json: just return our local device. it's name is editable
     //   - on vault, since it applies whether or not we are primary
+    //
+    // vault states:
+    // - None
+    // - Secondary: can always init this way. can join or become primary
+    //   - Join -> Gains user.json from primary, no id_key
+    //   - ToPrimary -> Gains user.json from primary, id_key, id_key matches signing key
+    // - Primary
+    //   - Reset -> Secondary
+    //
+    // my outstanding concern with this is that both sides will have a home.md, with LWW
+    // one will be blown away. possibly home.md could be special. maybe this use case:
+    // A -> None -> Primary -> Write("home.md") -> Secondary
+    // B -> None -> Primary
+    // A -> Join(B)
+    // isn't that important. the way it might be important is if users are confused about
+    // Vault states, or even just generally the p2p sync'ing semantics.
 
     rsx! {
         div { class: "flex flex-col h-full w-2xl gap-2",
@@ -75,6 +96,7 @@ pub fn Profile() -> Element {
                     span { class: "truncate", "{device.iroh_endpoint_id}" }
                 }
             }
+            label { "{err_message}" }
             button { class: "border-1 rounded", "Listen For Secondary Device" }
             button { class: "border-1 rounded", "Copy Device Join URL To Clipboard" }
             button { class: "border-1 rounded", "Copy Contact Record to Cliboard" }
