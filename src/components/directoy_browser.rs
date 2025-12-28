@@ -167,10 +167,9 @@ pub fn DirectoryBrowser(
                             .file_name()
                             .and_then(|n| n.to_str())
                             .unwrap_or("?");
-                        let file_path = file_name.clone();
                         rsx! {
                             div {
-                                key: "{file_path}",
+                                key: "{file_name}",
                                 onclick: move |_| on_select.call(file.clone()),
                                 "{file_name}"
                             }
