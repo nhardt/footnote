@@ -76,7 +76,7 @@ pub fn Profile() -> Element {
                     value: "{username_value}",
                     oninput: move |e| username_value.set(e.value()),
                 }
-                button { class: "border-1", onclick: save_username, "Update username" }
+                button { class: "border-1 rounded px-2", onclick: save_username, "Update username" }
 
                 label { "This Device Name" }
                 input {
@@ -85,7 +85,7 @@ pub fn Profile() -> Element {
                     value: "{device_name_value}",
                     oninput: move |e| device_name_value.set(e.value()),
                 }
-                button { class: "border-1", "Update local device name" }
+                button { class: "border-1 rounded px-2", "Update local device name" }
             }
 
             h2 { class: "text-2xl font-bold", "Devices" }
