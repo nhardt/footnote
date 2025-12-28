@@ -26,6 +26,11 @@ pub fn Profile() -> Element {
         .device_read()
         .expect("failed to read any local devices");
 
+    let save_username = move |_| {
+        let username_update = username_value.read();
+        local_user.update_username(&*username_update);
+    };
+
     // ok, here's a plan for the local device record, vault, local-user:
     // - by default, make vault
     // - device name update:
@@ -42,7 +47,7 @@ pub fn Profile() -> Element {
         div { class: "flex flex-col h-full w-2xl gap-2",
             h2 { class: "text-2xl font-bold", "Local Device Info" }
 
-            div { class: "grid grid-cols-[auto_1fr_auto]",
+            div { class: "grid grid-cols-[auto_1fr_auto] gap-x-2 gap-y-4",
                 label { "Username" }
                 input {
                     class: "border-1 px-2",
@@ -50,7 +55,7 @@ pub fn Profile() -> Element {
                     value: "{username_value}",
                     oninput: move |e| username_value.set(e.value()),
                 }
-                button { class: "border-1", "Update username" }
+                button { class: "border-1", onclick: save_username, "Update username" }
 
                 label { "This Device Name" }
                 input {

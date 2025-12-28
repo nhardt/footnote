@@ -126,4 +126,25 @@ impl LocalUser {
         user_record.to_file(&local_user_file)?;
         Ok(user_record)
     }
+
+    // it's potentially better to update the id record, then rebuild the record
+    // from that to maintain a single source of truth. or, should update the username
+    // in both places.
+    pub fn update_username(&self, username: &str) -> Result<Contact> {
+        let local_user_file = self.vault_path.join(".footnote").join("user.json");
+        let current_user_record = match Contact::from_file(&local_user_file) {
+            Ok(contact) => contact,
+            Err(_) => anyhow::bail!("no user file exists to bless device into"),
+        };
+        current_user_record.verify()?;
+
+        let mut user_record = current_user_record.clone();
+        user_record.username = username.to_string();
+        user_record.updated_at = LamportTimestamp(user_record.updated_at.as_i64());
+        let (signing_key, _) = self.id_key()?;
+        user_record.sign(&signing_key)?;
+        user_record.is_valid_successor_of(&current_user_record)?;
+        user_record.to_file(&local_user_file)?;
+        Ok(user_record)
+    }
 }
