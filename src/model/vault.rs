@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use tokio::sync::mpsc::{self, Receiver};
 use uuid::Uuid;
 
+use crate::model::device::Device;
 use crate::model::{contact::Contact, note::Note, user::LocalUser};
 
 pub struct Vault {
@@ -86,6 +87,11 @@ impl Vault {
             .map_err(|_| anyhow::anyhow!("Device key must be exactly 32 bytes"))?;
         let secret_key = iroh::SecretKey::from_bytes(&key_array);
         Ok((secret_key, device_name.to_string()))
+    }
+
+    pub fn device_public_key(&self) -> Result<(iroh::EndpointId, String)> {
+        let (secret_key, device_name) = self.device_secret_key()?;
+        Ok((secret_key.public(), device_name))
     }
 
     pub fn is_primary_device(&self) -> anyhow::Result<bool> {
@@ -219,5 +225,20 @@ impl Vault {
                 }
             })
             .collect()
+    }
+
+    /// return a list of devices owned by this vault
+    pub fn device_read(&self) -> anyhow::Result<Vec<Device>> {
+        // if user.json exists, return those
+        // else: return local device
+        let user_record = self.path.join(".footnote").join("user.json");
+
+        if user_record.exists() {
+            let owned_devices_record = Contact::from_file(user_record)?;
+            return Ok(owned_devices_record.devices);
+        }
+
+        let (iroh_endpoint_id, device_name) = self.device_public_key()?;
+        Ok([Device::new(device_name, iroh_endpoint_id.to_string())].to_vec())
     }
 }

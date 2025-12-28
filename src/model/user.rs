@@ -21,6 +21,8 @@ impl LocalUser {
         Ok(v)
     }
 
+    /// the local user record is intended to exist on the primary. the primary
+    /// has a public key and username used to sign the collected device records.
     pub fn create_local_user_record(vault_path: &Path, username: &str) -> Result<()> {
         let local_user = LocalUser::new(vault_path)?;
         local_user.create_id_key(username)?;
