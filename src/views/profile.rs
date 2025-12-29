@@ -51,7 +51,7 @@ pub fn Profile() -> Element {
                 },
 
                 VaultState::StandAlone => rsx! {
-                    p { "You're using footnote locally. Would you like to sync with other devices?" }
+                    p { "You're using footnote in stand alone mode. Would you like to sync with other devices?" }
                     button {
                         class: "border-1 rounded px-2",
                         onclick: move |_| transition_to_primary(),
@@ -84,7 +84,14 @@ pub fn Profile() -> Element {
     }
 }
 
-fn transition_to_primary() {}
+fn transition_to_primary() -> Result<()> {
+    let vault_ctx = use_context::<VaultContext>();
+    let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
+    let vault = Vault::new(&vault_path).expect("expecting a local vault");
+    vault.transition_to_primary("default", "default")?;
+
+    Ok(())
+}
 fn transition_to_unjoined() {}
 
 #[component]
