@@ -54,7 +54,7 @@ pub fn Profile() -> Element {
                     p { "You're using footnote in stand alone mode. Would you like to sync with other devices?" }
                     button {
                         class: "border-1 rounded px-2",
-                        onclick: move |_|  transition_to_primary(),
+                        onclick: move |_| transition_to_primary(),
                         "Make this Primary"
                     }
                     button {
@@ -138,7 +138,13 @@ fn UserComponent(read_only: bool) -> Element {
     let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
     let vault = Vault::new(&vault_path).expect("expecting a local vault");
     let mut err_message = use_signal(|| String::new());
-    let mut username_value = use_signal(|| String::new());
+    let mut username_value = use_signal(|| {
+        let vault = Vault::new(&vault_path).expect("expecting a local vault");
+        match vault.user_read() {
+            Ok(Some(user)) => user.username,
+            _ => String::new(),
+        }
+    });
 
     let save_username = move |_| {
         let vault = Vault::new(&vault_path).expect("expecting a local vault");
@@ -147,36 +153,26 @@ fn UserComponent(read_only: bool) -> Element {
             err_message.set(format!("err updating username: {}", e));
         }
     };
-    match vault.user_read() {
-        Ok(Some(user)) => {
-            username_value.set(user.username);
-            rsx! {
-                div { class: "flex flex-row gap-x-2 gap-y-4",
-                    if read_only {
-                        span { class: "px-2", "{username_value}" }
-                    } else {
-                        input {
-                            class: "border-1 px-2",
-                            r#type: "text",
-                            value: "{username_value}",
-                            oninput: move |e| username_value.set(e.value()),
-                        }
-                        button {
-                            class: "border-1 rounded px-2",
-                            onclick: save_username,
-                            "Update"
-                        }
-                    }
+    rsx! {
+        div { class: "flex flex-row gap-x-2 gap-y-4",
+            if read_only {
+                span { class: "px-2", "{username_value}" }
+            } else {
+                label { "Username" }
+                input {
+                    class: "border-1 px-2",
+                    r#type: "text",
+                    value: "{username_value}",
+                    oninput: move |e| username_value.set(e.value()),
                 }
-                label { "{err_message}" }
+                button {
+                    class: "border-1 rounded px-2",
+                    onclick: save_username,
+                    "Update"
+                }
             }
         }
-        Ok(None) => rsx! {
-            p { "No user record" }
-        },
-        Err(e) => rsx! {
-            p { class: "text-red-600", "Error: {e}" }
-        },
+        label { "{err_message}" }
     }
 }
 
