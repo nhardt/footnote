@@ -5,6 +5,34 @@ use dioxus::prelude::*;
 use dioxus_clipboard::prelude::use_clipboard;
 use tokio_util::sync::CancellationToken;
 
+// Elements of a user profile by VaultState:
+// - StandAlone:
+//   - no user profile, you just have notes on disk
+// - SecondaryUnjoined:
+//   - has a device_key, created on first join attempt
+// - SecondaryJoined:
+//   - has a device_key, has a user.json (from primary)
+// - Primary:
+//   - has a device_key, a user.json and signing key (id_key)
+//
+// This form will be sort of like a workflow. Each step will reveal the next step
+//
+// VaultState: [ StandAlone ]
+// [ Create Primary -> Primary ][ Join Primary -> SecondaryUnjoined ]
+//
+// VaultState: [ Primary ]
+// [ Username Control ]
+// [ Device Name Control ]
+// {Devices}
+// [ + Add Device + ] -> Device Join Listen Modal
+//
+// VaultState: [ SecondaryUnjoined ]
+// {DeviceName}
+// [ Join ] -> Device Join Modal (join url) -> SecondaryJoined
+//
+// VaultState: [ SecondaryJoined ]
+// {DeviceName}
+
 #[component]
 pub fn Profile() -> Element {
     let vault_ctx = use_context::<VaultContext>();
