@@ -128,6 +128,26 @@ impl Vault {
         Ok(v)
     }
 
+    pub fn transition_to_secondary(&self, device_name: &str) -> Result<()> {
+        match self.state_read()? {
+            VaultState::Uninitialized => {
+                self.create_directory_structure()?;
+                self.create_device_key(device_name)?;
+            }
+            VaultState::StandAlone => {
+                self.create_directory_structure()?;
+                self.create_device_key(device_name)?;
+            }
+            VaultState::SecondaryUnjoined => {}
+            VaultState::SecondaryJoined => {}
+            VaultState::Primary => {
+                anyhow::bail!("Unjoined to Primary currently unsupported");
+            }
+        }
+
+        Ok(())
+    }
+
     /// called on non-primary device to put vault into state where it's ready to
     /// join
     pub fn create_standalone(path: &Path) -> Result<Self> {

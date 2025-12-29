@@ -61,14 +61,14 @@ pub fn Profile() -> Element {
                     }
                     button {
                         class: "border-1 rounded px-2",
-                        onclick: move |_| transition_to_unjoined(),
+                        onclick: move |_| if transition_to_secondary().is_ok() { needs_update += 1; },
                         "Join Existing Vault"
                     }
                 },
 
                 VaultState::SecondaryUnjoined => rsx! {
                     LocalDeviceComponent { read_only: false }
-                    //JoinModalButton {}
+                    JoinComponent{}
                 },
 
                 VaultState::SecondaryJoined => rsx! {
@@ -90,11 +90,16 @@ fn transition_to_primary() -> Result<()> {
     let vault_ctx = use_context::<VaultContext>();
     let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
     let vault = Vault::new(&vault_path).expect("expecting a local vault");
-    vault.transition_to_primary("default", "default")?;
-
+    vault.transition_to_primary("default_username", "default_device_name")?;
     Ok(())
 }
-fn transition_to_unjoined() {}
+fn transition_to_secondary() -> Result<()> {
+    let vault_ctx = use_context::<VaultContext>();
+    let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
+    let vault = Vault::new(&vault_path).expect("expecting a local vault");
+    vault.transition_to_secondary("default_device_name")?;
+    Ok(())
+}
 
 #[component]
 fn LocalDeviceComponent(read_only: bool) -> Element {
@@ -204,7 +209,7 @@ fn JoinListenerComponent() -> Element {
                 }
             }
             if show_modal() {
-                JoinModal {
+                JoinListenModal {
                     onclose: move |_| show_modal.set(false)
                 }
             }
@@ -213,7 +218,7 @@ fn JoinListenerComponent() -> Element {
 }
 
 #[component]
-fn JoinModal(onclose: EventHandler) -> Element {
+fn JoinListenModal(onclose: EventHandler) -> Element {
     let mut join_url = use_signal(|| String::new());
     let cancel_token = use_signal(|| CancellationToken::new());
     let mut err_message = use_signal(|| String::new());
@@ -268,6 +273,111 @@ fn JoinModal(onclose: EventHandler) -> Element {
                                     class: "text-sm text-gray-500 dark:text-gray-400",
                                     "Join URL: {join_url}"
                                 }
+                            }
+                            label { "{err_message}" }
+                        }
+                    }
+
+                    div {
+                        class: "mt-5 sm:mt-6",
+                        button {
+                            r#type: "button",
+                            class: "inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:shadow-none dark:hover:bg-indigo-400 dark:focus-visible:outline-indigo-500",
+                            onclick: move |_| onclose.call(()),
+                            "Cancel"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[component]
+fn JoinComponent() -> Element {
+    let mut show_modal = use_signal(|| false);
+    rsx! {
+        div { class: "flex flex-row justify-between",
+            label { "Join a listening device" }
+            button {
+                class: "rounded-full bg-indigo-600 p-1.5 text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:shadow-none dark:hover:bg-indigo-400 dark:focus-visible:outline-indigo-500",
+                r#type: "button",
+                onclick: move |_| show_modal.set(true),
+                svg {
+                    class: "size-5",
+                    "data-slot": "icon",
+                    fill: "currentColor",
+                    view_box: "0 0 20 20",
+                    path { d: "M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" }
+                }
+            }
+            if show_modal() {
+                JoinModal {
+                    onclose: move |_| show_modal.set(false)
+                }
+            }
+        }
+    }
+}
+
+#[component]
+fn JoinModal(onclose: EventHandler) -> Element {
+    let cancel_token = use_signal(|| CancellationToken::new());
+    let mut err_message = use_signal(|| String::new());
+    let mut join_url = use_signal(|| String::new());
+
+    use_drop(move || cancel_token().cancel());
+
+    let join_action = move || {
+        spawn(async move {
+            let vault_ctx = use_context::<VaultContext>();
+            let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
+            let vault = Vault::new(&vault_path).expect("expecting a local vault");
+            // todo: cancel token
+            match JoinService::join(&vault, &join_url()).await {
+                Ok(_) => {
+                    // Success - close modal or show success
+                    onclose.call(());
+                }
+                Err(e) => {
+                    // Show error
+                    err_message.set(format!("Join failed: {}", e));
+                }
+            }
+        });
+    };
+
+    rsx! {
+        div {
+            class: "fixed inset-0 bg-gray-500/75 dark:bg-gray-900/50 transition-opacity",
+            div {
+                class: "flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0",
+                div {
+                    class: "relative transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-sm sm:p-6 dark:bg-gray-800 dark:outline dark:-outline-offset-1 dark:outline-white/10",
+                    onclick: move |evt| evt.stop_propagation(),
+
+                    div {
+                        div {
+                            class: "mt-3 text-center sm:mt-5",
+                            h3 {
+                                class: "text-base font-semibold text-gray-900 dark:text-white",
+                                "Join Listening Device"
+                            }
+
+                            input {
+                                class: "border-1 px-2",
+                                r#type: "text",
+                                oninput: move |e| join_url.set(e.value()),
+                            }
+                            div {
+                                class: "mt-2",
+                                "Enter URL"
+                            }
+                            button {
+                                r#type: "button",
+                                class: "inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:shadow-none dark:hover:bg-indigo-400 dark:focus-visible:outline-indigo-500",
+                                onclick: move |_| join_action(),
+                                "Join"
                             }
                             label { "{err_message}" }
                         }
