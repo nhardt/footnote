@@ -172,7 +172,6 @@ fn JoinModal(onclose: EventHandler) -> Element {
     rsx! {
         div {
             class: "fixed inset-0 bg-gray-500/75 dark:bg-gray-900/50 transition-opacity",
-            onclick: move |_| onclose.call(()),
 
             // Centering container
             div {
