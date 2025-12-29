@@ -54,7 +54,7 @@ pub fn Profile() -> Element {
                     p { "You're using footnote in stand alone mode. Would you like to sync with other devices?" }
                     button {
                         class: "border-1 rounded px-2",
-                        onclick: move |_| transition_to_primary(),
+                        onclick: move |_|  transition_to_primary(),
                         "Make this Primary"
                     }
                     button {
@@ -75,7 +75,7 @@ pub fn Profile() -> Element {
                 },
 
                 VaultState::Primary => rsx! {
-                    //UsernameComponent { read_only: false }
+                    UserComponent { read_only: false }
                     DeviceListComponent { read_only: false }
                     JoinListenerComponent {}
                 }
