@@ -3,7 +3,6 @@ use crate::service::join_service::JoinEvent;
 use crate::{context::VaultContext, model::vault::Vault};
 use crate::{model::user::LocalUser, service::join_service::JoinService};
 use dioxus::prelude::*;
-use dioxus_clipboard::prelude::use_clipboard;
 use tokio_util::sync::CancellationToken;
 
 // Elements of a user profile by VaultState:
@@ -74,12 +73,14 @@ pub fn Profile() -> Element {
                 VaultState::SecondaryJoined => rsx! {
                     UserComponent { read_only: true }
                     DeviceListComponent { read_only: true }
+                    ExportComponent {}
                 },
 
                 VaultState::Primary => rsx! {
                     UserComponent { read_only: false }
                     DeviceListComponent { read_only: false }
                     JoinListenerComponent {}
+                    ExportComponent {}
                 }
             }
         }
@@ -415,8 +416,72 @@ fn DeviceListComponent(read_only: bool) -> Element {
     }
 }
 
-async fn copy_to_clipboard(txt: &str) -> anyhow::Result<()> {
-    let mut clipboard = use_clipboard();
-    let _ = clipboard.set(txt.to_string());
-    Ok(())
+#[component]
+fn ExportComponent() -> Element {
+    let mut show_modal = use_signal(|| false);
+    rsx! {
+        div { class: "flex flex-row justify-between",
+            button {
+                class: "border-1 w-full rounded mt-6",
+                r#type: "button",
+                onclick: move |_| show_modal.set(true),
+                "Create contact record to share with trust network"
+            }
+            if show_modal() {
+                ExportModal {
+                    onclose: move |_| show_modal.set(false)
+                }
+            }
+        }
+    }
+}
+
+#[component]
+fn ExportModal(onclose: EventHandler) -> Element {
+    let vault_ctx = use_context::<VaultContext>();
+    let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
+    let vault = Vault::new(&vault_path).expect("expecting a local vault");
+    let user_record_json = use_signal(|| match vault.user_read() {
+        Ok(Some(user)) => user
+            .to_json_pretty()
+            .unwrap_or_else(|e| format!("Failed to serialize: {}", e)),
+        Ok(None) => "User record not found".to_string(),
+        Err(e) => format!("Contact record unable to load: {}", e),
+    });
+    rsx! {
+        div {
+            class: "fixed inset-0 bg-gray-500/75 dark:bg-gray-900/50 transition-opacity",
+
+            div {
+                class: "flex min-h-full items-center justify-center p-4",
+
+                div {
+                    class: "relative w-[90vw] h-[90vh] flex flex-col transform overflow-hidden rounded-lg bg-white shadow-xl dark:bg-gray-800 dark:outline dark:-outline-offset-1 dark:outline-white/10",
+                    onclick: move |evt| evt.stop_propagation(),
+
+                    div {
+                        class: "p-6 flex flex-col gap-4 flex-1 min-h-0",
+
+                        label {
+                            class: "text-sm",
+                            "Copy the text below and paste it into an email or text message:"
+                        }
+
+                        textarea {
+                            class: "flex-1 w-full p-3 text-sm font-mono border rounded-md bg-gray-50 dark:bg-gray-900 dark:border-gray-700 resize-none",
+                            readonly: true,
+                            value: "{user_record_json}",
+                        }
+
+                        button {
+                            r#type: "button",
+                            class: "w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400",
+                            onclick: move |_| onclose.call(()),
+                            "Done"
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
