@@ -38,37 +38,9 @@ pub fn Profile() -> Element {
         }
     };
 
-    // ok, here's a plan for the local device record, vault, local-user:
-    // - by default, make vault
-    // - device name update:
-    //   - user.json does not exist: can edit local device name
-    //   - user.json exists, we are primary: can edit device names
-    //   - user.json exists, we are not primary: our local device name should be
-    //     pulled from user.json
-    // - device read:
-    //   - user.json exists: return all. our local device should be there
-    //   - no user.json: just return our local device. it's name is editable
-    //   - on vault, since it applies whether or not we are primary
-    //
-    // vault states:
-    // - None
-    // - Secondary: can always init this way. can join or become primary
-    //   - Join -> Gains user.json from primary, no id_key
-    //   - ToPrimary -> Gains user.json from primary, id_key, id_key matches signing key
-    // - Primary
-    //   - Reset -> Secondary
-    //
-    // my outstanding concern with this is that both sides will have a home.md, with LWW
-    // one will be blown away. possibly home.md could be special. maybe this use case:
-    // A -> None -> Primary -> Write("home.md") -> Secondary
-    // B -> None -> Primary
-    // A -> Join(B)
-    // isn't that important. the way it might be important is if users are confused about
-    // Vault states, or even just generally the p2p sync'ing semantics.
-
     rsx! {
         div { class: "flex flex-col h-full w-2xl gap-2",
-            h2 { class: "text-2xl font-bold", "Local Device Info" }
+            h2 { class: "text-2xl font-bold", "User Info " }
 
             div { class: "grid grid-cols-[auto_1fr_auto] gap-x-2 gap-y-4",
                 label { "Username" }

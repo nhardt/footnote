@@ -14,6 +14,14 @@ pub struct Vault {
     pub path: PathBuf,
 }
 
+pub enum VaultState {
+    Primary,
+    SecondaryJoined,
+    SecondaryUnjoined,
+    StandAlone,
+    Uninitialized,
+}
+
 /// inside a footnote vault:
 ///
 /// .footnote/
@@ -21,6 +29,59 @@ pub struct Vault {
 ///    device_key           : private key specific to this device
 ///    user.json            : signed record of the local user's devices
 impl Vault {
+    /// Create a vault handle
+    pub fn new(path: &Path) -> Result<Self> {
+        let v = Self {
+            path: path.to_path_buf(),
+        };
+        Ok(v)
+    }
+
+    // Vault
+    //
+    // - by default, vault is StandAlone
+    //   - Join -> Secondary: Gains user.json from primary, no id_key
+    //   - ToPrimary -> Primary: Gains user.json from primary, id_key, id_key matches signing key
+    // - Secondary: Terminal, can edit by hand if you know what you're doing
+    // - Primary: Terminal, can edit by hand if yo know what you're doing
+    // - device name update:
+    //   - user.json does not exist: can edit local device name
+    //   - user.json exists, we are primary: can edit device names
+    //   - user.json exists, we are not primary: our local device name should be
+    //     pulled from user.json, but from a "source of truth", the device can set
+    //     its own name. can it be re-added to the primary.
+    // - device read:
+    //   - user.json exists: return all. our local device should be there
+    //   - no user.json: just return our local device. it's name is editable
+    //   - on vault, since it applies whether or not we are primary
+    //
+    // vault states:
+    // - StandAlone: init this way. can join or become primary
+    //
+    // Merging repos with two sets of files.
+    // - different filename, NBD
+    // - same filename, the reqesting side will write incoming to
+    //   filename-{device_name}.md (or {uuid[8..]}
+    pub fn state_read(&self) -> Result<VaultState> {
+        if self.path.join(".footnote").join("id_key").exists() {
+            return Ok(VaultState::Primary);
+        }
+
+        if self.path.join(".footnote").join("user.json").exists() {
+            return Ok(VaultState::SecondaryJoined);
+        }
+
+        if self.path.join(".footnote").join("device_key").exists() {
+            return Ok(VaultState::SecondaryUnjoined);
+        }
+
+        if self.path.join(".footnote").exists() {
+            return Ok(VaultState::StandAlone);
+        }
+
+        Ok(VaultState::Uninitialized)
+    }
+
     /// called on the first device when creating a new vault
     pub fn create_primary(path: &Path, username: &str, device_name: &str) -> Result<Self> {
         let v = Self {
@@ -43,11 +104,13 @@ impl Vault {
         Ok(v)
     }
 
-    /// Call on an existing vault to use vault API
-    pub fn new(path: &Path) -> Result<Self> {
+    /// called on non-primary device to put vault into state where it's ready to
+    /// join
+    pub fn create_standalone(path: &Path) -> Result<Self> {
         let v = Self {
             path: path.to_path_buf(),
         };
+        v.create_directory_structure()?;
         Ok(v)
     }
 
