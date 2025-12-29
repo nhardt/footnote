@@ -23,13 +23,18 @@ pub fn NoteView(file_path: String) -> Element {
 
     let mut file_path_input = use_signal(|| display_path);
     let mut body = use_signal(|| note.content.clone());
-    let mut share_with = use_signal(|| String::new());
+    let mut share_with = use_signal(|| note.frontmatter.share_with.join(" "));
     let mut err_label = use_signal(|| String::new());
 
     let save_note = move |_| {
         let new_relative_path = file_path_input.read();
         let new_full_path = vault_path.join(&*new_relative_path);
-        if let Err(e) = note.update(&new_full_path, &body.read().clone()) {
+        let share_with_str = share_with.read().clone();
+        let share_with = share_with_str
+            .split_whitespace()
+            .map(|s| s.to_string())
+            .collect();
+        if let Err(e) = note.update(&new_full_path, &body.read().clone(), &share_with) {
             err_label.set(format!("Failed to save note: {e}"));
         }
     };

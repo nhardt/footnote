@@ -144,10 +144,11 @@ impl Note {
         Ok(note)
     }
 
-    pub fn update(&mut self, path: &Path, content: &str) -> Result<()> {
+    pub fn update(&mut self, path: &Path, content: &str, share_with: &Vec<String>) -> Result<()> {
         let (body, footnotes) = Self::parse_body_and_footnotes(&content);
         self.content = body;
         self.footnotes = footnotes;
+        self.frontmatter.share_with = share_with.clone();
         self.frontmatter.modified = LamportTimestamp::new(Some(self.frontmatter.modified));
         self.save(path)?;
         Ok(())
