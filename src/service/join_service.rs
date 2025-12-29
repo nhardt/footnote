@@ -4,6 +4,7 @@ use n0_error::StdResultExt;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use tokio::sync::mpsc::{self, Receiver};
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 use crate::model::{contact::Contact, user::LocalUser, vault::Vault};
@@ -35,7 +36,7 @@ pub struct JoinService;
 impl JoinService {
     /// put this primary device into join listen mode. an iroh url and join code will be
     /// returned that the joiner is expected to connect to and present.
-    pub async fn listen(vault: &Vault) -> Result<Receiver<JoinEvent>> {
+    pub async fn listen(vault: &Vault, cancel: CancellationToken) -> Result<Receiver<JoinEvent>> {
         if !vault.is_primary_device()? {
             anyhow::bail!(
                 "This device is not marked as primary. Only the primary device can create join URLs.\n\
@@ -61,42 +62,47 @@ impl JoinService {
         let vault_path = vault.path.to_path_buf();
 
         tokio::spawn(async move {
-            if let Some(incoming) = endpoint.accept().await {
-                match async {
-                    let conn = incoming.accept()?.await?;
-                    let (mut send, mut recv) = conn.accept_bi().await.anyerr()?;
-                    let request_bytes = recv.read_to_end(10000).await.anyerr()?;
-                    let request: DeviceJoinRequest = serde_json::from_slice(&request_bytes)?;
+            tokio::select! {
+                _ = cancel.cancelled() => { return; }
+                maybe_incoming = endpoint.accept() => {
+                    if let Some(incoming) = maybe_incoming {
+                        match async {
+                            let conn = incoming.accept()?.await?;
+                            let (mut send, mut recv) = conn.accept_bi().await.anyerr()?;
+                            let request_bytes = recv.read_to_end(10000).await.anyerr()?;
+                            let request: DeviceJoinRequest = serde_json::from_slice(&request_bytes)?;
 
-                    if request.token != join_token {
-                        anyhow::bail!("Invalid token. Authorization failed.");
-                    }
+                            if request.token != join_token {
+                                anyhow::bail!("Invalid token. Authorization failed.");
+                            }
 
-                    let device_name = request.device_name.clone();
-                    let iroh_endpoint_id = request.iroh_endpoint_id;
-                    let local_user = LocalUser::new(&vault_path)?;
-                    let contact_record =
-                        local_user.bless_remote_device(&device_name, &iroh_endpoint_id)?;
+                            let device_name = request.device_name.clone();
+                            let iroh_endpoint_id = request.iroh_endpoint_id;
+                            let local_user = LocalUser::new(&vault_path)?;
+                            let contact_record =
+                                local_user.bless_remote_device(&device_name, &iroh_endpoint_id)?;
 
-                    let response = DeviceJoinResponse {
-                        contact_json: serde_json::to_string(&contact_record)?,
-                    };
+                            let response = DeviceJoinResponse {
+                                contact_json: serde_json::to_string(&contact_record)?,
+                            };
 
-                    let response_bytes = serde_json::to_vec(&response)?;
-                    send.write_all(&response_bytes).await.anyerr()?;
-                    send.finish().anyerr()?;
+                            let response_bytes = serde_json::to_vec(&response)?;
+                            send.write_all(&response_bytes).await.anyerr()?;
+                            send.finish().anyerr()?;
 
-                    conn.closed().await;
+                            conn.closed().await;
 
-                    anyhow::Ok(())
-                }
-                .await
-                {
-                    Ok(_) => {
-                        let _ = tx.send(JoinEvent::Success).await;
-                    }
-                    Err(e) => {
-                        let _ = tx.send(JoinEvent::Error(e.to_string())).await;
+                            anyhow::Ok(())
+                        }
+                        .await
+                        {
+                            Ok(_) => {
+                                let _ = tx.send(JoinEvent::Success).await;
+                            }
+                            Err(e) => {
+                                let _ = tx.send(JoinEvent::Error(e.to_string())).await;
+                            }
+                        }
                     }
                 }
             }
