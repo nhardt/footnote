@@ -6,6 +6,7 @@ mod components;
 mod context;
 mod model;
 mod platform;
+mod service;
 mod util;
 mod views;
 
