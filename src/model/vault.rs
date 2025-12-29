@@ -139,11 +139,11 @@ impl Vault {
     }
 
     fn create_directory_structure(&self) -> anyhow::Result<()> {
-        let footnotes_dir = self.path.join(".footnote");
-        fs::create_dir_all(&footnotes_dir)?;
-        let contacts_dir = footnotes_dir.join("contacts");
+        let footnote_dir = self.path.join(".footnote");
+        fs::create_dir_all(&footnote_dir)?;
+        let contacts_dir = footnote_dir.join("contacts");
         fs::create_dir_all(&contacts_dir)?;
-        let footnotes_dir = footnotes_dir.join("footnotes");
+        let footnotes_dir = self.path.join("footnotes");
         fs::create_dir_all(&footnotes_dir)?;
         Ok(())
     }
