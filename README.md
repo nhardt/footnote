@@ -1,14 +1,14 @@
 # Footnote
 
 Footnote is a local-first personal wiki of markdown documents with support for
-sync across your own devices and sharing with known, trusted sources.
+sync across your own devices and sharing with known, trusted peers.
 
 ## Core Concepts
 
 ### Personal Wiki
 
 Your notes are a markdown wiki. Notes live in a vault and only ever exist on
-your devices. They are only ever transmitted encrypted over the network, and
+your devices. They are always encrypted in transit over the network, and
 only transmitted to known devices and known peers.
 
 ### Trusted Sources
@@ -17,12 +17,13 @@ Your notes live in a vault with a special directory called `footnotes`. These
 are documents you can link to that are owned and maintained by trusted sources.
 Trust is established with a one-time, out-of-band setup process.
 
-### Share vs Sync
+### Share vs Replica|Mirror|Outpost?
 
-"Share" is defined as transmitting documents to your trusted peers.
+"Share" is defined as transmitting documents to your trusted peers. The view
+of your documents is unique to each person you share with.
 
-"Sync" is defined as coordinating an eventually consistent view of all your
-notes across all your devices.
+"Mirror" is defined as coordinating an eventually consistent view of all your
+notes across all your devices, including things shared with you.
 
 ### Infrastructure
 
@@ -36,12 +37,12 @@ signaling servers. An end user just needs a device that is on somewhere.
 A user designates a single device as primary. This is the device where the vault
 is created. Additional devices are added via the primary. On the primary device,
 the user creates a new device. This generates a one-time key. On a secondary
-device, the user joins a repo, providing the one-time code.
+device, the user joins a vault, providing the one-time code.
 
-It's not required that the primary device is always available, but a generally available
-device would work well. A desktop, a laptop, even an old phone that stays plugged in could
-work for this contact point. Generally it's a low amount of syncing for a small amount of
-data. Sharing happens between users' primary devices.
+It's not required that the primary device is always available, but a generally
+available device would work well. A desktop, a laptop, even an old phone that
+stays plugged in could work for this contact point if you are keeping together a
+vault of text files.  Sharing happens between users' primary devices.
 
 #### Secondary Devices
 
@@ -58,13 +59,13 @@ Each user can have multiple devices (laptop, phone, tablet, desktop). Every devi
 
 A contact in your contact list has three identifiers:
 
-1. **Master Key** - Ed25519 public key, the primary identifier
-2. **Nickname** - The name provided in their contact record.
-3. **Petname** - The name you use for them locally. "mom", "dad", etc.
+- Master Key - Ed25519 public key, the primary identifier for a user
+- Username: The name they chose for themselves. It is part of the crypto signature
+- Nickname - The name you will attach to a document to share with them.
 
-When you trust someone, you assign them a petname. That becomes their directory
-name in `footnotes/`. Multiple people can refer to the same person by different
-petnames, but all map to the same master key.
+When you import a contact, you assign them a nickname. That becomes their
+directory name in `footnotes/`. If you import Mom's contact record and use "mom"
+for her nickname, the directory her shared files will be in is footnotes/mom/.
 
 ## Filesystem Layout
 
@@ -103,20 +104,22 @@ share_with:
 
 # My Research Notes
 
-I found [[footnotes/alice/research.md|Alice's research]] really insightful.
+I found Alice's research[^1] really insightful.
 
 This connects to my earlier thoughts in [[interesting_ideas]].
+
+[^1] footnote.wiki://450332400-e29b-41d4-a716-446655440000
+
 ```
 
 ### Key Fields
 
-- **uuid**: Canonical identifier for the document (stable across renames/moves)
-- **share_with**: Array of petnames for users who should receive this document
+- uuid: Canonical identifier for the document (stable across renames/moves)
+- share_with: Array of petnames for users who should receive this document
 
 ### Linking
 
-- You can link to your own notes: `[[interesting_ideas]]`
-- You can link to trusted sources: `[[footnotes/alice/research.md]]`
+Linking builds on markdown's footnote style links.
 
 ## Trust Relationships
 
@@ -124,8 +127,8 @@ Trust is managed through contact records in JSON format:
 
 ```json
 {
-  "username": "alice",
   "nickname": "@alice-jones",
+  "username": "alice",
   "master_public_key": "...",
   "primary_device_name": "laptop",
   "devices": [
@@ -155,33 +158,61 @@ The contact record has a public key and checksum of the data tied to the public
 key. All iroh connections are verified connections, tied to particular devices.
 The user contact record ties together devices with a common public key.
 
-## Future Work
+## Security
 
-### Major Missing Pieces
+Layers of security:
+- Device only listens when you want
+- Connections come from endpoints verified by crypto key
+- First step in connection is to connection vs imported contact
+- Importing contacts is manual
 
-- Legitimate document merging (diff-patch-merge, CRDT)
+## Todo 
+
+### Little
+
+- update display on file changes
+- progress on sync
+- fzf full text search
+- Top level button "always on" sync
+
+### Medium
+
+- Always on mode for primary
+- Sync to primary on save
+- contact refresh
+- local file rename 
+- local file deletes
 - Contact distribution upon update
+
+### Big
+
+- replicate file deletes (probably can get by with a path, deleted timestamp)
+
+## Under Consideration (how/if/when)
+
+- view/edit modes
 - Linking: Links are probably easiest if they link to a doc-uuid, but being able
   to use a local file system path is better, and being able to use the same path
   everywhere is even better. It'd be nice if Alice could reference
   footnotes/bob/events/party_at_my_place.md and Charlie, a friend of both, could
-  navigate those documents easily on their local filesystem.
-
-### General Improvements
-
-- Better markdown support
-- FZF/RG style document search
-
-### Possible Improvements
-
+  navigate those documents easily on their local filesystem. (if all links are
+  by uuid, this might work)
 - Shared primary, the ability for a family PC to be used for the whole family's notes
+- better distrbuted writes
+  - automerge, CRDT
+  - diff-patch-merge https://crates.io/crates/diff-match-patch-rs
 - Integration with a more sophisticated sharing, sync or permission system
+- 2 way sync (maybe. maybe push only sync is actually a feature)
 
-## Design Philosophy
+## Testing
 
-Overall, Footnote prioritizes simplicity and viability. Users should be able to
-understand what they own, what they are sharing, who they are sharing with and
-where their data lives.
+There is cli testing for the core functionality in tests/ that uses the command
+line. By hand testing has been done during development on:
+
+- Linux
+- android
+- macos
+- iphone
 
 ## References
 
