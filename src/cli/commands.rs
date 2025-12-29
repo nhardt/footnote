@@ -9,6 +9,7 @@ use crate::{model::vault::Vault, service::join_service::JoinEvent};
 use clap::{Parser, Subcommand};
 use dioxus::html::g::to;
 use futures::future::Join;
+use tokio_util::sync::CancellationToken;
 
 #[derive(Parser)]
 #[command(name = "footnote")]
@@ -153,7 +154,7 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
 
 fn vault_create_primary(username: String, device_name: String) -> anyhow::Result<()> {
     let vault_path = std::env::current_dir()?;
-    Vault::create_primary(vault_path, &username, &device_name)?;
+    Vault::create_primary(&vault_path, &username, &device_name)?;
     let output = serde_json::json!({
         "result": "success"
     });
@@ -164,7 +165,7 @@ fn vault_create_primary(username: String, device_name: String) -> anyhow::Result
 
 fn vault_create_secondary(device_name: String) -> anyhow::Result<()> {
     let vault_path = std::env::current_dir()?;
-    Vault::create_secondary(vault_path, &device_name)?;
+    Vault::create_secondary(&vault_path, &device_name)?;
     let output = serde_json::json!({
         "result": "success"
     });
@@ -175,7 +176,8 @@ fn vault_create_secondary(device_name: String) -> anyhow::Result<()> {
 
 async fn service_join_listen() -> anyhow::Result<()> {
     let vault = Vault::new(&std::env::current_dir()?)?;
-    let mut rx = JoinService::listen(&vault).await?;
+    let cancel_token = CancellationToken::new();
+    let mut rx = JoinService::listen(&vault, cancel_token).await?;
 
     while let Some(event) = rx.recv().await {
         match event {
