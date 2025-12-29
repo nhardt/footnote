@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use tokio::sync::mpsc::{self, Receiver};
 use uuid::Uuid;
 
+use crate::model::contact;
 use crate::model::device::Device;
 use crate::model::{contact::Contact, note::Note, user::LocalUser};
 
@@ -299,6 +300,19 @@ impl Vault {
                 }
             })
             .collect()
+    }
+
+    pub fn contact_import(&self, nickname: &str, contact_json: &str) -> anyhow::Result<()> {
+        let mut contact = Contact::from_json(contact_json)?;
+        contact.verify()?; // currently called in from_json but doesn't hurt to do it here too
+        contact.nickname = nickname.to_string();
+        let contacts_file = self
+            .path
+            .join(".footnote")
+            .join("contacts")
+            .join(format!("{}.json", nickname));
+        contact.to_file(contacts_file)?;
+        Ok(())
     }
 
     /// return a list of devices owned by this vault
