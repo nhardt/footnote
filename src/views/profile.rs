@@ -41,9 +41,11 @@ pub fn Profile() -> Element {
     let vault = Vault::new(&vault_path).expect("expecting a local vault");
     let state = vault.state_read()?;
 
+    let mut needs_update = use_signal(|| 0);
+
     rsx! {
         div { class: "flex flex-col h-full w-2xl gap-2",
-            h2 { class: "text-2xl font-bold", "Profile" }
+            h2 { class: "text-2xl font-bold", "Profile: {needs_update}" }
 
             match state {
                 VaultState::Uninitialized => rsx! {
@@ -54,7 +56,7 @@ pub fn Profile() -> Element {
                     p { "You're using footnote in stand alone mode. Would you like to sync with other devices?" }
                     button {
                         class: "border-1 rounded px-2",
-                        onclick: move |_| transition_to_primary(),
+                        onclick: move |_| if transition_to_primary().is_ok() { needs_update += 1; },
                         "Make this Primary"
                     }
                     button {
