@@ -70,12 +70,12 @@ fn Main() -> Element {
                     "Notes"
                 }
                 Link {
-                    to: Route::ContactBrowser{},
-                    "Contacts"
-                }
-                Link {
                     to: Route::Profile{},
                     "Profile"
+                }
+                Link {
+                    to: Route::ContactBrowser{},
+                    "Contacts"
                 }
             },
 

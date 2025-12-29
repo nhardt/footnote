@@ -124,39 +124,6 @@ impl Vault {
         Ok(())
     }
 
-    /// the device signing key is generated and stored local to each device. it
-    /// is used in establishing verified connections between devices via iroh.
-    fn create_device_key(&self, device_name: &str) -> anyhow::Result<()> {
-        let footnotes_dir = self.path.join(".footnote");
-        let device_key_file = footnotes_dir.join("device_key");
-        let device_key = iroh::SecretKey::generate(&mut rand::rng());
-        let encoded_key = hex::encode(device_key.to_bytes());
-        let device_line = format!("{} {}", encoded_key, device_name);
-        fs::write(&device_key_file, device_line)?;
-        Ok(())
-    }
-
-    pub fn device_secret_key(&self) -> Result<(iroh::SecretKey, String)> {
-        let footnotes_dir = self.path.join(".footnote");
-        let device_key_file = footnotes_dir.join("device_key");
-        let content = fs::read_to_string(device_key_file)?;
-        let (encoded_key, device_name) = match content.split_once(' ') {
-            Some((a, b)) => (a, b),
-            None => anyhow::bail!("username not found in key"),
-        };
-        let key_vec: Vec<u8> = hex::decode(encoded_key)?;
-        let key_array: [u8; 32] = key_vec
-            .try_into()
-            .map_err(|_| anyhow::anyhow!("Device key must be exactly 32 bytes"))?;
-        let secret_key = iroh::SecretKey::from_bytes(&key_array);
-        Ok((secret_key, device_name.to_string()))
-    }
-
-    pub fn device_public_key(&self) -> Result<(iroh::EndpointId, String)> {
-        let (secret_key, device_name) = self.device_secret_key()?;
-        Ok((secret_key.public(), device_name))
-    }
-
     pub fn is_primary_device(&self) -> anyhow::Result<bool> {
         Ok(self.path.join(".footnote").join("id_key").exists())
     }
@@ -305,6 +272,52 @@ impl Vault {
         Ok([Device::new(device_name, iroh_endpoint_id.to_string())].to_vec())
     }
 
+    /// the device signing key is generated and stored local to each device. it
+    /// is used in establishing verified connections between devices via iroh.
+    fn create_device_key(&self, device_name: &str) -> anyhow::Result<()> {
+        let footnotes_dir = self.path.join(".footnote");
+        let device_key_file = footnotes_dir.join("device_key");
+        let device_key = iroh::SecretKey::generate(&mut rand::rng());
+        let encoded_key = hex::encode(device_key.to_bytes());
+        let device_line = format!("{} {}", encoded_key, device_name);
+        fs::write(&device_key_file, device_line)?;
+        Ok(())
+    }
+
+    pub fn device_secret_key(&self) -> Result<(iroh::SecretKey, String)> {
+        let footnotes_dir = self.path.join(".footnote");
+        let device_key_file = footnotes_dir.join("device_key");
+        let content = fs::read_to_string(device_key_file)?;
+        let (encoded_key, device_name) = match content.split_once(' ') {
+            Some((a, b)) => (a, b),
+            None => anyhow::bail!("username not found in key"),
+        };
+        let key_vec: Vec<u8> = hex::decode(encoded_key)?;
+        let key_array: [u8; 32] = key_vec
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("Device key must be exactly 32 bytes"))?;
+        let secret_key = iroh::SecretKey::from_bytes(&key_array);
+        Ok((secret_key, device_name.to_string()))
+    }
+
+    pub fn device_public_key(&self) -> Result<(iroh::EndpointId, String)> {
+        let (secret_key, device_name) = self.device_secret_key()?;
+        Ok((secret_key.public(), device_name))
+    }
+
+    pub fn device_key_update(&self, device_name: &str) -> anyhow::Result<()> {
+        let footnotes_dir = self.path.join(".footnote");
+        let device_key_file = footnotes_dir.join("device_key");
+        let content = fs::read_to_string(&device_key_file)?;
+        let (encoded_key, _) = match content.split_once(' ') {
+            Some((a, b)) => (a, b),
+            None => anyhow::bail!("username not found in key"),
+        };
+        let device_line = format!("{} {}", encoded_key, device_name);
+        fs::write(&device_key_file, device_line)?;
+        Ok(())
+    }
+
     pub fn user_read(&self) -> anyhow::Result<Option<Contact>> {
         let user_record = self.path.join(".footnote").join("user.json");
 
@@ -314,6 +327,13 @@ impl Vault {
         }
         // probably want to grab username from id_key if it exists
         Ok(None)
+    }
+
+    pub fn user_update(&self, username: &str) -> anyhow::Result<Contact> {
+        // the Vault concept and LocalUser are muddled. it's not really clear if
+        // both are needed
+        let local_user = LocalUser::new(&self.path)?;
+        local_user.username_update(username)
     }
 
     pub fn note_create(&self, path: &Path, content: &str) -> anyhow::Result<()> {
