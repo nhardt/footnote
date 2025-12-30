@@ -34,7 +34,8 @@ pub fn NoteView(file_path: String) -> Element {
             .split_whitespace()
             .map(|s| s.to_string())
             .collect();
-        if let Err(e) = note.update(&new_full_path, &body.read().clone(), &share_with) {
+        note.frontmatter.share_with = share_with;
+        if let Err(e) = note.update(&new_full_path, &body.read().clone()) {
             err_label.set(format!("Failed to save note: {e}"));
         }
     };
