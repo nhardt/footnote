@@ -8,7 +8,7 @@ use crate::model::vault::Vault;
 use crate::util::manifest;
 use crate::util::transfer;
 
-pub const ALPN_SHARE: &[u8] = b"footnote/share";
+pub const ALPN_SHARE: &[u8] = b"footnote/sync";
 
 #[derive(Debug, Clone)]
 pub enum ShareEvent {
