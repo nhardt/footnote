@@ -53,19 +53,115 @@ Each user can have multiple devices (laptop, phone, tablet, desktop). Every devi
 - Has a human-friendly name (e.g., "laptop", "phone")
 - Can be verified as belonging to that user
 
-## Identity and Users
+### Identity
 
-### Three-Layer Identity System
+Identity is created on an as-needed basis. When you create a vault, it is in
+stand alone mode.You are free to create and link notes and research. When you
+want to mirror these notes on two devices, your devices get an identity and
+name, you link the devices with an iroh address and one-time join code.
 
-A contact in your contact list has three identifiers:
+Later, if you want to trade notes with another person, you will create a public
+key identity and username. These are signed, along with your devices. The person
+you want to share with does the same, the records are exchanged. The records are
+verified by signing key fields into a digitial signature:
 
-- Master Key - Ed25519 public key, the primary identifier for a user
-- Username: The name they chose for themselves. It is part of the crypto signature
-- Nickname - The name you will attach to a document to share with them.
+- Username
+- Public Key
+- Devices
+  - Iroh Endpoint Id
+  - Name
 
-When you import a contact, you assign them a nickname. That becomes their
-directory name in `footnotes/`. If you import Mom's contact record and use "mom"
-for her nickname, the directory her shared files will be in is footnotes/mom/.
+The contact records are then exchanged.  When you import a contact, you assign
+them a nickname. That becomes their directory name in `footnotes/`. If you
+import Mom's contact record and use "mom" for her nickname, the directory her
+shared files will be in is footnotes/mom/.
+
+#### Security Considerations
+
+- Records are verifably self consistent
+- Public key is not identity, but two records signed with the same key are
+  expected to be created by the same secret key.
+- The contact record exchange mechanism is a potential weak point.
+- Iroh protocol identifiers are sent in plain text.
+- The overall design goal is data ownership, no vendor lock in, no data mining
+  for marketing, etc. The app is not anonymous, you should know the people you are
+  connected to.
+
+#### Attack Vector Considerations
+
+##### Replace Iroh Endpoint Id with false endpoint id
+
+Key signature fails
+
+##### Intercept and replace entire record during exchange
+
+Alice creates and exports record:
+
+- Username: Alice
+- Public Key: aaa-key-aaa
+- Device address: aaa-device-aaa
+
+Charlie creates and exports record:
+
+- Username: Charlie 
+- Public Key: ccc-key-ccc
+- Device address: ccc-device-ccc
+
+Bob wants to sit in the middle of these two. Bob creates
+
+Bob-Alice:
+
+- Username: Alice
+- Public Key: aaa-bbb-key-bbb-aaa
+- Device Address: aaa-bbb-device-bbb-aaa
+
+Bob-Charlie:
+
+- Username: Charlie 
+- Public Key: ccc-bbb-key-bbb-ccc
+- Device Address: ccc-bbb-device-bbb-ccc
+
+This does seem possible. The mechanism by which you transfer contact records
+would have to be compromised. You could add additional layer of verification by
+posting your public key somewhere, or calling up your peer.
+
+##### Modify record after exchange
+
+Key signature fails
+
+##### Replace endpoint
+
+Alice and Charlie are legitimately connected. Bob wants to listen at
+ccc-key-ccc.  To do this, Bob would need ccc-key-ccc. This is true of any
+public/private key pair. If this occurs because Charlie's machine is
+compromised, no deeper level of access is granted.
+
+##### File leakage - Mirror
+
+To accidentally share your full vault with an unintended device, the device's
+iroh endpoint id would need to be signed in to your user record, and would need
+to pass verificiation. Internal to the software, the pairing occurs with a
+one-time pairing code. For an incorrect device to be there unintentionally, a
+user would need to set up their device to listen, then send the one time code to
+a peer.
+
+For a 3rd party to insert a false record, they would need hard drive access, which
+is also where all the files are. The record would appear in the UI.
+
+##### File leakage - Share
+
+The sharing protocol:
+- Alice wants to share with Charlie
+- Alice tags files with here nickname for Charlie (Chuck)
+- Alice connects to Chuck, send list of available files
+- Charlie calls back and asks for advertised file
+  - Alice's device checks each contact file for the iroh endpoint id
+  - Alice's device gets the nickname for the associated user
+  - Alice's device verifies the contact record
+  - Alice's device verifies the nickname is in the file
+  - Alice's device sends the file
+
+The mechanism relies on the contact exchange and iroh's endpoint verifications.
 
 ## Filesystem Layout
 
