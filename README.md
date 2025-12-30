@@ -174,6 +174,8 @@ Layers of security:
 - progress on sync
 - fzf full text search
 - Top level button "always on" sync
+- debt: rework components to take the data they need, vs taking a path and getting it
+- debt: factor tailwind heavy primitives (button, modal)
 
 ### Medium
 
@@ -183,10 +185,16 @@ Layers of security:
 - local file rename 
 - local file deletes
 - Contact distribution upon update
+- sync log
 
 ### Big
 
 - replicate file deletes (probably can get by with a path, deleted timestamp)
+- "as if" view. browser your files as if you are a user you share with
+- drop drop sharing: in contact_view, ability to include/exclude files
+- share with groups
+- automated testing across supported platforms
+- scale testing (targeting 200 peers max)
 
 ## Under Consideration (how/if/when)
 
