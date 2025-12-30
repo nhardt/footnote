@@ -26,7 +26,7 @@ use crate::context::VaultContext;
 #[rustfmt::skip]
 enum Route {
     #[layout(Main)]
-    #[route("/notes")]
+    #[route("/")]
     NoteBrowser{},
     
     #[route("/notes/:file_path")]
@@ -38,7 +38,7 @@ enum Route {
     #[route("/contacts/:nickname")]
     ContactView { nickname: String },
     
-    #[route("/")]
+    #[route("/profile")]
     Profile {},
 }
 const FAVICON: Asset = asset!("/assets/favicon.ico");
