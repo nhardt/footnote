@@ -64,25 +64,31 @@ fn App() -> Element {
 #[component]
 fn Main() -> Element {
     rsx! {
-        div { class: "flex flex-col h-screen w-screen bg-gray-900 text-gray-100",
-            div { class: "flex flex-row w-full items-center justify-evenly h-12 bg-gray-800 mb-4 text-sm",
-                Link {
-                    to: Route::NoteBrowser{},
-                    "Notes"
+        div { class: "h-screen bg-zinc-950 text-zinc-100 font-sans antialiased",
+            nav { class: "border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm",
+                div { class: "px-6 py-3",
+                    div { class: "flex items-center gap-8",
+                        Link {
+                            class: "px-4 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-100 transition-colors",
+                            to: Route::NoteBrowser{}, "Notes" }
+                        Link {
+                            class: "px-4 py-2 text-sm font-medium text-zinc-100 border-b-2 border-zinc-100",
+                            to: Route::Profile{}, "Profile" }
+                        Link {
+                            class: "px-4 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-100 transition-colors",
+                            to: Route::ContactBrowser {},
+                            "Contact"}
+                        div { class: "ml-auto flex items-center gap-2",
+                            div { class: "h-2 w-2 rounded-full bg-zinc-500" }
+                            FileServiceToggle{}
+                        }
+                    }
                 }
-                Link {
-                    to: Route::Profile{},
-                    "Profile"
+            }
+            main { class: "max-w-3xl mx-auto px-6 py-12",
+                div { class: "mb-12",
+                    Outlet::<Route> {}
                 }
-                Link {
-                    to: Route::ContactBrowser{},
-                    "Contacts"
-                }
-                FileServiceToggle{}
-            },
-
-            div { class:"flex flex-1 overflow-auto justify-center",
-                Outlet::<Route> {}
             }
         }
     }

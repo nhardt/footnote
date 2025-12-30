@@ -43,7 +43,7 @@ pub fn FileServiceToggle() -> Element {
     };
     rsx! {
         button {
-            class: "border-1 rounded",
+            class: "text-sm font-mono text-zinc-400",
             onclick: toggle_listener,
             if listening() { "Sync Active!" } else { "Sync Inactive" }
         }
