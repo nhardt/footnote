@@ -19,6 +19,7 @@ use views::note_browser::NoteBrowser;
 use views::note_view::NoteView;
 use views::profile::Profile;
 
+use crate::components::file_service_toggle::FileServiceToggle;
 use crate::context::VaultContext;
 
 #[derive(Debug, Clone, Routable, PartialEq)]
@@ -77,6 +78,7 @@ fn Main() -> Element {
                     to: Route::ContactBrowser{},
                     "Contacts"
                 }
+                FileServiceToggle{}
             },
 
             div { class:"flex flex-1 overflow-auto justify-center",
