@@ -52,6 +52,7 @@ pub fn FileServiceToggle() -> Element {
 
 async fn push_changes(vault_path: &Path, cancel_token: CancellationToken) {
     let mut sync_interval = interval(Duration::from_secs(60));
+    sync_interval.tick().await;
     let vault = Vault::new(vault_path).expect("missing vault");
     loop {
         tokio::select! {

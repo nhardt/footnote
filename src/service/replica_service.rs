@@ -8,7 +8,7 @@ use crate::model::vault::Vault;
 use crate::util::manifest;
 use crate::util::transfer;
 
-pub const ALPN_REPLICA: &[u8] = b"footnote/replica";
+pub const ALPN_REPLICA: &[u8] = b"footnote/sync";
 
 #[derive(Debug, Clone)]
 pub enum ReplicaEvent {
