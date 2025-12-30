@@ -86,6 +86,11 @@ pub async fn replicate_to_target(
     alpn: &[u8],
 ) -> Result<()> {
     let (secret_key, _) = vault.device_secret_key()?;
+
+    if remote_endpoint_id == secret_key.public() {
+        anyhow::bail!("cannot replicate to self");
+    }
+
     let endpoint = Endpoint::builder().secret_key(secret_key).bind().await?;
     let conn = endpoint
         .connect(remote_endpoint_id, alpn)
