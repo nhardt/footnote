@@ -38,15 +38,13 @@ pub fn Profile() -> Element {
     let vault_ctx = use_context::<VaultContext>();
     let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
     let vault = Vault::new(&vault_path).expect("expecting a local vault");
-    let state = vault.state_read()?;
-
-    let mut needs_update = use_signal(|| 0);
+    let mut vault_state = use_signal(|| vault.state_read().unwrap_or(VaultState::Uninitialized));
 
     rsx! {
         div { class: "flex flex-col h-full w-2xl gap-2",
-            h2 { class: "text-2xl font-bold", "Profile: {needs_update}" }
+            h2 { class: "text-2xl font-bold", "Profile: {vault_state}" }
 
-            match state {
+            match *vault_state.read() {
                 VaultState::Uninitialized => rsx! {
                     p { "Vault not initialized" }
                 },
@@ -55,12 +53,24 @@ pub fn Profile() -> Element {
                     p { "You're using footnote in stand alone mode. Would you like to sync with other devices?" }
                     button {
                         class: "border-1 rounded px-2",
-                        onclick: move |_| if transition_to_primary().is_ok() { needs_update += 1; },
+                        onclick: move |_|
+                            if transition_to_primary().is_ok() {
+                                let vault = Vault::new(&vault_path.clone()).expect("expecting a local vault");
+                                if let Ok(new_state) = vault.state_read() {
+                                    vault_state.set(new_state);
+                                }
+                            },
+
                         "Make this Primary"
                     }
                     button {
                         class: "border-1 rounded px-2",
-                        onclick: move |_| if transition_to_secondary().is_ok() { needs_update += 1; },
+                        onclick: move |_|
+                            if transition_to_secondary().is_ok() {
+                                if let Ok(new_state) = vault.state_read() {
+                                    vault_state.set(new_state);
+                                }
+                            },
                         "Join Existing Vault"
                     }
                 },

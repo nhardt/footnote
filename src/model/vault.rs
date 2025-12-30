@@ -1,4 +1,5 @@
 use anyhow::Result;
+use core::fmt;
 use iroh::Endpoint;
 use n0_error::StdResultExt;
 use serde::{Deserialize, Serialize};
@@ -21,6 +22,18 @@ pub enum VaultState {
     SecondaryUnjoined,
     StandAlone,
     Uninitialized,
+}
+
+impl fmt::Display for VaultState {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            VaultState::Primary => write!(f, "Primary"),
+            VaultState::SecondaryJoined => write!(f, "Joined"),
+            VaultState::SecondaryUnjoined => write!(f, "Joining"),
+            VaultState::StandAlone => write!(f, "Stand Alone"),
+            VaultState::Uninitialized => write!(f, "Uninitialzed"),
+        }
+    }
 }
 
 /// inside a footnote vault:
