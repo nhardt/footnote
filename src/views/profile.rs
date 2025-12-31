@@ -529,7 +529,7 @@ fn ExportModal(onclose: EventHandler) -> Element {
                         readonly: "true",
                         "{user_record_json}"
                     }
-                    button { class: "w-full px-4 py-2 bg-zinc-100 hover:bg-white text-zinc-900 rounded-md text-sm font-medium transition-all",
+                    button { class: "w-full px-4 py-2 bg-zinc-300 hover:bg-white text-zinc-900 rounded-md text-sm font-medium transition-all",
                         onclick: move |_| onclose.call(()),
                         "Done"
                     }
