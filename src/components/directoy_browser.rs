@@ -75,54 +75,11 @@ pub fn DirectoryBrowser(
         });
     });
 
-    let handle_create_folder = move |_| {
-        if new_folder_name().trim().is_empty() {
-            return;
-        }
-
-        let folder_name = new_folder_name().trim().to_string();
-        let new_path = current_path().join(&folder_name);
-
-        tracing::info!("Attempting to create directory: {}", new_path.display());
-
-        if let Err(e) = std::fs::create_dir(&new_path) {
-            tracing::error!(
-                "Failed to create directory {}: {} (kind: {:?}, errno: {:?})",
-                new_path.display(),
-                e,
-                e.kind(),
-                e.raw_os_error()
-            );
-            // TODO: Show error to user
-            return;
-        }
-
-        tracing::info!("Successfully created directory: {}", new_path.display());
-
-        current_path.set(new_path);
-        new_folder_name.set(String::new());
-        show_new_folder_input.set(false);
-    };
-
     let handle_toggle_new_folder = move |_| {
         show_new_folder_input.set(!show_new_folder_input());
         if show_new_folder_input() {
             new_folder_name.set(String::new());
         }
-    };
-
-    let handle_create_file = move |_| {
-        if new_file_name().trim().is_empty() {
-            return;
-        }
-
-        let file_name = new_file_name().trim().to_string();
-        let new_path = current_path().join(&file_name);
-        on_file_create(new_path);
-
-        refresh_trigger += 1;
-        new_file_name.set(String::new());
-        show_new_file_input.set(false);
     };
 
     let handle_toggle_new_file = move |_| {
@@ -190,62 +147,25 @@ pub fn DirectoryBrowser(
                 }
 
                 if show_new_folder_input() {
-                    div { id: "new-folder-state",
-                        div { class: "p-6 border-b border-zinc-800 bg-zinc-900/50",
-                            div { class: "bg-zinc-800/30 border border-zinc-700 rounded-lg p-4",
-                                label { class: "block text-sm font-medium text-zinc-300 mb-2",
-                                    "New Folder Name"
-                                }
-                                div { class: "flex gap-2",
-                                    input {
-                                        class: "flex-1 px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-md text-sm font-mono focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
-                                        placeholder: "folder-name",
-                                        r#type: "text",
-                                        value: "{new_folder_name}",
-                                        oninput: move |evt| new_folder_name.set(evt.value()),
-                                    }
-                                    button { class: "px-4 py-2 bg-zinc-100 hover:bg-white hover:shadow-lg text-zinc-900 rounded-md text-sm font-medium transition-all",
-                                        disabled: new_folder_name().trim().is_empty(),
-                                        onclick: handle_create_folder,
-                                        "Create"
-                                    }
-                                    button { class: "px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
-                                        onclick: handle_toggle_new_folder,
-                                        "Cancel"
-                                    }
-                                }
-                            }
-                        }
+                    NewFolderInput {
+                        current_path,
+                        on_created: move |_| {
+                            show_new_folder_input.set(false);
+                            refresh_trigger += 1;
+                        },
+                        on_cancel: move |_| show_new_folder_input.set(false),
                     }
                 }
 
                 if show_new_file_input() {
-                    div { id: "new-file-state",
-                        div { class: "p-6 border-b border-zinc-800 bg-zinc-900/50",
-                            div { class: "bg-zinc-800/30 border border-zinc-700 rounded-lg p-4",
-                                label { class: "block text-sm font-medium text-zinc-300 mb-2",
-                                    "New File Name"
-                                }
-                                div { class: "flex gap-2",
-                                    input {
-                                        class: "flex-1 px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-md text-sm font-mono focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
-                                        placeholder: "file-name.md",
-                                        r#type: "text",
-                                        value: "{new_file_name}",
-                                        oninput: move |evt| new_file_name.set(evt.value()),
-                                    }
-                                    button { class: "px-4 py-2 bg-zinc-100 hover:bg-white hover:shadow-lg text-zinc-900 rounded-md text-sm font-medium transition-all",
-                                        onclick: handle_create_file,
-                                        disabled: new_file_name().trim().is_empty(),
-                                        "Create"
-                                    }
-                                    button { class: "px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
-                                        onclick: handle_toggle_new_file,
-                                        "Cancel"
-                                    }
-                                }
-                            }
-                        }
+                    NewFileInput {
+                        current_path,
+                        on_created: move |path| {
+                            on_file_create.call(path);
+                            show_new_file_input.set(false);
+                            refresh_trigger += 1;
+                        },
+                        on_cancel: move |_| show_new_file_input.set(false),
                     }
                 }
 
@@ -328,6 +248,109 @@ pub fn DirectoryBrowser(
                                 "{action_label}"
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[component]
+fn NewFolderInput(
+    current_path: Signal<PathBuf>,
+    on_created: EventHandler<()>,
+    on_cancel: EventHandler<()>,
+) -> Element {
+    let mut folder_name = use_signal(|| String::new());
+
+    let handle_create = move |_| {
+        if folder_name().trim().is_empty() {
+            return;
+        }
+
+        let new_path = current_path().join(folder_name().trim());
+
+        if let Err(e) = std::fs::create_dir(&new_path) {
+            tracing::error!("Failed to create directory {}: {}", new_path.display(), e);
+            return;
+        }
+
+        current_path.set(new_path);
+        on_created.call(());
+    };
+
+    rsx! {
+        div { class: "p-6 border-b border-zinc-800 bg-zinc-900/50",
+            div { class: "bg-zinc-800/30 border border-zinc-700 rounded-lg p-4",
+                label { class: "block text-sm font-medium text-zinc-300 mb-2",
+                    "New Folder Name"
+                }
+                div { class: "flex gap-2",
+                    input {
+                        class: "flex-1 px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-md text-sm font-mono focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
+                        placeholder: "folder-name",
+                        r#type: "text",
+                        value: "{folder_name}",
+                        oninput: move |evt| folder_name.set(evt.value()),
+                    }
+                    button {
+                        class: "px-4 py-2 bg-zinc-100 hover:bg-white hover:shadow-lg text-zinc-900 rounded-md text-sm font-medium transition-all",
+                        disabled: folder_name().trim().is_empty(),
+                        onclick: handle_create,
+                        "Create"
+                    }
+                    button {
+                        class: "px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
+                        onclick: move |_| on_cancel.call(()),
+                        "Cancel"
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[component]
+fn NewFileInput(
+    current_path: Signal<PathBuf>,
+    on_created: EventHandler<PathBuf>,
+    on_cancel: EventHandler<()>,
+) -> Element {
+    let mut file_name = use_signal(|| String::new());
+
+    let handle_create = move |_| {
+        if file_name().trim().is_empty() {
+            return;
+        }
+
+        let new_path = current_path().join(file_name().trim());
+        on_created.call(new_path);
+    };
+
+    rsx! {
+        div { class: "p-6 border-b border-zinc-800 bg-zinc-900/50",
+            div { class: "bg-zinc-800/30 border border-zinc-700 rounded-lg p-4",
+                label { class: "block text-sm font-medium text-zinc-300 mb-2",
+                    "New File Name"
+                }
+                div { class: "flex gap-2",
+                    input {
+                        class: "flex-1 px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-md text-sm font-mono focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
+                        placeholder: "file-name.md",
+                        r#type: "text",
+                        value: "{file_name}",
+                        oninput: move |evt| file_name.set(evt.value()),
+                    }
+                    button {
+                        class: "px-4 py-2 bg-zinc-100 hover:bg-white hover:shadow-lg text-zinc-900 rounded-md text-sm font-medium transition-all",
+                        disabled: file_name().trim().is_empty(),
+                        onclick: handle_create,
+                        "Create"
+                    }
+                    button {
+                        class: "px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
+                        onclick: move |_| on_cancel.call(()),
+                        "Cancel"
                     }
                 }
             }
