@@ -95,7 +95,6 @@ pub fn Profile() -> Element {
             VaultState::Primary => rsx! {
                 UserComponent { read_only: false }
                 DeviceListComponent { read_only: false }
-                JoinListenerComponent {}
                 ExportComponent {}
             }
         }
@@ -206,58 +205,46 @@ fn DeviceListComponent(read_only: bool) -> Element {
     let vault = Vault::new(&vault_path).expect("expecting a local vault");
     let devices = vault.device_read()?;
     rsx! {
-        div { class: "grid grid-cols-2",
-        }
-        section { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 overflow-hidden",
-            div { class: "p-6 border-b border-zinc-800",
-                h2 { class: "text-lg font-semibold font-mono", "Devices" }
-                p { class: "text-sm text-zinc-500 mt-1",
-                    "\n                            Your connected devices in this vault\n                        "
+        div { class: "space-y-8 mt-4",
+            section { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 overflow-hidden",
+                div { class: "p-6 border-b border-zinc-800",
+                    h2 { class: "text-lg font-semibold font-mono", "Devices" }
+                    p { class: "text-sm text-zinc-500 mt-1",
+                        "\n                            Your connected devices in this vault\n                        "
+                    }
                 }
-            }
-            div { class: "divide-y divide-zinc-800",
-                for device in devices.iter() {
-                    div { class: "p-6 hover:bg-zinc-900/50 transition-colors group",
-                        div { class: "flex items-start justify-between",
-                            div { class: "flex-1 min-w-0",
-                                div { class: "flex items-center gap-3 mb-2",
-                                    h3 { class: "text-sm font-semibold",
-                                        "{device.name}"
+                div { class: "divide-y divide-zinc-800",
+                    for device in devices.iter() {
+                        div { class: "p-6 hover:bg-zinc-900/50 transition-colors group",
+                            div { class: "flex items-start justify-between",
+                                div { class: "flex-1 min-w-0",
+                                    div { class: "flex items-center gap-3 mb-2",
+                                        h3 { class: "text-sm font-semibold",
+                                            "{device.name}"
+                                        }
+                                        // span { class: "px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-xs font-mono text-zinc-400",
+                                        //     "Primary"
+                                        // }
                                     }
-                                    span { class: "px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-xs font-mono text-zinc-400",
-                                        "Primary"
+                                    p { class: "text-xs font-mono text-zinc-500 truncate",
+                                        "{device.iroh_endpoint_id}"
                                     }
-                                }
-                                p { class: "text-xs font-mono text-zinc-500 truncate",
-                                    "{device.iroh_endpoint_id}"
                                 }
                             }
                         }
                     }
                 }
-            }
-            if read_only {
-                div { class: "p-6 bg-zinc-900/20 border-t border-zinc-800",
-                    button { class: "flex items-center gap-3 text-sm font-medium text-zinc-300 hover:text-zinc-100 transition-colors group",
-                        div { class: "p-1.5 rounded-full bg-zinc-800 group-hover:bg-zinc-700 border border-zinc-700 group-hover:border-zinc-600 transition-all",
+                if read_only {
+                    div { class: "p-6 bg-zinc-900/20 border-t border-zinc-800",
+                        button { class: "flex items-center gap-3 text-sm font-medium text-zinc-300 hover:text-zinc-100 transition-colors group",
+                            div { class: "p-1.5 rounded-full bg-zinc-800 group-hover:bg-zinc-700 border border-zinc-700 group-hover:border-zinc-600 transition-all",
+                            }
+                            span { "Manage additional devices on primary" }
                         }
-                        span { "Manage additional devices on primary" }
                     }
                 }
-            }
-            else {
-                div { class: "p-6 bg-zinc-900/20 border-t border-zinc-800",
-                    button { class: "flex items-center gap-3 text-sm font-medium text-zinc-300 hover:text-zinc-100 transition-colors group",
-                        div { class: "p-1.5 rounded-full bg-zinc-800 group-hover:bg-zinc-700 border border-zinc-700 group-hover:border-zinc-600 transition-all",
-                            svg {
-                                class: "w-4 h-4",
-                                fill: "currentColor",
-                                view_box: "0 0 20 20",
-                                path { d: "M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" }
-                            }
-                        }
-                        span { "Join a device you own to this vault" }
-                    }
+                else {
+                    JoinListenerComponent {}
                 }
             }
         }
@@ -275,23 +262,23 @@ fn JoinListenerComponent() -> Element {
     // synchonous", we'll just make this a modal
     let mut show_modal = use_signal(|| false);
     rsx! {
-        div { class: "flex flex-row justify-between",
-            label { "Join a device you own to this vault" }
-            button {
-                class: "rounded-full bg-indigo-600 p-1.5 text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:shadow-none dark:hover:bg-indigo-400 dark:focus-visible:outline-indigo-500",
+        div { class: "p-6 bg-zinc-900/20 border-t border-zinc-800",
+            button { class: "flex items-center gap-3 text-sm font-medium text-zinc-300 hover:text-zinc-100 transition-colors group",
                 r#type: "button",
                 onclick: move |_| show_modal.set(true),
-                svg {
-                    class: "size-5",
-                    "data-slot": "icon",
-                    fill: "currentColor",
-                    view_box: "0 0 20 20",
-                    path { d: "M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" }
+                div { class: "p-1.5 rounded-full bg-zinc-800 group-hover:bg-zinc-700 border border-zinc-700 group-hover:border-zinc-600 transition-all",
+                    svg {
+                        class: "w-4 h-4",
+                        fill: "currentColor",
+                        view_box: "0 0 20 20",
+                        path { d: "M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" }
+                    }
                 }
-            }
-            if show_modal() {
-                JoinListenModal {
-                    onclose: move |_| show_modal.set(false)
+                span { "Join a device you own to this vault" }
+                if show_modal() {
+                    JoinListenModal {
+                        onclose: move |_| show_modal.set(false)
+                    }
                 }
             }
         }
