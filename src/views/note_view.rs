@@ -41,34 +41,44 @@ pub fn NoteView(file_path: String) -> Element {
     };
 
     rsx! {
-        div { class: "flex flex-col h-full w-2xl gap-2",
-            div { class: "grid grid-cols-[auto_1fr] gap-4",
-                label { "File" }
-                input {
-                    class: "border-1 px-2",
-                    r#type: "text",
-                    value: "{file_path_input}",
-                    oninput: move |e| file_path_input.set(e.value()),
+
+        div { class: "h-full flex flex-col flex-1",
+            div { class: "border-b border-zinc-800 bg-zinc-900/30 px-6 py-4",
+                div { class: "max-w-5xl mx-auto",
+                    div { class: "grid grid-cols-[auto_1fr] gap-x-4 gap-y-3 items-center",
+                        label { class: "text-sm font-medium text-zinc-400", "File" }
+                        input {
+                            class: "px-3 py-1.5 bg-zinc-900 border border-zinc-700 rounded-md text-sm font-mono focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
+                            r#type: "text",
+                            value: "{file_path_input}",
+                            oninput: move |e| file_path_input.set(e.value()),
+                        }
+                        label { class: "text-sm font-medium text-zinc-400", "Shared with" }
+                        div { class: "flex items-center gap-2",
+                            input {
+                                class: "flex-1 px-3 py-1.5 bg-zinc-900 border border-zinc-700 rounded-md text-sm font-mono focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
+                                r#type: "text",
+                                value: "{share_with}",
+                                oninput: move |e| share_with.set(e.value())
+                            }
+                            button { class: "px-4 py-1.5 bg-zinc-100 hover:bg-white hover:shadow-lg text-zinc-900 rounded-md text-sm font-medium transition-all",
+                                onclick: save_note,
+                                "Save"
+                            }
+                        }
+                    }
                 }
-                label { "Shared with:" }
-                input {
-                    class: "border-1 px-2",
-                    r#type: "text",
-                    value: "{share_with}",
-                    oninput: move |e| share_with.set(e.value())
+            }
+            div { class: "h-full flex-1 overflow-hidden",
+                div { class: "h-full max-w-5xl mx-auto px-6 py-6",
+                    textarea {
+                        class: "w-full h-full px-4 py-3 bg-zinc-900/30 border border-zinc-800 rounded-lg text-sm font-mono text-zinc-100 resize-none focus:border-zinc-700 focus:ring-1 focus:ring-zinc-700",
+                        placeholder: "Start writing...",
+                        value: "{body}",
+                        oninput: move |e| body.set(e.value())
+                    }
                 }
             }
-            textarea {
-                class: "flex-1 w-full border-1 p-4",
-                value: "{body}",
-                oninput: move |e| body.set(e.value())
-            }
-            button {
-                class: "border-1 p-4 my-4",
-                onclick: save_note,
-                "Save"
-            }
-            label { "{err_label}" }
         }
     }
 }

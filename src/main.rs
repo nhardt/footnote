@@ -73,7 +73,7 @@ fn App() -> Element {
 fn Main() -> Element {
     let route = use_route::<Route>();
     rsx! {
-        div { class: "h-screen bg-zinc-950 text-zinc-100 font-sans antialiased",
+        div { class: "flex flex-col flex-1 h-screen bg-zinc-950 text-zinc-100 font-sans antialiased",
             nav { class: "border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm",
                 div { class: "px-6 py-3",
                     div { class: "flex items-center gap-8",
@@ -106,10 +106,15 @@ fn Main() -> Element {
                     }
                 }
             }
-            main { class: "max-w-3xl mx-auto px-6 py-12",
-                div { class: "mb-12",
-                    Outlet::<Route> {}
-                }
+
+            main {
+                // todo: let child component control render rather than customizing here
+                class: if matches!(route, Route::NoteView { .. }) {
+                    "flex-1 flex flex-col"
+                } else {
+                    "max-w-3xl mx-auto px-6 py-12"
+                },
+                Outlet::<Route> {}
             }
         }
     }
