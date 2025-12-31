@@ -16,11 +16,9 @@ pub fn DirectoryBrowser(
     let mut current_path = use_signal(|| base_path.to_path_buf());
 
     let mut folders = use_signal(|| Vec::<PathBuf>::new());
-    let mut new_folder_name = use_signal(|| String::new());
     let mut show_new_folder_input = use_signal(|| false);
 
     let mut files = use_signal(|| Vec::<PathBuf>::new());
-    let mut new_file_name = use_signal(|| String::new());
     let mut show_new_file_input = use_signal(|| false);
 
     let handle_select_here = move |_| {
@@ -78,16 +76,10 @@ pub fn DirectoryBrowser(
 
     let handle_toggle_new_folder = move |_| {
         show_new_folder_input.set(!show_new_folder_input());
-        if show_new_folder_input() {
-            new_folder_name.set(String::new());
-        }
     };
 
     let handle_toggle_new_file = move |_| {
         show_new_file_input.set(!show_new_file_input());
-        if show_new_file_input() {
-            new_file_name.set(String::new());
-        }
     };
 
     rsx! {
@@ -152,7 +144,6 @@ pub fn DirectoryBrowser(
                         current_path,
                         on_created: move |_| {
                             show_new_folder_input.set(false);
-                            refresh_trigger += 1;
                         },
                         on_cancel: move |_| show_new_folder_input.set(false),
                     }
@@ -164,7 +155,6 @@ pub fn DirectoryBrowser(
                         on_created: move |path| {
                             on_file_create.call(path);
                             show_new_file_input.set(false);
-                            refresh_trigger += 1;
                         },
                         on_cancel: move |_| show_new_file_input.set(false),
                     }
