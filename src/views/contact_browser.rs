@@ -118,47 +118,58 @@ fn ImportModal(onclose: EventHandler) -> Element {
     };
     rsx! {
         div {
-            class: "fixed inset-0 bg-gray-500/75 dark:bg-gray-900/50 transition-opacity",
-
+            id: "import-modal",
+            class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
             div {
-                class: "flex min-h-full items-center justify-center p-4",
-
-                div {
-                    class: "relative w-[90vw] h-[90vh] flex flex-col transform overflow-hidden rounded-lg bg-white shadow-xl dark:bg-gray-800 dark:outline dark:-outline-offset-1 dark:outline-white/10",
-                    onclick: move |evt| evt.stop_propagation(),
-
+                class: "bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col",
+                onclick: move |evt| evt.stop_propagation(),
+                div { class: "p-6 border-b border-zinc-800",
+                    h3 { class: "text-lg font-semibold font-mono",
+                        "Import Contact"
+                    }
+                    p { class: "text-sm text-zinc-500 mt-1",
+                        "Add someone to your trust network"
+                    }
+                }
+                div { class: "p-6 flex-1 min-h-0 flex flex-col gap-4",
                     div {
-                        class: "p-6 flex flex-col gap-4 flex-1 min-h-0",
-
-
-                        label { "Nickname (the name you want to use when you share with this user):" }
+                        label { class: "block text-sm font-medium text-zinc-300 mb-2",
+                            "Nickname"
+                            span { class: "text-zinc-500 font-normal ml-1",
+                                "(how you'll reference them when sharing)"
+                            }
+                        }
                         input {
-                            class: "border-1 px-2",
+                            class: "w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-md text-sm font-mono focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
+                            placeholder: "alice",
                             r#type: "text",
                             value: "{nickname}",
                             oninput: move |e| nickname.set(e.value())
                         }
-                        label {
-                            class: "text-sm",
-                            "Paste the contact record below:"
+                    }
+                    div { class: "flex-1 min-h-0 flex flex-col",
+                        label { class: "block text-sm font-medium text-zinc-300 mb-2",
+                            "Contact Record"
                         }
                         textarea {
-                            class: "flex-1 w-full border-1 p-4",
+                            class: "flex-1 w-full px-4 py-3 bg-zinc-950 border border-zinc-700 rounded-lg text-xs font-mono text-zinc-300 resize-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
                             value: "{contact_json}",
                             oninput: move |e| contact_json.set(e.value())
                         }
-                        label { "{err_message}" }
-                        button {
-                            r#type: "button",
-                            class: "w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400",
-                            onclick: import_contact,
-                            "Import"
-                        }
-                        button {
-                            r#type: "button",
-                            class: "w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400",
+                    }
+                    div {
+                        class: "text-sm text-red-400 font-mono",
+                        style: "display: none",
+                        "{err_message}"
+                    }
+                    div { class: "flex gap-3",
+                        button { class: "flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
                             onclick: move |_| onclose.call(()),
                             "Cancel"
+                        }
+                        button { class: "flex-1 px-4 py-2 bg-zinc-100 hover:bg-white hover:shadow-lg text-zinc-900 rounded-md text-sm font-medium transition-all",
+                            onclick: import_contact,
+                            "Import"
                         }
                     }
                 }
