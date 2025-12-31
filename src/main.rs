@@ -11,6 +11,7 @@ mod util;
 mod views;
 
 use model::vault::Vault;
+use tracing::Level;
 use util::filesystem::ensure_default_vault;
 
 use views::contact_browser::ContactBrowser;
@@ -45,6 +46,12 @@ const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
 const MAIN_CSS: Asset = asset!("/assets/main.css");
 
 fn main() {
+    dioxus::logger::init(Level::TRACE).expect("failed to init logger");
+    tracing::trace!("trace");
+    tracing::debug!("debug");
+    tracing::info!("info");
+    tracing::warn!("warn");
+    tracing::error!("error");
     dioxus::launch(App);
 }
 

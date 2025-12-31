@@ -262,6 +262,7 @@ fn NewFolderInput(
     on_created: EventHandler<()>,
     on_cancel: EventHandler<()>,
 ) -> Element {
+    tracing::trace!("NewFolderInput re-render");
     let mut folder_name = use_signal(|| String::new());
 
     let handle_create = move |_| {
@@ -317,6 +318,7 @@ fn NewFileInput(
     on_created: EventHandler<PathBuf>,
     on_cancel: EventHandler<()>,
 ) -> Element {
+    tracing::trace!("NewFileInput re-render");
     let mut file_name = use_signal(|| String::new());
 
     let handle_create = move |_| {
