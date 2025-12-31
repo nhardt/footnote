@@ -23,21 +23,20 @@ use crate::components::file_service_toggle::FileServiceToggle;
 use crate::context::VaultContext;
 
 #[derive(Debug, Clone, Routable, PartialEq)]
-#[rustfmt::skip]
 enum Route {
     #[layout(Main)]
     #[route("/")]
-    NoteBrowser{},
-    
+    NoteBrowser {},
+
     #[route("/notes/:file_path")]
     NoteView { file_path: String },
-    
+
     #[route("/contacts")]
     ContactBrowser {},
-    
+
     #[route("/contacts/:nickname")]
     ContactView { nickname: String },
-    
+
     #[route("/profile")]
     Profile {},
 }

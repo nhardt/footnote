@@ -60,7 +60,6 @@ pub fn Profile() -> Element {
                                     vault_state.set(new_state);
                                 }
                             },
-
                         "Make this Primary"
                     }
                     button {
