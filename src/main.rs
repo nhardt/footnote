@@ -69,7 +69,7 @@ fn Main() -> Element {
                 div { class: "px-6 py-3",
                     div { class: "flex items-center gap-8",
                         Link {
-                            class: if matches!(route, Route::NoteBrowser {}) {
+                            class: if matches!(route, Route::NoteBrowser {} | Route::NoteView { .. }) {
                                 "px-4 py-2 text-sm font-medium text-zinc-100 border-b-2 border-zinc-100"
                             } else {
                                 "px-4 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-100 transition-colors"
