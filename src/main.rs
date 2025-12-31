@@ -62,19 +62,32 @@ fn App() -> Element {
 
 #[component]
 fn Main() -> Element {
+    let route = use_route::<Route>();
     rsx! {
         div { class: "h-screen bg-zinc-950 text-zinc-100 font-sans antialiased",
             nav { class: "border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm",
                 div { class: "px-6 py-3",
                     div { class: "flex items-center gap-8",
                         Link {
-                            class: "px-4 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-100 transition-colors",
+                            class: if matches!(route, Route::NoteBrowser {}) {
+                                "px-4 py-2 text-sm font-medium text-zinc-100 border-b-2 border-zinc-100"
+                            } else {
+                                "px-4 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-100 transition-colors"
+                            },
                             to: Route::NoteBrowser{}, "Notes" }
                         Link {
-                            class: "px-4 py-2 text-sm font-medium text-zinc-100 border-b-2 border-zinc-100",
+                            class: if matches!(route, Route::Profile{}) {
+                                "px-4 py-2 text-sm font-medium text-zinc-100 border-b-2 border-zinc-100"
+                            } else {
+                                "px-4 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-100 transition-colors"
+                            },
                             to: Route::Profile{}, "Profile" }
                         Link {
-                            class: "px-4 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-100 transition-colors",
+                            class: if matches!(route, Route::ContactBrowser{}) {
+                                "px-4 py-2 text-sm font-medium text-zinc-100 border-b-2 border-zinc-100"
+                            } else {
+                                "px-4 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-100 transition-colors"
+                            },
                             to: Route::ContactBrowser {},
                             "Contact"}
                         div { class: "ml-auto flex items-center gap-2",
