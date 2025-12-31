@@ -41,56 +41,62 @@ pub fn Profile() -> Element {
     let mut vault_state = use_signal(|| vault.state_read().unwrap_or(VaultState::Uninitialized));
 
     rsx! {
-        div { class: "flex flex-col h-full w-2xl gap-2",
-            h2 { class: "text-2xl font-bold", "Profile: {vault_state}" }
+        div { class: "mb-12",
+            h1 { class: "text-3xl font-bold font-mono mb-2",
+                "Profile: "
+                span { class: "text-zinc-400", "{vault_state}" }
+            }
+            p { class: "text-sm text-zinc-500",
+                "Manage Vault Local Settings"
+            }
+        }
 
-            match *vault_state.read() {
-                VaultState::Uninitialized => rsx! {
-                    p { "Vault not initialized" }
-                },
+        match *vault_state.read() {
+            VaultState::Uninitialized => rsx! {
+                p { "Vault not initialized" }
+            },
 
-                VaultState::StandAlone => rsx! {
-                    p { "You're using footnote in stand alone mode. Would you like to sync with other devices?" }
-                    button {
-                        class: "border-1 rounded px-2",
-                        onclick: move |_|
-                            if transition_to_primary().is_ok() {
-                                let vault = Vault::new(&vault_path.clone()).expect("expecting a local vault");
-                                if let Ok(new_state) = vault.state_read() {
-                                    vault_state.set(new_state);
-                                }
-                            },
-                        "Make this Primary"
-                    }
-                    button {
-                        class: "border-1 rounded px-2",
-                        onclick: move |_|
-                            if transition_to_secondary().is_ok() {
-                                if let Ok(new_state) = vault.state_read() {
-                                    vault_state.set(new_state);
-                                }
-                            },
-                        "Join Existing Vault"
-                    }
-                },
-
-                VaultState::SecondaryUnjoined => rsx! {
-                    LocalDeviceComponent { read_only: false }
-                    JoinComponent{}
-                },
-
-                VaultState::SecondaryJoined => rsx! {
-                    UserComponent { read_only: true }
-                    DeviceListComponent { read_only: true }
-                    ExportComponent {}
-                },
-
-                VaultState::Primary => rsx! {
-                    UserComponent { read_only: false }
-                    DeviceListComponent { read_only: false }
-                    JoinListenerComponent {}
-                    ExportComponent {}
+            VaultState::StandAlone => rsx! {
+                p { "You're using footnote in stand alone mode. Would you like to sync with other devices?" }
+                button {
+                    class: "border-1 rounded px-2",
+                    onclick: move |_|
+                        if transition_to_primary().is_ok() {
+                            let vault = Vault::new(&vault_path.clone()).expect("expecting a local vault");
+                            if let Ok(new_state) = vault.state_read() {
+                                vault_state.set(new_state);
+                            }
+                        },
+                    "Make this Primary"
                 }
+                button {
+                    class: "border-1 rounded px-2",
+                    onclick: move |_|
+                        if transition_to_secondary().is_ok() {
+                            if let Ok(new_state) = vault.state_read() {
+                                vault_state.set(new_state);
+                            }
+                        },
+                    "Join Existing Vault"
+                }
+            },
+
+            VaultState::SecondaryUnjoined => rsx! {
+                LocalDeviceComponent { read_only: false }
+                JoinComponent{}
+            },
+
+            VaultState::SecondaryJoined => rsx! {
+                UserComponent { read_only: true }
+                DeviceListComponent { read_only: true }
+                ExportComponent {}
+            },
+
+            VaultState::Primary => rsx! {
+                UserComponent { read_only: false }
+                DeviceListComponent { read_only: false }
+                JoinListenerComponent {}
+                ExportComponent {}
             }
         }
     }
