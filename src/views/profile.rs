@@ -510,35 +510,28 @@ fn ExportModal(onclose: EventHandler) -> Element {
     });
     rsx! {
         div {
-            class: "fixed inset-0 bg-gray-500/75 dark:bg-gray-900/50 transition-opacity",
-
+            id: "export-modal",
+            class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
             div {
-                class: "flex min-h-full items-center justify-center p-4",
-
-                div {
-                    class: "relative w-[90vw] h-[90vh] flex flex-col transform overflow-hidden rounded-lg bg-white shadow-xl dark:bg-gray-800 dark:outline dark:-outline-offset-1 dark:outline-white/10",
-                    onclick: move |evt| evt.stop_propagation(),
-
-                    div {
-                        class: "p-6 flex flex-col gap-4 flex-1 min-h-0",
-
-                        label {
-                            class: "text-sm",
-                            "Copy the text below and paste it into an email or text message:"
-                        }
-
-                        textarea {
-                            class: "flex-1 w-full p-3 text-sm font-mono border rounded-md bg-gray-50 dark:bg-gray-900 dark:border-gray-700 resize-none",
-                            readonly: true,
-                            value: "{user_record_json}",
-                        }
-
-                        button {
-                            r#type: "button",
-                            class: "w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400",
-                            onclick: move |_| onclose.call(()),
-                            "Done"
-                        }
+                class: "bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl max-w-2xl w-full h-[90vh] flex flex-col",
+                onclick: move |evt| evt.stop_propagation(),
+                div { class: "p-6 border-b border-zinc-800",
+                    h3 { class: "text-lg font-semibold font-mono",
+                        "Export Contact Record"
+                    }
+                    p { class: "text-sm text-zinc-500 mt-1",
+                        "Copy and share this with your trusted contacts"
+                    }
+                }
+                div { class: "p-6 flex-1 min-h-0 flex flex-col",
+                    textarea {
+                        class: "flex-1 w-full select-all px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-lg text-xs font-mono text-zinc-300 resize-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 mb-4",
+                        readonly: "true",
+                        "{user_record_json}"
+                    }
+                    button { class: "w-full px-4 py-2 bg-zinc-100 hover:bg-white text-zinc-900 rounded-md text-sm font-medium transition-all",
+                        onclick: move |_| onclose.call(()),
+                        "Done"
                     }
                 }
             }
