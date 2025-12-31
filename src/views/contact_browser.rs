@@ -41,16 +41,29 @@ fn ContactRow(contact: Contact) -> Element {
     let mut expanded = use_signal(|| false);
 
     rsx! {
-        div { class: "flex flex-col border-b",
-            button {
-                class: "flex items-center justify-between w-full",
+        div { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 overflow-hidden",
+            button { class: "w-full px-6 py-4 hover:bg-zinc-900/50 transition-colors text-left",
                 onclick: move |_| expanded.toggle(),
-                div { class: "flex flex-col items-start",
-                    div { "{contact.nickname}" }
-                    div { class: "text-sm opacity-70", "{contact.username}" }
-                }
-                div { class: "text-xs opacity-50",
-                    "{contact.devices.len()} devices"
+                div { class: "flex items-center justify-between",
+                    div { class: "flex-1",
+                        div { class: "font-semibold mb-1", "{contact.nickname}" }
+                        div { class: "text-sm text-zinc-500", "{contact.username}" }
+                    }
+                    div { class: "flex items-center gap-4",
+                        span { class: "text-sm text-zinc-500", "{contact.devices.len()} devices" }
+                        svg {
+                            class: "w-5 h-5 text-zinc-500",
+                            fill: "none",
+                            stroke: "currentColor",
+                            view_box: "0 0 24 24",
+                            path {
+                                d: "M9 5l7 7-7 7",
+                                stroke_linecap: "round",
+                                stroke_linejoin: "round",
+                                stroke_width: "2",
+                            }
+                        }
+                    }
                 }
             }
             if expanded() {
@@ -63,9 +76,11 @@ fn ContactRow(contact: Contact) -> Element {
 #[component]
 fn DeviceItems(devices: Vec<Device>) -> Element {
     rsx! {
-        div { class: "flex flex-col",
-            for device in devices {
-                DeviceItem { device }
+        div { class: "px-6 pb-4 bg-zinc-900/20 border-t border-zinc-800",
+            div { class: "space-y-2 pt-4",
+                for device in devices {
+                    DeviceItem { device }
+                }
             }
         }
     }
@@ -74,9 +89,11 @@ fn DeviceItems(devices: Vec<Device>) -> Element {
 #[component]
 fn DeviceItem(device: Device) -> Element {
     rsx! {
-        div { class: "flex justify-between text-sm",
-            div { "{device.name}" }
-            div { class: "text-xs opacity-50", "{device.iroh_endpoint_id}" }
+        div { class: "flex items-center justify-between text-sm py-2",
+            span { class: "text-zinc-300", "{device.name}"}
+            span { class: "text-xs font-mono text-zinc-500 truncate ml-4",
+                "{device.iroh_endpoint_id}"
+            }
         }
     }
 }
