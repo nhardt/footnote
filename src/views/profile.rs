@@ -470,12 +470,31 @@ fn JoinModal(onclose: EventHandler) -> Element {
 fn ExportComponent() -> Element {
     let mut show_modal = use_signal(|| false);
     rsx! {
-        div { class: "flex flex-row justify-between",
-            button {
-                class: "border-1 w-full rounded mt-6",
-                r#type: "button",
+        section { class: "pt-4",
+            button { class: "w-full px-6 py-4 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-lg text-sm font-medium text-zinc-300 hover:text-zinc-100 transition-all text-left",
                 onclick: move |_| show_modal.set(true),
-                "Create contact record to share with trust network"
+                div { class: "flex items-center justify-between",
+                    div {
+                        div { class: "font-semibold mb-1",
+                            "Create Contact Record"
+                        }
+                        div { class: "text-xs text-zinc-500",
+                            "Share with your trust network"
+                        }
+                    }
+                    svg {
+                        class: "w-5 h-5 text-zinc-500",
+                        fill: "none",
+                        stroke: "currentColor",
+                        view_box: "0 0 24 24",
+                        path {
+                            d: "M9 5l7 7-7 7",
+                            stroke_linecap: "round",
+                            stroke_linejoin: "round",
+                            stroke_width: "2",
+                        }
+                    }
+                }
             }
             if show_modal() {
                 ExportModal {
