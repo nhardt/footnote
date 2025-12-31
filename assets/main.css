@@ -1,0 +1,14 @@
+/* Smooth animations */
+* {
+    transition:
+        border-color 150ms ease,
+        background-color 150ms ease,
+        box-shadow 150ms ease;
+}
+
+/* Custom focus ring */
+input:focus,
+textarea:focus,
+button:focus-visible {
+    outline: none;
+}
