@@ -200,6 +200,71 @@ fn UserComponent(read_only: bool) -> Element {
 }
 
 #[component]
+fn DeviceListComponent(read_only: bool) -> Element {
+    let vault_ctx = use_context::<VaultContext>();
+    let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
+    let vault = Vault::new(&vault_path).expect("expecting a local vault");
+    let devices = vault.device_read()?;
+    rsx! {
+        div { class: "grid grid-cols-2",
+        }
+        section { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 overflow-hidden",
+            div { class: "p-6 border-b border-zinc-800",
+                h2 { class: "text-lg font-semibold font-mono", "Devices" }
+                p { class: "text-sm text-zinc-500 mt-1",
+                    "\n                            Your connected devices in this vault\n                        "
+                }
+            }
+            div { class: "divide-y divide-zinc-800",
+                for device in devices.iter() {
+                    div { class: "p-6 hover:bg-zinc-900/50 transition-colors group",
+                        div { class: "flex items-start justify-between",
+                            div { class: "flex-1 min-w-0",
+                                div { class: "flex items-center gap-3 mb-2",
+                                    h3 { class: "text-sm font-semibold",
+                                        "{device.name}"
+                                    }
+                                    span { class: "px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-xs font-mono text-zinc-400",
+                                        "Primary"
+                                    }
+                                }
+                                p { class: "text-xs font-mono text-zinc-500 truncate",
+                                    "{device.iroh_endpoint_id}"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if read_only {
+                div { class: "p-6 bg-zinc-900/20 border-t border-zinc-800",
+                    button { class: "flex items-center gap-3 text-sm font-medium text-zinc-300 hover:text-zinc-100 transition-colors group",
+                        div { class: "p-1.5 rounded-full bg-zinc-800 group-hover:bg-zinc-700 border border-zinc-700 group-hover:border-zinc-600 transition-all",
+                        }
+                        span { "Manage additional devices on primary" }
+                    }
+                }
+            }
+            else {
+                div { class: "p-6 bg-zinc-900/20 border-t border-zinc-800",
+                    button { class: "flex items-center gap-3 text-sm font-medium text-zinc-300 hover:text-zinc-100 transition-colors group",
+                        div { class: "p-1.5 rounded-full bg-zinc-800 group-hover:bg-zinc-700 border border-zinc-700 group-hover:border-zinc-600 transition-all",
+                            svg {
+                                class: "w-4 h-4",
+                                fill: "currentColor",
+                                view_box: "0 0 20 20",
+                                path { d: "M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" }
+                            }
+                        }
+                        span { "Join a device you own to this vault" }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[component]
 fn JoinListenerComponent() -> Element {
     // join is a 3 step process:
     // - create join listener on primary, return join_code
@@ -409,23 +474,6 @@ fn JoinModal(onclose: EventHandler) -> Element {
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-#[component]
-fn DeviceListComponent(read_only: bool) -> Element {
-    let vault_ctx = use_context::<VaultContext>();
-    let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
-    let vault = Vault::new(&vault_path).expect("expecting a local vault");
-    let devices = vault.device_read()?;
-    rsx! {
-        h2 { class: "text-2xl font-bold", "Devices" }
-        div { class: "grid grid-cols-2",
-            for device in devices.iter() {
-                span { "{device.name}" }
-                span { class: "truncate", "{device.iroh_endpoint_id}" }
             }
         }
     }
