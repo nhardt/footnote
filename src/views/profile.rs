@@ -317,40 +317,31 @@ fn JoinListenModal(onclose: EventHandler) -> Element {
 
     rsx! {
         div {
-            class: "fixed inset-0 bg-gray-500/75 dark:bg-gray-900/50 transition-opacity",
-
-            // Centering container
+            class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
+            onclick: move |evt| evt.stop_propagation(),
             div {
-                class: "flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0",
-
-                // Modal panel
-                div {
-                    class: "relative transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-sm sm:p-6 dark:bg-gray-800 dark:outline dark:-outline-offset-1 dark:outline-white/10",
-                    onclick: move |evt| evt.stop_propagation(),
-
-                    div {
-                        div {
-                            class: "mt-3 text-center sm:mt-5",
-                            h3 {
-                                class: "text-base font-semibold text-gray-900 dark:text-white",
-                                "Join Device"
-                            }
-                            div {
-                                class: "mt-2",
-                                p {
-                                    class: "text-sm text-gray-500 dark:text-gray-400",
-                                    "Join URL: {join_url}"
-                                }
-                            }
-                            label { "{err_message}" }
+                class: "bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl max-w-md w-full",
+                div { class: "p-6 border-b border-zinc-800",
+                    h3 { class: "text-lg font-semibold font-mono", "Join Device" }
+                    p { class: "text-sm text-zinc-500 mt-1",
+                        "Share this URL with your secondary device"
+                    }
+                }
+                div { class: "p-6",
+                    div { class: "bg-zinc-950 border border-zinc-800 rounded-lg p-4 mb-6",
+                        p { class: "select-all break-all font-mono text-zinc-400",
+                            "{join_url}"
                         }
                     }
-
-                    div {
-                        class: "mt-5 sm:mt-6",
-                        button {
-                            r#type: "button",
-                            class: "inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:shadow-none dark:hover:bg-indigo-400 dark:focus-visible:outline-indigo-500",
+                    label { "{err_message}" }
+                    div { class: "flex gap-3",
+                        // button { class: "flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
+                        //     "Copy URL"
+                        // }
+                        div { class: "flex-1 px-4 py-2",
+                            ""
+                        }
+                        button { class: "px-4 py-2 bg-zinc-100 hover:bg-white text-zinc-900 rounded-md text-sm font-medium transition-all",
                             onclick: move |_| onclose.call(()),
                             "Cancel"
                         }
