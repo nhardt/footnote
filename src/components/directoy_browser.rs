@@ -12,6 +12,7 @@ pub fn DirectoryBrowser(
     action_label: String,
     #[props(default)] is_valid: Option<Callback<PathBuf, bool>>,
 ) -> Element {
+    tracing::trace!("DirectoryBrowser re-render");
     let mut current_path = use_signal(|| base_path.to_path_buf());
 
     let mut folders = use_signal(|| Vec::<PathBuf>::new());
