@@ -159,7 +159,6 @@ fn LocalDeviceComponent(read_only: bool) -> Element {
 fn UserComponent(read_only: bool) -> Element {
     let vault_ctx = use_context::<VaultContext>();
     let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
-    let vault = Vault::new(&vault_path).expect("expecting a local vault");
     let mut err_message = use_signal(|| String::new());
     let mut username_value = use_signal(|| {
         let vault = Vault::new(&vault_path).expect("expecting a local vault");
@@ -177,25 +176,26 @@ fn UserComponent(read_only: bool) -> Element {
         }
     };
     rsx! {
-        div { class: "flex flex-row gap-x-2 gap-y-4",
-            if read_only {
-                span { class: "px-2", "{username_value}" }
-            } else {
-                label { "Username" }
-                input {
-                    class: "border-1 px-2",
-                    r#type: "text",
-                    value: "{username_value}",
-                    oninput: move |e| username_value.set(e.value()),
-                }
-                button {
-                    class: "border-1 rounded px-2",
-                    onclick: save_username,
-                    "Update"
+        section { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 p-6",
+            div { class: "flex items-center gap-4",
+                if read_only {
+                    span { class: "px-2", "{username_value}" }
+                } else {
+                    label { "Username" }
+                    input {
+                        class: "flex-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-sm font-mono focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
+                        r#type: "text",
+                        value: "{username_value}",
+                        oninput: move |e| username_value.set(e.value()),
+                    }
+                    button { class: "px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
+                        onclick: save_username,
+                        "Update"
+                    }
                 }
             }
+            label { "{err_message}" }
         }
-        label { "{err_message}" }
     }
 }
 
