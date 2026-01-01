@@ -17,7 +17,7 @@ pub fn ContactBrowser() -> Element {
         div { class: "flex flex-col h-full w-2xl",
             ImportComponent {}
 
-            div { class: "flex-1 mt-4",
+            div { class: "space-y-2",
                 match contacts() {
                     Some(Some(contact_list)) => rsx! {
                         for contact in contact_list {
@@ -102,17 +102,31 @@ fn DeviceItem(device: Device) -> Element {
 fn ImportComponent() -> Element {
     let mut show_modal = use_signal(|| false);
     rsx! {
-        div { class: "flex flex-row justify-between",
-            button {
-                class: "border-1 w-full rounded mt-6",
-                r#type: "button",
-                onclick: move |_| show_modal.set(true),
-                "Import a contact record to enable share with a friend"
-            }
-            if show_modal() {
-                ImportModal {
-                    onclose: move |_| show_modal.set(false)
-                }
+        section { class: "mb-8",
+             button { class: "w-full px-6 py-4 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-lg text-sm font-medium text-zinc-300 hover:text-zinc-100 transition-all text-left",
+                 onclick: move |_| show_modal.set(true),
+                 div { class: "flex items-center justify-between",
+                     div {
+                         div { class: "font-semibold mb-1",
+                             "Import Contact Record"
+                         }
+                         div { class: "text-xs text-zinc-500",
+                             "Add a friend to your trust network"
+                         }
+                     }
+                     svg {
+                         class: "w-5 h-5 text-zinc-500",
+                         fill: "currentColor",
+                         view_box: "0 0 20 20",
+                         path { d: "M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" }
+                     }
+                 }
+             }
+         }
+
+        if show_modal() {
+            ImportModal {
+                onclose: move |_| show_modal.set(false)
             }
         }
     }
@@ -138,7 +152,7 @@ fn ImportModal(onclose: EventHandler) -> Element {
             id: "import-modal",
             class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
             div {
-                class: "bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col",
+                class: "bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl max-w-2xl w-full h-[90vh] flex flex-col",
                 onclick: move |evt| evt.stop_propagation(),
                 div { class: "p-6 border-b border-zinc-800",
                     h3 { class: "text-lg font-semibold font-mono",
@@ -164,7 +178,7 @@ fn ImportModal(onclose: EventHandler) -> Element {
                             oninput: move |e| nickname.set(e.value())
                         }
                     }
-                    div { class: "flex-1 min-h-0 flex flex-col",
+                    div { class: "flex-3 min-h-0 flex flex-col",
                         label { class: "block text-sm font-medium text-zinc-300 mb-2",
                             "Contact Record"
                         }
