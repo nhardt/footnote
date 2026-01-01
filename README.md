@@ -11,19 +11,30 @@ Your notes are a markdown wiki. Notes live in a vault and only ever exist on
 your devices. They are always encrypted in transit over the network, and
 only transmitted to known devices and known peers.
 
+### Vault
+
+A vault is folder on a filesystem that represents your own notes and the notes
+that have been shared with you.
+
 ### Trusted Sources
 
-Your notes live in a vault with a special directory called `footnotes`. These
-are documents you can link to that are owned and maintained by trusted sources.
-Trust is established with a one-time, out-of-band setup process.
+Your vault has a special directory called `footnotes`. Inside `footnotes` are a
+list of directories, one per trusted contact, listed under the name you want to
+call that person. Trust is established with a one-time, out-of-band setup
+process. Each document has an owner, the owner updates them as neded and sends
+them to you when there are changes.
 
-### Share vs Replica|Mirror|Outpost?
+An example of something you might have in your vault is: `footnotes/mom/recipes.md`
 
-"Share" is defined as transmitting documents to your trusted peers. The view
-of your documents is unique to each person you share with.
+### Share vs Mirror
+
+"Share" is the exchange of documents among trusted peers. The view of your
+documents is unique to each person you share with.
 
 "Mirror" is defined as coordinating an eventually consistent view of all your
-notes across all your devices, including things shared with you.
+notes across your owned devices, including things shared with you. The goal of a
+mirror is that you can update the log of your running activities while you're
+out and about, and process them on your desktop when you home later.
 
 ### Infrastructure
 
@@ -42,7 +53,9 @@ device, the user joins a vault, providing the one-time code.
 It's not required that the primary device is always available, but a generally
 available device would work well. A desktop, a laptop, even an old phone that
 stays plugged in could work for this contact point if you are keeping together a
-vault of text files.  Sharing happens between users' primary devices.
+vault of text files.
+
+Sharing between users favors primary devices.
 
 #### Secondary Devices
 
@@ -71,7 +84,7 @@ verified by signing key fields into a digitial signature:
   - Iroh Endpoint Id
   - Name
 
-The contact records are then exchanged.  When you import a contact, you assign
+The contact records are then exchanged. When you import a contact, you assign
 them a nickname. That becomes their directory name in `footnotes/`. If you
 import Mom's contact record and use "mom" for her nickname, the directory her
 shared files will be in is footnotes/mom/.
@@ -84,12 +97,13 @@ shared files will be in is footnotes/mom/.
 - The contact record exchange mechanism is a potential weak point.
 - Iroh protocol identifiers are sent in plain text.
 - The overall design goal is data ownership, no vendor lock in, no data mining
-  for marketing, etc. The app is not anonymous, you should know the people you are
-  connected to.
+  for marketing, etc. The app is not anonymous, you should know your trusted
+  contacts as you will be allowing them to write files to your hard drive.
+
 
 #### Attack Vector Considerations
 
-##### Replace Iroh Endpoint Id with false endpoint id
+##### Replace Iroh Endpoint Id with false endpoint id in contact record
 
 Key signature fails
 
@@ -123,7 +137,8 @@ Bob-Charlie:
 
 This does seem possible. The mechanism by which you transfer contact records
 would have to be compromised. You could add additional layer of verification by
-posting your public key somewhere, or calling up your peer.
+posting your public key somewhere, or calling up your peer to spot check key
+fields.
 
 ##### Modify record after exchange
 
@@ -132,7 +147,7 @@ Key signature fails
 ##### Replace endpoint
 
 Alice and Charlie are legitimately connected. Bob wants to listen at
-ccc-key-ccc.  To do this, Bob would need ccc-key-ccc. This is true of any
+ccc-key-ccc. To do this, Bob would need ccc-key-ccc. This is true of any
 public/private key pair. If this occurs because Charlie's machine is
 compromised, no deeper level of access is granted.
 
@@ -145,8 +160,8 @@ one-time pairing code. For an incorrect device to be there unintentionally, a
 user would need to set up their device to listen, then send the one time code to
 a peer.
 
-For a 3rd party to insert a false record, they would need hard drive access, which
-is also where all the files are. The record would appear in the UI.
+For a 3rd party to insert a false record, they would need hard drive access,
+which is also where all the files are. The record would appear in the UI.
 
 ##### File leakage - Share
 
@@ -269,31 +284,30 @@ Layers of security:
 - update display on file changes
 - progress on sync
 - fzf full text search
-- Top level button "always on" sync
 - debt: rework components to take the data they need, vs taking a path and getting it
 - debt: factor tailwind heavy primitives (button, modal)
 
 ### Medium
 
-- Always on mode for primary
 - Sync to primary on save
 - contact refresh
 - local file rename 
 - local file deletes
 - Contact distribution upon update
 - sync log
+- directory level sharing
 
 ### Big
 
 - replicate file deletes (probably can get by with a path, deleted timestamp)
-- "as if" view. browser your files as if you are a user you share with
-- drop drop sharing: in contact_view, ability to include/exclude files
-- share with groups
+- drag/drop sharing: in contact_view, ability to include/exclude files
+- groups for sharing
 - automated testing across supported platforms
 - scale testing (targeting 200 peers max)
 
 ## Under Consideration (how/if/when)
 
+- "as if" view. browser your files as if you are a user you share with
 - view/edit modes
 - Linking: Links are probably easiest if they link to a doc-uuid, but being able
   to use a local file system path is better, and being able to use the same path
