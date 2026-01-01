@@ -57,27 +57,44 @@ pub fn Profile() -> Element {
             },
 
             VaultState::StandAlone => rsx! {
-                p { "You're using footnote in stand alone mode. Would you like to sync with other devices?" }
-                button {
-                    class: "border-1 rounded px-2",
-                    onclick: move |_|
-                        if transition_to_primary().is_ok() {
-                            let vault = Vault::new(&vault_path.clone()).expect("expecting a local vault");
-                            if let Ok(new_state) = vault.state_read() {
-                                vault_state.set(new_state);
+                div { id: "standalone-state",
+                    main { class: "max-w-3xl mx-auto px-6 py-12",
+                        div { class: "mb-12",
+                            h1 { class: "text-3xl font-bold font-mono mb-2",
+                                "Vault: "
+                                span { class: "text-zinc-400", "Standalone" }
                             }
-                        },
-                    "Make this Primary"
-                }
-                button {
-                    class: "border-1 rounded px-2",
-                    onclick: move |_|
-                        if transition_to_secondary().is_ok() {
-                            if let Ok(new_state) = vault.state_read() {
-                                vault_state.set(new_state);
+                            p { class: "text-sm text-zinc-500",
+                                "Your vault is ready for local use"
                             }
-                        },
-                    "Join Existing Vault"
+                        }
+                        div { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 p-8",
+                            p { class: "text-zinc-300 mb-8",
+                                "You're using footnote in standalone mode. Would you like to sync with other devices?"
+                            }
+                            div { class: "flex gap-4",
+                                button { class: "flex-1 px-6 py-3 bg-zinc-100 hover:bg-white text-zinc-900 rounded-lg font-medium transition-all",
+                                    onclick: move |_|
+                                        if transition_to_primary().is_ok() {
+                                            let vault = Vault::new(&vault_path.clone()).expect("expecting a local vault");
+                                            if let Ok(new_state) = vault.state_read() {
+                                                vault_state.set(new_state);
+                                            }
+                                        },
+                                    "Make This Primary"
+                                }
+                                button { class: "flex-1 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 text-zinc-100 rounded-lg font-medium transition-all",
+                                    onclick: move |_|
+                                        if transition_to_secondary().is_ok() {
+                                            if let Ok(new_state) = vault.state_read() {
+                                                vault_state.set(new_state);
+                                            }
+                                        },
+                                    "Join Existing Vault"
+                                }
+                            }
+                        }
+                    }
                 }
             },
 
@@ -105,14 +122,16 @@ fn transition_to_primary() -> Result<()> {
     let vault_ctx = use_context::<VaultContext>();
     let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
     let vault = Vault::new(&vault_path).expect("expecting a local vault");
-    vault.transition_to_primary("default_username", "default_device_name")?;
+    // todo: allow device name, or get hostname
+    vault.transition_to_primary("default_username", "primary")?;
     Ok(())
 }
 fn transition_to_secondary() -> Result<()> {
     let vault_ctx = use_context::<VaultContext>();
     let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
     let vault = Vault::new(&vault_path).expect("expecting a local vault");
-    vault.transition_to_secondary("default_device_name")?;
+    // todo: allow device name, or get hostname
+    vault.transition_to_secondary("secondary")?;
     Ok(())
 }
 
