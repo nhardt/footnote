@@ -151,25 +151,29 @@ fn LocalDeviceComponent(read_only: bool) -> Element {
     };
 
     rsx! {
-        div { class: "grid grid-cols-[auto_1fr_auto] gap-x-2 gap-y-4",
-            label { "This Device Name" }
-            if read_only {
-                span { class: "px-2", "{device_name_value}" }
-            } else {
-                input {
-                    class: "border-1 px-2",
-                    r#type: "text",
-                    value: "{device_name_value}",
-                    oninput: move |e| device_name_value.set(e.value()),
-                }
-                button {
-                    class: "border-1 rounded px-2",
-                    onclick: save_device_name,
-                    "Update"
+        div { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 p-6",
+            div { class: "flex items-center gap-4",
+                label { class: "text-sm font-medium text-zinc-300 w-32", "This Device Name" }
+                if read_only {
+                    span { class: "flex-1 px-3 py-2 text-sm font-mono text-zinc-300", "{device_name_value}" }
+                } else {
+                    input {
+                        class: "flex-1 px-3 py-1.5 bg-zinc-900 border border-zinc-700 rounded-md text-sm font-mono focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
+                        r#type: "text",
+                        value: "{device_name_value}",
+                        oninput: move |e| device_name_value.set(e.value()),
+                    }
+                    button {
+                        class: "px-4 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
+                        onclick: save_device_name,
+                        "Update"
+                    }
                 }
             }
+            if !err_message().is_empty() {
+                div { class: "mt-2 text-sm text-red-400 font-mono", "{err_message}" }
+            }
         }
-        label { "{err_message}" }
     }
 }
 
