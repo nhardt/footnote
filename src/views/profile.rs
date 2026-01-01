@@ -379,18 +379,20 @@ fn JoinListenModal(onclose: EventHandler) -> Element {
 fn JoinComponent() -> Element {
     let mut show_modal = use_signal(|| false);
     rsx! {
-        div { class: "flex flex-row justify-between",
-            label { "Join a listening device" }
-            button {
-                class: "rounded-full bg-indigo-600 p-1.5 text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:shadow-none dark:hover:bg-indigo-400 dark:focus-visible:outline-indigo-500",
-                r#type: "button",
-                onclick: move |_| show_modal.set(true),
-                svg {
-                    class: "size-5",
-                    "data-slot": "icon",
-                    fill: "currentColor",
-                    view_box: "0 0 20 20",
-                    path { d: "M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" }
+        div { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 overflow-hidden mt-8",
+            div { class: "p-6 bg-zinc-900/20",
+                button {
+                    class: "flex items-center gap-3 text-sm font-medium text-zinc-300 hover:text-zinc-100 transition-colors group",
+                    onclick: move |_| show_modal.set(true),
+                    div { class: "p-1.5 rounded-full bg-zinc-800 group-hover:bg-zinc-700 border border-zinc-700 group-hover:border-zinc-600 transition-all",
+                        svg {
+                            class: "w-4 h-4",
+                            fill: "currentColor",
+                            view_box: "0 0 20 20",
+                            path { d: "M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" }
+                        }
+                    }
+                    span { "Join a listening device" }
                 }
             }
             if show_modal() {
@@ -431,47 +433,40 @@ fn JoinModal(onclose: EventHandler) -> Element {
 
     rsx! {
         div {
-            class: "fixed inset-0 bg-gray-500/75 dark:bg-gray-900/50 transition-opacity",
+            id: "join-modal",
+            class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
+            onclick: move |evt| evt.stop_propagation(),
             div {
-                class: "flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0",
-                div {
-                    class: "relative transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-sm sm:p-6 dark:bg-gray-800 dark:outline dark:-outline-offset-1 dark:outline-white/10",
-                    onclick: move |evt| evt.stop_propagation(),
-
-                    div {
-                        div {
-                            class: "mt-3 text-center sm:mt-5",
-                            h3 {
-                                class: "text-base font-semibold text-gray-900 dark:text-white",
-                                "Join Listening Device"
-                            }
-
-                            input {
-                                class: "border-1 px-2",
-                                r#type: "text",
-                                oninput: move |e| join_url.set(e.value()),
-                            }
-                            div {
-                                class: "mt-2",
-                                "Enter URL"
-                            }
-                            button {
-                                r#type: "button",
-                                class: "inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:shadow-none dark:hover:bg-indigo-400 dark:focus-visible:outline-indigo-500",
-                                onclick: move |_| join_action(),
-                                "Join"
-                            }
-                            label { "{err_message}" }
+                class: "bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl max-w-md w-full",
+                "onclick": "event.stopPropagation()",
+                div { class: "p-6 border-b border-zinc-800",
+                    h3 { class: "text-lg font-semibold font-mono",
+                        "Join Listening Device"
+                    }
+                    p { class: "text-sm text-zinc-500 mt-1",
+                        "Enter the join URL from your primary device"
+                    }
+                }
+                div { class: "p-6",
+                    div { class: "mb-6",
+                        label { class: "block text-sm font-medium text-zinc-300 mb-2",
+                            "Join URL"
+                        }
+                        input {
+                            class: "w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-md text-sm font-mono focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600",
+                            placeholder: "iroh://...",
+                            r#type: "text",
+                            oninput: move |e| join_url.set(e.value())
                         }
                     }
-
-                    div {
-                        class: "mt-5 sm:mt-6",
-                        button {
-                            r#type: "button",
-                            class: "inline-flex w-full justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-indigo-500 dark:shadow-none dark:hover:bg-indigo-400 dark:focus-visible:outline-indigo-500",
+                    div { class: "flex gap-3",
+                        button { class: "flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
                             onclick: move |_| onclose.call(()),
                             "Cancel"
+                        }
+                        button { class: "flex-1 px-4 py-2 bg-zinc-100 hover:bg-white text-zinc-900 rounded-md text-sm font-medium transition-all",
+                            onclick: move |_| join_action(),
+                            "Join"
                         }
                     }
                 }
