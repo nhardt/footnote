@@ -175,8 +175,9 @@ impl Vault {
 
     /// reset device to standalone state
     pub fn transition_to_standalone(&self) -> Result<()> {
-        let footnote_dir = self.path.join(".footnote");
-        fs::remove_dir_all(footnote_dir)?;
+        fs::remove_file(self.path.join(".footnote").join("device_key"))?;
+        fs::remove_file(self.path.join(".footnote").join("user.json"))?;
+        fs::remove_file(self.path.join(".footnote").join("id_key"))?;
         self.create_directory_structure()?;
         Ok(())
     }

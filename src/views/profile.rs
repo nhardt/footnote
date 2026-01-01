@@ -117,7 +117,7 @@ pub fn Profile() -> Element {
         }
 
         button {
-            class: "border-1 text-xs mt-64",
+            class: "border-1 mt-16",
             onclick: move |_|
                 if transition_to_standalone().is_ok() {
                     eprintln!("probably need to reset app");
