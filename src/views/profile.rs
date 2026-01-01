@@ -115,6 +115,15 @@ pub fn Profile() -> Element {
                 ExportComponent {}
             }
         }
+
+        button {
+            class: "border-1 text-xs mt-64",
+            onclick: move |_|
+                if transition_to_standalone().is_ok() {
+                    eprintln!("probably need to reset app");
+                },
+            "Debug: reset to standalone"
+        }
     }
 }
 
@@ -132,6 +141,14 @@ fn transition_to_secondary() -> Result<()> {
     let vault = Vault::new(&vault_path).expect("expecting a local vault");
     // todo: allow device name, or get hostname
     vault.transition_to_secondary("secondary")?;
+    Ok(())
+}
+fn transition_to_standalone() -> Result<()> {
+    let vault_ctx = use_context::<VaultContext>();
+    let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
+    let vault = Vault::new(&vault_path).expect("expecting a local vault");
+    // todo: allow device name, or get hostname
+    vault.transition_to_standalone()?;
     Ok(())
 }
 
@@ -433,12 +450,11 @@ fn JoinModal(onclose: EventHandler) -> Element {
 
     rsx! {
         div {
-            id: "join-modal",
             class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
-            onclick: move |evt| evt.stop_propagation(),
+            id: "join-modal",
             div {
                 class: "bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl max-w-md w-full",
-                "onclick": "event.stopPropagation()",
+                onclick: move |evt| evt.stop_propagation(),
                 div { class: "p-6 border-b border-zinc-800",
                     h3 { class: "text-lg font-semibold font-mono",
                         "Join Listening Device"

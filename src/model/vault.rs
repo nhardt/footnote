@@ -5,6 +5,7 @@ use n0_error::StdResultExt;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
+use tokio::fs::remove_dir_all;
 use tokio::sync::mpsc::{self, Receiver};
 use uuid::Uuid;
 
@@ -170,6 +171,14 @@ impl Vault {
         };
         v.create_directory_structure()?;
         Ok(v)
+    }
+
+    /// reset device to standalone state
+    pub fn transition_to_standalone(&self) -> Result<()> {
+        let footnote_dir = self.path.join(".footnote");
+        fs::remove_dir_all(footnote_dir)?;
+        self.create_directory_structure()?;
+        Ok(())
     }
 
     fn create_directory_structure(&self) -> anyhow::Result<()> {
