@@ -28,43 +28,51 @@ impl SyncService {
             .bind()
             .await?;
 
-        println!("Listening on endpoint: {}", secret_key.public());
+        tracing::info!("Listening on endpoint: {}", secret_key.public());
 
-        tokio::spawn(async move {
-            loop {
-                tokio::select! {
-                    _ = cancel.cancelled() => { return; }
+        loop {
+            tokio::select! {
+                _ = cancel.cancelled() => {
+                    tracing::info!("Listening cancelled on endpoint: {}", secret_key.public());
+                    break;
+                }
 
-                    maybe_incoming = endpoint.accept() => {
-                        if let Some(incoming) = maybe_incoming {
-                            match async {
-                                let connection = incoming.await?;
+                maybe_incoming = endpoint.accept() => {
+                    if let Some(incoming) = maybe_incoming {
+                        tracing::info!("Woke up endpoint: {}", secret_key.public());
+                        match async {
+                            let connection = incoming.await?;
 
-                                let vault = Vault::new(&vault_path)?;
-                                let remote_id = connection.remote_id();
+                            let vault = Vault::new(&vault_path)?;
+                            let remote_id = connection.remote_id();
+                            tracing::info!( "succesfully connection from {}", remote_id);
 
-                                if let Ok(contact) = vault.find_contact_by_endpoint(&remote_id) {
-                                    transfer::receive_share(&vault, &contact.nickname, connection.clone()).await?;
-                                    eprintln!( "succesfully recieved shared files from {}", contact.nickname);
-                                    return Ok(());
-                                }
-                                if let Ok(device_name) = vault.owned_device_endpoint_to_name(&remote_id) {
-                                    transfer::receive_replication(&vault, connection).await?;
-                                    eprintln!("succesfully handled replicate request from {}", device_name);
-                                    return Ok(());
-                                }
-                                anyhow::bail!("failed to handle incoming connection")
-                            }.await {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    eprintln!("failed to handle request {}", e.to_string());
-                                }
+                            if let Ok(contact) = vault.find_contact_by_endpoint(&remote_id) {
+                                tracing::info!( "found contact {} from endpoint {}", contact.nickname, remote_id);
+                                transfer::receive_share(&vault, &contact.nickname, connection.clone()).await?;
+                                tracing::info!( "succesfully recieved shared files from {}", contact.nickname);
+                                return Ok(());
+                            }
+
+                            if let Ok(device_name) = vault.owned_device_endpoint_to_name(&remote_id) {
+                                tracing::info!("found our own device {} from endpoint {}", device_name, remote_id);
+                                transfer::receive_replication(&vault, connection).await?;
+                                tracing::info!("succesfully handled replicate request from {} on {}", device_name, remote_id);
+                                return Ok(());
+                            }
+                            anyhow::bail!("failed to handle incoming connection")
+                        }.await {
+                            Ok(_) => {
+                                tracing::info!("Handling incoming connection");
+                            }
+                            Err(e) => {
+                                tracing::info!("failed to handle request {}", e.to_string());
                             }
                         }
                     }
                 }
             }
-        });
+        }
         Ok(())
     }
 }
