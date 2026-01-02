@@ -13,6 +13,7 @@ use crate::model::contact;
 use crate::model::device::Device;
 use crate::model::{contact::Contact, note::Note, user::LocalUser};
 
+#[derive(Clone)]
 pub struct Vault {
     pub path: PathBuf,
 }
@@ -198,6 +199,10 @@ impl Vault {
 
     pub fn is_created(&self) -> Result<bool> {
         Ok(self.path.join(".footnote").join("device_key").exists())
+    }
+
+    pub fn base_path(&self) -> PathBuf {
+        self.path.clone()
     }
 
     pub fn can_device_read_note(

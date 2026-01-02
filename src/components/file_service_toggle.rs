@@ -2,11 +2,11 @@ use std::path::Path;
 
 use crate::context::VaultContext;
 use crate::service::sync_service::SyncService;
-use dioxus::prelude::*;
-use footnote::{
+use crate::{
     model::vault::Vault,
     service::{replica_service::ReplicaService, share_service::ShareService},
 };
+use dioxus::prelude::*;
 use tokio::time::{interval, Duration};
 use tokio_util::sync::CancellationToken;
 
@@ -23,25 +23,24 @@ pub fn FileServiceToggle() -> Element {
             send_cancel_token_signal.read().cancel();
             listening.set(false);
         } else {
-            let vault_ctx = use_context::<VaultContext>();
-            let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
+            let vault = use_context::<VaultContext>().get();
 
             let listen_cancel_token = CancellationToken::new();
             let listen_token_clone = listen_cancel_token.clone();
-            let listen_vault_clone = vault_path.clone();
+            let listen_vault_clone = vault.clone();
             tokio::spawn(async move {
                 tracing::info!("spawning listen thread");
-                let _ = SyncService::listen(&listen_vault_clone, listen_token_clone).await;
+                let _ = SyncService::listen(listen_vault_clone, listen_token_clone).await;
             });
             listen_cancel_token_signal.set(listen_cancel_token);
             listening.set(true);
 
             let send_cancel_token = CancellationToken::new();
             let send_token_clone = send_cancel_token.clone();
-            let send_vault_clone = vault_path.clone();
+            let send_vault_clone = vault.clone();
             tokio::spawn(async move {
                 tracing::info!("spawning change push thread");
-                push_changes(&send_vault_clone, send_token_clone).await;
+                push_changes(send_vault_clone, send_token_clone).await;
             });
             send_cancel_token_signal.set(send_cancel_token);
         }
@@ -55,11 +54,10 @@ pub fn FileServiceToggle() -> Element {
     }
 }
 
-async fn push_changes(vault_path: &Path, cancel_token: CancellationToken) {
+async fn push_changes(vault: Vault, cancel_token: CancellationToken) {
     tracing::info!("start push changes loop");
     let mut sync_interval = interval(Duration::from_secs(60));
     sync_interval.tick().await;
-    let vault = Vault::new(vault_path).expect("missing vault");
     loop {
         tracing::info!("tokio::select");
         tokio::select! {

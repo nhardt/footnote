@@ -35,9 +35,9 @@ use tokio_util::sync::CancellationToken;
 
 #[component]
 pub fn Profile() -> Element {
-    let vault_ctx = use_context::<VaultContext>();
-    let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
-    let vault = Vault::new(&vault_path).expect("expecting a local vault");
+    let vault = use_context::<VaultContext>().get();
+    let vault_for_primary = vault.clone();
+    let vault_for_secondary = vault.clone();
     let mut vault_state = use_signal(|| vault.state_read().unwrap_or(VaultState::Uninitialized));
 
     rsx! {
@@ -74,22 +74,23 @@ pub fn Profile() -> Element {
                             }
                             div { class: "flex gap-4",
                                 button { class: "flex-1 px-6 py-3 bg-zinc-100 hover:bg-white text-zinc-900 rounded-lg font-medium transition-all",
-                                    onclick: move |_|
+                                    onclick: move |_| {
                                         if transition_to_primary().is_ok() {
-                                            let vault = Vault::new(&vault_path.clone()).expect("expecting a local vault");
-                                            if let Ok(new_state) = vault.state_read() {
+                                            if let Ok(new_state) = vault_for_primary.state_read() {
                                                 vault_state.set(new_state);
                                             }
-                                        },
+                                        }
+                                    },
                                     "Make This Primary"
                                 }
                                 button { class: "flex-1 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 text-zinc-100 rounded-lg font-medium transition-all",
-                                    onclick: move |_|
+                                    onclick: move |_| {
                                         if transition_to_secondary().is_ok() {
-                                            if let Ok(new_state) = vault.state_read() {
+                                            if let Ok(new_state) = vault_for_secondary.state_read() {
                                                 vault_state.set(new_state);
                                             }
-                                        },
+                                        }
+                                    },
                                     "Join Existing Vault"
                                 }
                             }
@@ -128,25 +129,19 @@ pub fn Profile() -> Element {
 }
 
 fn transition_to_primary() -> Result<()> {
-    let vault_ctx = use_context::<VaultContext>();
-    let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
-    let vault = Vault::new(&vault_path).expect("expecting a local vault");
+    let vault = use_context::<VaultContext>().get();
     // todo: allow device name, or get hostname
     vault.transition_to_primary("default_username", "primary")?;
     Ok(())
 }
 fn transition_to_secondary() -> Result<()> {
-    let vault_ctx = use_context::<VaultContext>();
-    let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
-    let vault = Vault::new(&vault_path).expect("expecting a local vault");
+    let vault = use_context::<VaultContext>().get();
     // todo: allow device name, or get hostname
     vault.transition_to_secondary("secondary")?;
     Ok(())
 }
 fn transition_to_standalone() -> Result<()> {
-    let vault_ctx = use_context::<VaultContext>();
-    let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
-    let vault = Vault::new(&vault_path).expect("expecting a local vault");
+    let vault = use_context::<VaultContext>().get();
     // todo: allow device name, or get hostname
     vault.transition_to_standalone()?;
     Ok(())
@@ -154,9 +149,7 @@ fn transition_to_standalone() -> Result<()> {
 
 #[component]
 fn LocalDeviceComponent(read_only: bool) -> Element {
-    let vault_ctx = use_context::<VaultContext>();
-    let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
-    let vault = Vault::new(&vault_path).expect("expecting a local vault");
+    let vault = use_context::<VaultContext>().get();
     let (_, device_name) = vault.device_public_key().expect("device should exist");
     let mut device_name_value = use_signal(|| device_name);
     let mut err_message = use_signal(|| String::new());
@@ -196,19 +189,16 @@ fn LocalDeviceComponent(read_only: bool) -> Element {
 
 #[component]
 fn UserComponent(read_only: bool) -> Element {
-    let vault_ctx = use_context::<VaultContext>();
-    let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
+    let vault = use_context::<VaultContext>().get();
+
     let mut err_message = use_signal(|| String::new());
-    let mut username_value = use_signal(|| {
-        let vault = Vault::new(&vault_path).expect("expecting a local vault");
-        match vault.user_read() {
-            Ok(Some(user)) => user.username,
-            _ => String::new(),
-        }
+    let mut username_value = use_signal(|| match vault.user_read() {
+        Ok(Some(user)) => user.username,
+        _ => String::new(),
     });
 
     let save_username = move |_| {
-        let vault = Vault::new(&vault_path).expect("expecting a local vault");
+        let vault = vault.clone();
         let username_update = username_value.read();
         if let Err(e) = vault.user_update(&*username_update) {
             err_message.set(format!("err updating username: {}", e));
@@ -240,9 +230,7 @@ fn UserComponent(read_only: bool) -> Element {
 
 #[component]
 fn DeviceListComponent(read_only: bool) -> Element {
-    let vault_ctx = use_context::<VaultContext>();
-    let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
-    let vault = Vault::new(&vault_path).expect("expecting a local vault");
+    let vault = use_context::<VaultContext>().get();
     let devices = vault.device_read()?;
     rsx! {
         div { class: "space-y-8 mt-4",
@@ -250,7 +238,7 @@ fn DeviceListComponent(read_only: bool) -> Element {
                 div { class: "p-6 border-b border-zinc-800",
                     h2 { class: "text-lg font-semibold font-mono", "Devices" }
                     p { class: "text-sm text-zinc-500 mt-1",
-                        "\n                            Your connected devices in this vault\n                        "
+                        "Your connected devices in this vault"
                     }
                 }
                 div { class: "divide-y divide-zinc-800",
@@ -332,11 +320,10 @@ fn JoinListenModal(onclose: EventHandler) -> Element {
     let mut err_message = use_signal(|| String::new());
 
     // Start listening on mount
+    let vault = use_context::<VaultContext>().get();
     use_effect(move || {
+        let vault = vault.clone();
         spawn(async move {
-            let vault_ctx = use_context::<VaultContext>();
-            let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
-            let vault = Vault::new(&vault_path).expect("vault does not exist!");
             match JoinService::listen(&vault, cancel_token()).await {
                 Ok(mut rx) => {
                     while let Some(event) = rx.recv().await {
@@ -429,19 +416,16 @@ fn JoinModal(onclose: EventHandler) -> Element {
 
     use_drop(move || cancel_token().cancel());
 
+    let vault = use_context::<VaultContext>().get();
     let join_action = move || {
+        let vault = vault.clone();
         spawn(async move {
-            let vault_ctx = use_context::<VaultContext>();
-            let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
-            let vault = Vault::new(&vault_path).expect("expecting a local vault");
             // todo: cancel token
             match JoinService::join(&vault, &join_url()).await {
                 Ok(_) => {
-                    // Success - close modal or show success
                     onclose.call(());
                 }
                 Err(e) => {
-                    // Show error
                     err_message.set(format!("Join failed: {}", e));
                 }
             }
@@ -532,9 +516,7 @@ fn ExportComponent() -> Element {
 
 #[component]
 fn ExportModal(onclose: EventHandler) -> Element {
-    let vault_ctx = use_context::<VaultContext>();
-    let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
-    let vault = Vault::new(&vault_path).expect("expecting a local vault");
+    let vault = use_context::<VaultContext>().get();
     let user_record_json = use_signal(|| match vault.user_read() {
         Ok(Some(user)) => user
             .to_json_pretty()

@@ -6,11 +6,10 @@ use dioxus::prelude::*;
 
 #[component]
 pub fn ContactBrowser() -> Element {
-    let vault_ctx = use_context::<VaultContext>();
-    let contacts = use_resource(move || async move {
-        let vault_path = vault_ctx.get_vault()?;
-        let vault = Vault::new(&vault_path).ok()?;
-        vault.contact_read().ok()
+    let vault = use_context::<VaultContext>().get();
+    let contacts = use_resource(move || {
+        let vault_copy = vault.clone();
+        async move { vault_copy.contact_read().ok() }
     });
 
     rsx! {
@@ -137,16 +136,15 @@ fn ImportModal(onclose: EventHandler) -> Element {
     let mut contact_json = use_signal(|| String::new());
     let mut nickname = use_signal(|| String::new());
     let mut err_message = use_signal(|| String::new());
+    let vault = use_context::<VaultContext>().get();
 
-    let import_contact = move |_| {
-        let vault_ctx = use_context::<VaultContext>();
-        let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
-        let vault = Vault::new(&vault_path).expect("expecting a local vault");
-        match vault.contact_import(&nickname.read().clone(), &contact_json.read().clone()) {
-            Ok(()) => onclose.call(()),
-            Err(e) => err_message.set(format!("Failed to import contact: {e}")),
-        }
+    let import_contact = move |_| match vault
+        .contact_import(&nickname.read().clone(), &contact_json.read().clone())
+    {
+        Ok(()) => onclose.call(()),
+        Err(e) => err_message.set(format!("Failed to import contact: {e}")),
     };
+
     rsx! {
         div {
             id: "import-modal",

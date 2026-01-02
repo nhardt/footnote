@@ -10,7 +10,7 @@ mod service;
 mod util;
 mod views;
 
-use model::vault::Vault;
+use crate::model::vault::Vault;
 use tracing::Level;
 use util::filesystem::ensure_default_vault;
 
@@ -58,7 +58,8 @@ fn main() {
 #[component]
 fn App() -> Element {
     let vault_path = ensure_default_vault()?;
-    use_context_provider(|| VaultContext::new(Some(vault_path)));
+    let vault = Vault::new(&vault_path)?;
+    use_context_provider(|| VaultContext::new(vault));
 
     rsx! {
         document::Link { rel: "icon", href: FAVICON }

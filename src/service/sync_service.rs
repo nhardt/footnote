@@ -17,9 +17,7 @@ pub struct SyncService;
 const ALPN_SYNC: &[u8] = b"footnote/sync";
 
 impl SyncService {
-    pub async fn listen(vault_path: &Path, cancel: CancellationToken) -> Result<()> {
-        let vault = Vault::new(vault_path)?;
-        let vault_path = vault_path.to_path_buf();
+    pub async fn listen(vault: Vault, cancel: CancellationToken) -> Result<()> {
         let (secret_key, _) = vault.device_secret_key()?;
 
         let endpoint = Endpoint::builder()
@@ -42,8 +40,6 @@ impl SyncService {
                         tracing::info!("Woke up endpoint: {}", secret_key.public());
                         match async {
                             let connection = incoming.await?;
-
-                            let vault = Vault::new(&vault_path)?;
                             let remote_id = connection.remote_id();
                             tracing::info!( "succesfully connection from {}", remote_id);
 

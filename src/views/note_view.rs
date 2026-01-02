@@ -1,12 +1,11 @@
 use crate::context::VaultContext;
+use crate::model::note::Note;
 use dioxus::prelude::*;
-use footnote::model::note::Note;
 use std::path::PathBuf;
 
 #[component]
 pub fn NoteView(file_path: String) -> Element {
-    let vault_ctx = use_context::<VaultContext>();
-    let vault_path = vault_ctx.get_vault().expect("vault not set in context!");
+    let vault = use_context::<VaultContext>().get();
 
     let decoded = urlencoding::decode(&file_path).unwrap();
     let original_path = PathBuf::from(decoded.to_string());
@@ -16,7 +15,7 @@ pub fn NoteView(file_path: String) -> Element {
     };
 
     let display_path = original_path
-        .strip_prefix(&vault_path)
+        .strip_prefix(vault.base_path())
         .unwrap_or(&original_path)
         .to_string_lossy()
         .to_string();
@@ -28,7 +27,7 @@ pub fn NoteView(file_path: String) -> Element {
 
     let save_note = move |_| {
         let new_relative_path = file_path_input.read();
-        let new_full_path = vault_path.join(&*new_relative_path);
+        let new_full_path = vault.base_path().join(&*new_relative_path);
         let share_with_str = share_with.read().clone();
         let share_with = share_with_str
             .split_whitespace()
