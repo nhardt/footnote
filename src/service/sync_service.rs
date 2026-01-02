@@ -17,14 +17,8 @@ pub struct SyncService;
 const ALPN_SYNC: &[u8] = b"footnote/sync";
 
 impl SyncService {
-    pub async fn listen(vault: Vault, cancel: CancellationToken) -> Result<()> {
+    pub async fn listen(vault: Vault, endpoint: Endpoint, cancel: CancellationToken) -> Result<()> {
         let (secret_key, _) = vault.device_secret_key()?;
-
-        let endpoint = Endpoint::builder()
-            .secret_key(secret_key.clone())
-            .alpns(vec![ALPN_SYNC.to_vec()])
-            .bind()
-            .await?;
 
         tracing::info!("Listening on endpoint: {}", secret_key.public());
 

@@ -81,6 +81,7 @@ pub async fn receive_replication(vault: &Vault, connection: Connection) -> Resul
 
 pub async fn replicate_to_target(
     vault: &Vault,
+    endpoint: Endpoint,
     manifest: Manifest,
     remote_endpoint_id: iroh::PublicKey,
     alpn: &[u8],
@@ -91,7 +92,6 @@ pub async fn replicate_to_target(
         anyhow::bail!("cannot replicate to self");
     }
 
-    let endpoint = Endpoint::builder().secret_key(secret_key).bind().await?;
     let conn = endpoint
         .connect(remote_endpoint_id, alpn)
         .await

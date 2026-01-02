@@ -73,14 +73,14 @@ impl ReplicaService {
         Ok(())
     }
 
-    pub async fn push(vault: &Vault, device_name: &str) -> Result<()> {
+    pub async fn push(vault: &Vault, endpoint: Endpoint, device_name: &str) -> Result<()> {
         let endpoint_str = vault.owned_device_name_to_endpoint(device_name)?;
         let endpoint_id = endpoint_str.parse::<iroh::PublicKey>()?;
 
         let manifest =
             manifest::create_manifest_full(&vault.path).context("Failed to create manifest")?;
 
-        transfer::replicate_to_target(vault, manifest, endpoint_id, ALPN_REPLICA).await?;
+        transfer::replicate_to_target(vault, endpoint, manifest, endpoint_id, ALPN_REPLICA).await?;
 
         Ok(())
     }

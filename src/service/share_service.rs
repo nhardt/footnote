@@ -73,7 +73,7 @@ impl ShareService {
         Ok(())
     }
 
-    pub async fn share_with(vault: &Vault, nickname: &str) -> Result<()> {
+    pub async fn share_with(vault: &Vault, endpoint: Endpoint, nickname: &str) -> Result<()> {
         let endpoint_id = match vault.find_primary_device_by_nickname(nickname) {
             Ok(eid) => {
                 println!("will share with {} via {}", nickname, eid.to_string());
@@ -87,7 +87,7 @@ impl ShareService {
         let manifest = manifest::create_manifest_for_share(&vault.path, nickname)
             .context("Failed to create manifest for sharing")?;
 
-        transfer::replicate_to_target(vault, manifest, endpoint_id, ALPN_SHARE).await?;
+        transfer::replicate_to_target(vault, endpoint, manifest, endpoint_id, ALPN_SHARE).await?;
 
         Ok(())
     }
