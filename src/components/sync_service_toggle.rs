@@ -83,7 +83,6 @@ pub fn SyncServiceToggle() -> Element {
 async fn push_changes(vault: Vault, endpoint: Endpoint, cancel_token: CancellationToken) {
     tracing::info!("start push changes loop");
     let mut sync_interval = interval(Duration::from_secs(60));
-    sync_interval.tick().await;
     loop {
         tracing::info!("tokio::select");
         tokio::select! {
