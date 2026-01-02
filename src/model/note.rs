@@ -32,19 +32,17 @@ impl Note {
     }
 
     pub fn from_string(content: &str) -> Result<Self> {
-        if !content.starts_with("---\n") {
-            anyhow::bail!("Missing YAML frontmatter start: (---)")
-        }
-        let remaining = &content[4..];
-        let end_pos = match remaining.find("\n---\n") {
-            Some(pos) => pos,
-            None => anyhow::bail!("Missing YAML front matter end: ---"),
-        };
-        let yaml_str = &remaining[..end_pos];
+        let (frontmatter, content_start) = Self::parse_frontmatter(content).unwrap_or_else(|e| {
+            tracing::warn!("Failed to parse frontmatter, creating new: {}", e);
+            (Self::create_frontmatter(), 0)
+        });
 
-        let frontmatter: Frontmatter = serde_yaml::from_str(yaml_str)?;
-        let content_start = end_pos + 5; // Skip "\n---\n"
-        let full_content = remaining[content_start..].trim_start();
+        let full_content = if content_start > 0 {
+            content[content_start..].trim_start()
+        } else {
+            content.trim_start()
+        };
+
         let (body, footnotes) = Self::parse_body_and_footnotes(full_content);
 
         Ok(Note {
@@ -54,12 +52,27 @@ impl Note {
         })
     }
 
+    fn parse_frontmatter(content: &str) -> Result<(Frontmatter, usize)> {
+        if !content.starts_with("---\n") {
+            anyhow::bail!("Missing YAML frontmatter start");
+        }
+        let remaining = &content[4..];
+        let end_pos = remaining
+            .find("\n---\n")
+            .ok_or_else(|| anyhow::anyhow!("Missing YAML frontmatter end"))?;
+
+        let yaml_str = &remaining[..end_pos];
+        let frontmatter: Frontmatter = serde_yaml::from_str(yaml_str)?;
+        let content_start = 4 + end_pos + 5;
+
+        Ok((frontmatter, content_start))
+    }
+
     /// To start, we will support a specific markdown compatible but restricted
     /// format. One link per line, footnotes must be at the end of the file
     /// (newline)
     /// [^(footnotename)]: footnote body
     /// [^(footnotename2)]: footnote body2
-
     fn parse_body_and_footnotes(content: &str) -> (String, IndexMap<String, String>) {
         let lines: Vec<&str> = content.lines().collect();
         let mut footnotes = IndexMap::new();
@@ -127,13 +140,7 @@ impl Note {
     pub fn create(path: &Path, content: &str) -> Result<Self> {
         let (body, footnotes) = Self::parse_body_and_footnotes(&content);
 
-        let frontmatter = Frontmatter {
-            uuid: Uuid::new_v4(),
-            modified: LamportTimestamp::now(),
-            share_with: Vec::new(),
-            extra: serde_yaml::Value::Mapping(serde_yaml::Mapping::new()),
-        };
-
+        let frontmatter = Note::create_frontmatter();
         let note = Note {
             frontmatter,
             content: body,
@@ -142,6 +149,15 @@ impl Note {
 
         note.save(path)?;
         Ok(note)
+    }
+
+    fn create_frontmatter() -> Frontmatter {
+        Frontmatter {
+            uuid: Uuid::new_v4(),
+            modified: LamportTimestamp::now(),
+            share_with: Vec::new(),
+            extra: serde_yaml::Value::Mapping(serde_yaml::Mapping::new()),
+        }
     }
 
     pub fn update(&mut self, path: &Path, content: &str) -> Result<()> {
