@@ -11,7 +11,7 @@ use tokio::time::{interval, Duration};
 use tokio_util::sync::CancellationToken;
 
 #[component]
-pub fn FileServiceToggle() -> Element {
+pub fn SyncServiceToggle() -> Element {
     let mut listening = use_signal(|| false);
     let mut send_cancel_token_signal = use_signal(|| CancellationToken::new());
     let mut listen_cancel_token_signal = use_signal(|| CancellationToken::new());

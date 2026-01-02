@@ -1,3 +1,3 @@
 pub mod directoy_browser;
 pub mod file_search;
-pub mod file_service_toggle;
+pub mod sync_service_toggle;

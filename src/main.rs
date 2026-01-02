@@ -20,7 +20,7 @@ use views::note_browser::NoteBrowser;
 use views::note_view::NoteView;
 use views::profile::Profile;
 
-use crate::components::file_service_toggle::FileServiceToggle;
+use crate::components::sync_service_toggle::SyncServiceToggle;
 use crate::context::VaultContext;
 
 #[derive(Debug, Clone, Routable, PartialEq)]
@@ -102,7 +102,7 @@ fn Main() -> Element {
                             "Contact"}
                         div { class: "ml-auto flex items-center gap-2",
                             div { class: "h-2 w-2 rounded-full bg-zinc-500" }
-                            FileServiceToggle{}
+                            SyncServiceToggle{}
                         }
                     }
                 }
