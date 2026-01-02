@@ -11,7 +11,7 @@ pub fn NoteView(file_path: String) -> Element {
     let original_path = PathBuf::from(decoded.to_string());
     let mut note = match Note::from_path(original_path.clone()) {
         Ok(n) => n,
-        Err(_) => return rsx! { "Could not load note" },
+        Err(e) => return rsx! { "Could not load note {e}" },
     };
 
     let display_path = original_path
