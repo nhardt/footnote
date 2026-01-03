@@ -21,6 +21,7 @@ pub enum SyncDirection {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SyncState {
     InProgress,
+    Spurious,
     Success,
     Failure { error: String },
 }
@@ -75,7 +76,13 @@ impl SyncStatusRecord {
 
     pub fn finish(mut self, result: Result<()>) -> Result<()> {
         self.state = match result {
-            Ok(()) => SyncState::Success,
+            Ok(()) => {
+                if self.files_transferred > 0 {
+                    SyncState::Success
+                } else {
+                    SyncState::Spurious
+                }
+            }
             Err(e) => SyncState::Failure {
                 error: e.to_string(),
             },
@@ -137,6 +144,7 @@ impl SyncStatusRecord {
                 )?;
             }
             SyncState::InProgress => {}
+            SyncState::Spurious => {}
         }
 
         Ok(())
@@ -144,7 +152,7 @@ impl SyncStatusRecord {
 
     pub fn last_success(
         vault_path: PathBuf,
-        endpoint_id: &PublicKey,
+        endpoint_id: &str,
         direction: SyncDirection,
     ) -> Result<Option<Self>> {
         Self::read_pointer(&vault_path, endpoint_id, direction, "last_success")
@@ -152,7 +160,7 @@ impl SyncStatusRecord {
 
     pub fn last_failure(
         vault_path: PathBuf,
-        endpoint_id: &PublicKey,
+        endpoint_id: &str,
         direction: SyncDirection,
     ) -> Result<Option<Self>> {
         Self::read_pointer(&vault_path, endpoint_id, direction, "last_failure")
@@ -160,7 +168,7 @@ impl SyncStatusRecord {
 
     fn read_pointer(
         vault_path: &PathBuf,
-        endpoint_id: &PublicKey,
+        endpoint_id: &str,
         direction: SyncDirection,
         pointer_name: &str,
     ) -> Result<Option<Self>> {
@@ -171,7 +179,7 @@ impl SyncStatusRecord {
 
         let pointer_path = vault_path
             .join(".footnote/status")
-            .join(endpoint_id.to_string())
+            .join(endpoint_id)
             .join(direction_str)
             .join(pointer_name);
 
@@ -184,7 +192,7 @@ impl SyncStatusRecord {
 
         let log_path = vault_path
             .join(".footnote/status")
-            .join(endpoint_id.to_string())
+            .join(endpoint_id)
             .join(direction_str)
             .join(format!("{}.log", timestamp));
 

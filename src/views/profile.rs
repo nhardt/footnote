@@ -1,5 +1,8 @@
+use std::collections::HashMap;
+
 use crate::model::vault::VaultState;
 use crate::service::join_service::JoinEvent;
+use crate::util::sync_status_record::{SyncDirection, SyncStatusRecord};
 use crate::{context::VaultContext, model::vault::Vault};
 use crate::{model::user::LocalUser, service::join_service::JoinService};
 use dioxus::prelude::*;
@@ -232,6 +235,39 @@ fn UserComponent(read_only: bool) -> Element {
 fn DeviceListComponent(read_only: bool) -> Element {
     let vault = use_context::<VaultContext>().get();
     let devices = vault.device_read()?;
+
+    let outbound_device_status = use_signal(|| {
+        devices
+            .iter()
+            .filter_map(|device| {
+                let last_sync = SyncStatusRecord::last_success(
+                    vault.path.clone(),
+                    &device.iroh_endpoint_id,
+                    SyncDirection::Outbound,
+                )
+                .ok()
+                .flatten()?;
+                Some((device.iroh_endpoint_id.clone(), last_sync))
+            })
+            .collect::<HashMap<String, SyncStatusRecord>>()
+    });
+
+    let inbound_device_status = use_signal(|| {
+        devices
+            .iter()
+            .filter_map(|device| {
+                let last_sync = SyncStatusRecord::last_success(
+                    vault.path.clone(),
+                    &device.iroh_endpoint_id,
+                    SyncDirection::Inbound,
+                )
+                .ok()
+                .flatten()?;
+                Some((device.iroh_endpoint_id.clone(), last_sync))
+            })
+            .collect::<HashMap<String, SyncStatusRecord>>()
+    });
+
     rsx! {
         div { class: "space-y-8 mt-4",
             section { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 overflow-hidden",
@@ -249,6 +285,14 @@ fn DeviceListComponent(read_only: bool) -> Element {
                                     div { class: "flex items-center gap-3 mb-2",
                                         h3 { class: "text-sm font-semibold",
                                             "{device.name}"
+                                        }
+                                        if let Some(status) = outbound_device_status.read().get(&device.iroh_endpoint_id) {
+                                            div { class: "mt-2 text-xs text-zinc-400",
+                                                "Last outbound sync: ({status.files_transferred} files)" }
+                                        }
+                                        if let Some(status) = inbound_device_status.read().get(&device.iroh_endpoint_id) {
+                                            div { class: "mt-2 text-xs text-zinc-400",
+                                                "Last inbound sync: ({status.files_transferred} files)" }
                                         }
                                         // span { class: "px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-xs font-mono text-zinc-400",
                                         //     "Primary"
