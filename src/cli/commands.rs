@@ -1,14 +1,13 @@
-use std::path::{Path, PathBuf};
-
 use crate::model::contact::Contact;
 use crate::model::note::Note;
 use crate::service::join_service::JoinService;
-use crate::service::replica_service::{ReplicaEvent, ReplicaService};
-use crate::service::share_service::ShareService;
+use crate::service::sync_service::SyncService;
 use crate::{model::vault::Vault, service::join_service::JoinEvent};
 use clap::{Parser, Subcommand};
 use dioxus::html::g::to;
 use futures::future::Join;
+use iroh::Endpoint;
+use std::path::{Path, PathBuf};
 use tokio_util::sync::CancellationToken;
 
 #[derive(Parser)]
@@ -117,6 +116,8 @@ pub enum NoteAction {
         path: PathBuf,
     },
 }
+
+const ALPN_SYNC: &[u8] = b"footnote/sync";
 
 pub async fn execute(cli: Cli) -> anyhow::Result<()> {
     match cli.command {
@@ -238,13 +239,16 @@ async fn service_join(connection_string: String) -> anyhow::Result<()> {
 
 async fn service_replicate_listen() -> anyhow::Result<()> {
     let vault = Vault::new(&std::env::current_dir()?)?;
-    ReplicaService::listen(&vault).await?;
+    let endpoint = vault.build_endpoint(ALPN_SYNC).await?;
+    let cancel_token = CancellationToken::new();
+    SyncService::listen(vault, endpoint, cancel_token).await?;
     Ok(())
 }
 
 async fn service_replicate(to_device_name: String) -> anyhow::Result<()> {
     let vault = Vault::new(&std::env::current_dir()?)?;
-    ReplicaService::push(&vault, &to_device_name).await?;
+    let endpoint = vault.build_endpoint(ALPN_SYNC).await?;
+    SyncService::mirror_to_device(&vault, endpoint, &to_device_name).await?;
     println!(
         "{}",
         serde_json::json!(
@@ -259,13 +263,16 @@ async fn service_replicate(to_device_name: String) -> anyhow::Result<()> {
 
 async fn service_share_listen() -> anyhow::Result<()> {
     let vault = Vault::new(&std::env::current_dir()?)?;
-    ShareService::listen(&vault).await?;
+    let endpoint = vault.build_endpoint(ALPN_SYNC).await?;
+    let cancel_token = CancellationToken::new();
+    SyncService::listen(vault, endpoint, cancel_token).await?;
     Ok(())
 }
 
 async fn service_share(to_nickname: String) -> anyhow::Result<()> {
     let vault = Vault::new(&std::env::current_dir()?)?;
-    ShareService::share_with(&vault, &to_nickname).await?;
+    let endpoint = vault.build_endpoint(ALPN_SYNC).await?;
+    SyncService::share_to_device(&vault, endpoint, &to_nickname).await?;
     println!(
         "{}",
         serde_json::json!(
@@ -286,7 +293,7 @@ fn note_create(path: &Path, content: &str) -> anyhow::Result<()> {
 
 fn note_update(path: &Path, content: &str, shares: Option<Vec<String>>) -> anyhow::Result<()> {
     let note_path = std::env::current_dir()?.join(path);
-    let mut n = Note::from_path(note_path)?;
+    let mut n = Note::from_path(note_path, false)?;
     if let Some(updated_shares) = shares {
         n.frontmatter.share_with = updated_shares;
     }

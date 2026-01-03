@@ -1,4 +1,8 @@
-use anyhow::Result;
+use crate::{
+    model::vault::Vault,
+    util::{manifest, transfer},
+};
+use anyhow::{Context, Result};
 use iroh::{endpoint::Connection, Endpoint};
 use n0_error::StdResultExt;
 use serde::{Deserialize, Serialize};
@@ -9,8 +13,6 @@ use std::{
 use tokio::sync::mpsc::{self, Receiver};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
-
-use crate::{model::vault::Vault, util::transfer};
 
 pub struct SyncService;
 
@@ -63,6 +65,41 @@ impl SyncService {
                 }
             }
         }
+        Ok(())
+    }
+
+    pub async fn share_to_device(vault: &Vault, endpoint: Endpoint, nickname: &str) -> Result<()> {
+        let endpoint_id = match vault.find_primary_device_by_nickname(nickname) {
+            Ok(eid) => {
+                println!("will share with {} via {}", nickname, eid.to_string());
+                eid
+            }
+            Err(e) => {
+                eprintln!("error getting primary device: {}", e);
+                anyhow::bail!("no primary device for nickname")
+            }
+        };
+        let manifest = manifest::create_manifest_for_share(&vault.path, nickname)
+            .context("Failed to create manifest for sharing")?;
+
+        transfer::replicate_to_target(vault, endpoint, manifest, endpoint_id, ALPN_SYNC).await?;
+
+        Ok(())
+    }
+
+    pub async fn mirror_to_device(
+        vault: &Vault,
+        endpoint: Endpoint,
+        device_name: &str,
+    ) -> Result<()> {
+        let endpoint_str = vault.owned_device_name_to_endpoint(device_name)?;
+        let endpoint_id = endpoint_str.parse::<iroh::PublicKey>()?;
+
+        let manifest =
+            manifest::create_manifest_full(&vault.path).context("Failed to create manifest")?;
+
+        transfer::replicate_to_target(vault, endpoint, manifest, endpoint_id, ALPN_SYNC).await?;
+
         Ok(())
     }
 }

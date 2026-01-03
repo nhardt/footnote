@@ -2,10 +2,7 @@ use std::path::Path;
 
 use crate::context::VaultContext;
 use crate::service::sync_service::SyncService;
-use crate::{
-    model::vault::Vault,
-    service::{replica_service::ReplicaService, share_service::ShareService},
-};
+use crate::{model::vault::Vault, service::sync_service};
 use dioxus::prelude::*;
 use iroh::Endpoint;
 use tokio::time::{interval, Duration};
@@ -95,14 +92,14 @@ async fn push_changes(vault: Vault, endpoint: Endpoint, cancel_token: Cancellati
                 let devices = vault.device_read().unwrap_or_default();
                 for device in devices {
                     tracing::info!("attempting to push changes to {}", device.name);
-                    if let Err(e) = ReplicaService::push(&vault, endpoint.clone(), &device.name).await {
+                    if let Err(e) = SyncService::mirror_to_device(&vault, endpoint.clone(), &device.name).await {
                         tracing::info!("Failed to sync to {}: {}", device.name, e);
                     }
                 }
                 let contacts = vault.contact_read().unwrap_or_default();
                 for contact in contacts {
                     tracing::info!("attempting to share with {}", contact.nickname);
-                    if let Err(e) = ShareService::share_with(&vault, endpoint.clone(), &contact.nickname).await {
+                    if let Err(e) = SyncService::share_to_device(&vault, endpoint.clone(), &contact.nickname).await {
                         eprintln!("Failed to share with {}: {}", contact.nickname, e);
                     }
                 }

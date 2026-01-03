@@ -205,6 +205,21 @@ impl Vault {
         self.path.clone()
     }
 
+    pub async fn build_endpoint(&self, alpn: &[u8]) -> Result<Endpoint> {
+        let Ok((secret_key, _)) = self.device_secret_key() else {
+            anyhow::bail!("could not get secret key");
+        };
+        let Ok(endpoint) = Endpoint::builder()
+            .secret_key(secret_key.clone())
+            .alpns(vec![alpn.to_vec()])
+            .bind()
+            .await
+        else {
+            anyhow::bail!("could not get secret key");
+        };
+        Ok(endpoint)
+    }
+
     pub fn can_device_read_note(
         &self,
         device_endpoint: &iroh::PublicKey,
