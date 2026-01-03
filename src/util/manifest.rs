@@ -60,7 +60,8 @@ pub fn create_manifest_full(vault_path: &Path) -> Result<Manifest> {
     Ok(manifest)
 }
 
-/// only walk our own notes (not notes replicated to us) and add them to the manifest
+/// walk our own notes (not notes replicated to us) and add them to view for the
+/// shared_with user
 pub fn create_manifest_for_share(vault_path: &Path, shared_with: &str) -> Result<Manifest> {
     let mut manifest = Manifest::new();
 
@@ -68,13 +69,11 @@ pub fn create_manifest_for_share(vault_path: &Path, shared_with: &str) -> Result
         .follow_links(false)
         .into_iter()
         .filter_entry(|e| {
-            // Skip descending into directories named "footnotes" or starting with "."
             let name = e.file_name().to_str().unwrap_or("");
             !name.starts_with('.') && name != "footnotes"
         })
         .filter_map(|e| e.ok())
         .filter(|e| {
-            // Only process markdown files
             e.path().is_file() && e.path().extension().and_then(|s| s.to_str()) == Some("md")
         })
     {
