@@ -46,7 +46,7 @@ const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
 const MAIN_CSS: Asset = asset!("/assets/main.css");
 
 fn main() {
-    dioxus::logger::init(Level::TRACE).expect("failed to init logger");
+    dioxus::logger::init(Level::DEBUG).expect("failed to init logger");
     tracing::trace!("trace");
     tracing::debug!("debug");
     tracing::info!("info");
