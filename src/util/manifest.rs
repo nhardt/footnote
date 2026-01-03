@@ -44,7 +44,7 @@ pub fn create_manifest_full(vault_path: &Path) -> Result<Manifest> {
             .context("Failed to get relative path")?
             .to_path_buf();
 
-        let Ok(note) = Note::from_path(entry.path()) else {
+        let Ok(note) = Note::from_path(entry.path(), false) else {
             continue;
         };
 
@@ -78,7 +78,7 @@ pub fn create_manifest_for_share(vault_path: &Path, shared_with: &str) -> Result
         })
     {
         let path = entry.path();
-        let Ok(note) = Note::from_path(entry.path()) else {
+        let Ok(note) = Note::from_path(entry.path(), false) else {
             continue;
         };
         if !note

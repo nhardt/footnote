@@ -25,17 +25,24 @@ pub struct Frontmatter {
 }
 
 impl Note {
-    pub fn from_path(path: impl AsRef<Path>) -> Result<Self> {
+    pub fn from_path(path: impl AsRef<Path>, coerce_to_footnote: bool) -> Result<Self> {
         let content = fs::read_to_string(path.as_ref())
             .with_context(|| format!("Failed to read note: {}", path.as_ref().display()))?;
-        Self::from_string(&content)
+        Self::from_string(&content, coerce_to_footnote)
     }
 
-    pub fn from_string(content: &str) -> Result<Self> {
-        let (frontmatter, content_start) = Self::parse_frontmatter(content).unwrap_or_else(|e| {
-            tracing::warn!("Failed to parse frontmatter, creating new: {}", e);
-            (Self::create_frontmatter(), 0)
-        });
+    pub fn from_string(content: &str, coerce_to_footnote: bool) -> Result<Self> {
+        let (frontmatter, content_start) = match Self::parse_frontmatter(content) {
+            Ok(r) => r,
+            Err(e) => {
+                if coerce_to_footnote {
+                    tracing::warn!("Failed to parse frontmatter, creating new: {}", e);
+                    (Self::create_frontmatter(), 0)
+                } else {
+                    anyhow::bail!("failed to parse frontmatter");
+                }
+            }
+        };
 
         let full_content = if content_start > 0 {
             content[content_start..].trim_start()
@@ -189,7 +196,7 @@ share_with:
 This is the content.
 "#;
 
-        let note = Note::from_string(content).unwrap();
+        let note = Note::from_string(content, false).unwrap();
         assert_eq!(
             note.frontmatter.uuid.to_string(),
             "550e8400-e29b-41d4-a716-446655440000"
@@ -202,7 +209,13 @@ This is the content.
     #[test]
     fn test_parse_note_without_frontmatter_fails() {
         let content = "# My Note\n\nNo frontmatter here.";
-        assert!(Note::from_string(content).is_err());
+        assert!(Note::from_string(content, false).is_err());
+    }
+
+    #[test]
+    fn test_parse_note_without_frontmatter_can_request_frontmatter() {
+        let content = "# My Note\n\nNo frontmatter here.";
+        assert!(Note::from_string(content, true).is_ok());
     }
 
     #[test]
@@ -219,7 +232,7 @@ This is some text with [^1] and [^second] references.
 [^second]: Second footnote text
 "#;
 
-        let note = Note::from_string(content).unwrap();
+        let note = Note::from_string(content, false).unwrap();
         assert_eq!(note.footnotes.len(), 2);
         assert_eq!(
             note.footnotes.get("1"),
@@ -250,7 +263,7 @@ Text with refs.
 [^second]: Second
 "#;
 
-        let note = Note::from_string(content).unwrap();
+        let note = Note::from_string(content, false).unwrap();
         let keys: Vec<&String> = note.footnotes.keys().collect();
         assert_eq!(keys, vec!["third", "first", "second"]);
     }
@@ -305,9 +318,31 @@ tags:
 Content here.
 "#;
 
-        let note = Note::from_string(content).unwrap();
+        let note = Note::from_string(content, false).unwrap();
         let serialized = note.to_string().unwrap();
 
+        assert!(serialized.contains("custom_field"));
+        assert!(serialized.contains("tags"));
+    }
+
+    #[test]
+    fn test_imported_document_preserves_unknown_yaml() {
+        let content = r#"---
+custom_field: some_value
+tags:
+  - important
+  - work
+---
+
+Content here.
+"#;
+
+        let note = Note::from_string(content, true).unwrap();
+        let serialized = note.to_string().unwrap();
+
+        assert!(serialized.contains("id"));
+        assert!(serialized.contains("share_with"));
+        assert!(serialized.contains("modified"));
         assert!(serialized.contains("custom_field"));
         assert!(serialized.contains("tags"));
     }
@@ -325,9 +360,9 @@ Content with [^1] reference.
 [^1]: Footnote text here
 "#;
 
-        let note = Note::from_string(content).unwrap();
+        let note = Note::from_string(content, false).unwrap();
         let serialized = note.to_string().unwrap();
-        let reparsed = Note::from_string(&serialized).unwrap();
+        let reparsed = Note::from_string(&serialized, false).unwrap();
 
         assert_eq!(note.footnotes, reparsed.footnotes);
     }

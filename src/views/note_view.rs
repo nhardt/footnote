@@ -9,7 +9,7 @@ pub fn NoteView(file_path: String) -> Element {
 
     let decoded = urlencoding::decode(&file_path).unwrap();
     let original_path = PathBuf::from(decoded.to_string());
-    let mut note = match Note::from_path(original_path.clone()) {
+    let mut note = match Note::from_path(original_path.clone(), true) {
         Ok(n) => n,
         Err(e) => return rsx! { "Could not load note {e}" },
     };

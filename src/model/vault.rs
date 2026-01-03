@@ -221,7 +221,7 @@ impl Vault {
             }
         };
 
-        let note = Note::from_path(note_path)?;
+        let note = Note::from_path(note_path, false)?;
 
         if note.frontmatter.share_with.contains(&contact.nickname) {
             Ok(true)
