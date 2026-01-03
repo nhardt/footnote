@@ -1,6 +1,7 @@
 use crate::model::vault::Vault;
 use crate::util::manifest::{create_manifest_full, diff_manifests, Manifest};
 use crate::util::network;
+use crate::util::sync_status_record::{SyncDirection, SyncStatusRecord, SyncType};
 use anyhow::{Context, Result};
 use iroh::endpoint::Connection;
 use iroh::Endpoint;
@@ -51,6 +52,14 @@ pub async fn receive_share(vault: &Vault, nickname: &str, connection: Connection
 }
 
 pub async fn receive_replication(vault: &Vault, connection: Connection) -> Result<()> {
+    let Ok(mut transfer_record) = SyncStatusRecord::start(
+        vault.base_path(),
+        connection.remote_id(),
+        SyncType::Mirror,
+        SyncDirection::Inbound,
+    ) else {
+        anyhow::bail!("could not create log for transfer");
+    };
     // Important Note: The peer that calls open_bi must write to its SendStream
     // before the peer Connection is able to accept the stream using
     // accept_bi(). Calling open_bi then waiting on the RecvStream without
@@ -64,6 +73,10 @@ pub async fn receive_replication(vault: &Vault, connection: Connection) -> Resul
         create_manifest_full(&vault.path).context("Failed to create local manifest")?;
     let files_to_sync = diff_manifests(&local_manifest, &remote_manifest);
 
+    if let Err(e) = transfer_record.update(0, Some(files_to_sync.len())) {
+        tracing::warn!("could not update transfer record: {}", e);
+    }
+    let mut transfer_count = 0;
     for file_to_sync in &files_to_sync {
         network::send_file_request(&mut send, &file_to_sync.uuid).await?;
         let file_contents = network::receive_file_contents(&mut recv).await?;
@@ -72,6 +85,13 @@ pub async fn receive_replication(vault: &Vault, connection: Connection) -> Resul
             fs::create_dir_all(parent)?;
         }
         fs::write(&full_path, file_contents)?;
+        transfer_count += 1;
+        if let Err(e) = transfer_record.update(transfer_count, None) {
+            tracing::warn!("could not update transfer record: {}", e);
+        };
+    }
+    if let Err(e) = transfer_record.finish(Ok(())) {
+        tracing::warn!("could not finalize transfer record: {}", e);
     }
 
     network::send_eof(&mut send).await?;
@@ -86,6 +106,15 @@ pub async fn replicate_to_target(
     remote_endpoint_id: iroh::PublicKey,
     alpn: &[u8],
 ) -> Result<()> {
+    let Ok(mut transfer_record) = SyncStatusRecord::start(
+        vault.base_path(),
+        remote_endpoint_id,
+        SyncType::Mirror,
+        SyncDirection::Outbound,
+    ) else {
+        anyhow::bail!("could not create log record");
+    };
+
     let (secret_key, _) = vault.device_secret_key()?;
 
     if remote_endpoint_id == secret_key.public() {
@@ -104,6 +133,7 @@ pub async fn replicate_to_target(
     let (mut send, mut recv) = conn.open_bi().await?;
     network::send_bytes(&mut send, &serialised_manifest).await?;
 
+    let mut files_transferred = 0;
     loop {
         let file_uuid = match network::receive_file_request(&mut recv).await? {
             Some(uuid) => uuid,
@@ -123,8 +153,14 @@ pub async fn replicate_to_target(
             .with_context(|| format!("Failed to read file: {}", full_path.display()))?;
 
         network::send_file_contents(&mut send, &file_contents).await?;
+        files_transferred += 1;
+        if let Err(e) = transfer_record.update(files_transferred, None) {
+            tracing::warn!("could not update status: {}", e);
+        }
     }
-
+    if let Err(e) = transfer_record.finish(Ok(())) {
+        tracing::warn!("could not finalize transfer record: {}", e);
+    }
     conn.close(0u8.into(), b"done");
     conn.closed().await;
 
