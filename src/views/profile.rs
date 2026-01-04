@@ -324,7 +324,7 @@ fn DeviceRow(device: Device, read_only: bool) -> Element {
             SyncDirection::Outbound,
         ) {
             Ok(r) => r,
-            Err(e) => None,
+            Err(_) => None,
         }
     });
 
@@ -336,7 +336,7 @@ fn DeviceRow(device: Device, read_only: bool) -> Element {
             SyncDirection::Inbound,
         ) {
             Ok(r) => r,
-            Err(e) => None,
+            Err(_) => None,
         }
     });
 
