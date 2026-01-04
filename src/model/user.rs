@@ -1,6 +1,7 @@
 use crate::model::contact::Contact;
 use crate::model::device::Device;
 use crate::model::lamport_timestamp::LamportTimestamp;
+use crate::util::sync_status_record;
 use anyhow::Result;
 use ed25519_dalek::SigningKey;
 use std::fs;
@@ -157,6 +158,8 @@ impl LocalUser {
         user_record.sign(&signing_key)?;
         user_record.is_valid_successor_of(&current_user_record)?;
         user_record.to_file(&local_user_file)?;
+        // todo: probably need a data reconcialiation catch-all
+        sync_status_record::delete_logs_for_endpoint(&self.vault_path, iroh_endpoint)?;
         Ok(())
     }
 

@@ -1,8 +1,8 @@
 use anyhow::Result;
-use iroh::PublicKey;
+use iroh::{EndpointAddr, PublicKey};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::model::lamport_timestamp::LamportTimestamp;
 
@@ -206,4 +206,20 @@ impl SyncStatusRecord {
 
         Ok(Some(record))
     }
+}
+
+// TODO: log_rotate()
+// TODO: log_rotate(device_id)
+
+pub fn delete_logs_for_endpoint(vault_path: &Path, endpoint: &str) -> Result<()> {
+    // TODO: ensure this device does not have active replications.
+    // for now, the most basic validation is we'll ensure the path to delete
+    // parses as an iroh endpoint
+    tracing::info!("removing logs for {}", endpoint);
+    let _ = endpoint.parse::<iroh::PublicKey>()?;
+    let device_log_path = vault_path.join(".footnote/status").join(endpoint);
+    fs::remove_dir_all(device_log_path)?;
+    tracing::info!("successfully removed logs for {}", endpoint);
+
+    Ok(())
 }
