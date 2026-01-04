@@ -33,16 +33,4 @@ impl AppContext {
         self.contacts.set(vault.contact_read()?);
         Ok(())
     }
-
-    pub fn reload_devices(&mut self) -> Result<()> {
-        let vault = self.vault.read().clone();
-        self.devices.set(vault.device_read()?);
-        Ok(())
-    }
-
-    pub fn reload_contacts(&mut self) -> Result<()> {
-        let vault = self.vault.read().clone();
-        self.devices.set(vault.device_read()?);
-        Ok(())
-    }
 }
