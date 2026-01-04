@@ -1,7 +1,5 @@
-use std::path::PathBuf;
-
 use dioxus::prelude::*;
-
+use std::path::PathBuf;
 mod components;
 mod context;
 mod model;
@@ -9,20 +7,17 @@ mod platform;
 mod service;
 mod util;
 mod views;
-
-use crate::model::vault::Vault;
+use crate::components::sync_service_toggle::SyncServiceToggle;
+use crate::context::AppContext;
+use crate::model::vault::{Vault, VaultState};
 use crate::util::manifest::create_manifest_local;
 use tracing::Level;
 use util::filesystem::ensure_default_vault;
-
 use views::contact_browser::ContactBrowser;
 use views::contact_view::ContactView;
 use views::note_browser::NoteBrowser;
 use views::note_view::NoteView;
 use views::profile::Profile;
-
-use crate::components::sync_service_toggle::SyncServiceToggle;
-use crate::context::AppContext;
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 enum Route {
@@ -62,6 +57,7 @@ fn App() -> Element {
     let vault = Vault::new(&vault_path)?;
     use_context_provider(|| AppContext {
         vault: Signal::new(vault.clone()),
+        vault_state: Signal::new(vault.state_read().unwrap_or(VaultState::Uninitialized)),
         devices: Signal::new(vault.device_read().expect("could not load devices")),
         contacts: Signal::new(vault.contact_read().expect("could not load contacts")),
         manifest: Signal::new(

@@ -1,5 +1,9 @@
 use crate::{
-    model::{contact::Contact, device::Device, vault::Vault},
+    model::{
+        contact::Contact,
+        device::Device,
+        vault::{Vault, VaultState},
+    },
     util::manifest::Manifest,
 };
 use dioxus::prelude::*;
@@ -14,7 +18,31 @@ use std::path::PathBuf;
 #[derive(Clone, Copy)]
 pub struct AppContext {
     pub vault: Signal<Vault>,
+    pub vault_state: Signal<VaultState>,
     pub devices: Signal<Vec<Device>>,
     pub contacts: Signal<Vec<Contact>>,
     pub manifest: Signal<Manifest>,
+}
+
+impl AppContext {
+    pub fn reload(&mut self) -> Result<()> {
+        let vault = self.vault.read().clone();
+        self.vault_state
+            .set(vault.state_read().unwrap_or(VaultState::Uninitialized));
+        self.devices.set(vault.device_read()?);
+        self.contacts.set(vault.contact_read()?);
+        Ok(())
+    }
+
+    pub fn reload_devices(&mut self) -> Result<()> {
+        let vault = self.vault.read().clone();
+        self.devices.set(vault.device_read()?);
+        Ok(())
+    }
+
+    pub fn reload_contacts(&mut self) -> Result<()> {
+        let vault = self.vault.read().clone();
+        self.devices.set(vault.device_read()?);
+        Ok(())
+    }
 }

@@ -41,20 +41,7 @@ use tokio_util::sync::CancellationToken;
 #[component]
 pub fn Profile() -> Element {
     let app_context = use_context::<AppContext>();
-    let vault_state = use_memo(move || {
-        app_context
-            .vault
-            .read()
-            .state_read()
-            .unwrap_or(VaultState::Uninitialized)
-
-        // let app_context_clone = app_context.clone();
-        // let vault = app_context_clone.vault.read().clone();
-        // match vault.state_read() {
-        //     Ok(s) => return s,
-        //     _ => return VaultState::Uninitialized,
-        // }
-    });
+    let vault_state = app_context.vault_state;
 
     rsx! {
         div { class: "mb-12",
@@ -122,17 +109,16 @@ pub fn Profile() -> Element {
 #[component]
 fn TransitionToPrimaryButton() -> Element {
     let mut app_context = use_context::<AppContext>();
-    let mut vault_state = use_signal(|| VaultState::Uninitialized);
 
     let onclick = move |_| {
-        let vault = app_context.vault.read().clone();
-        if vault.transition_to_primary("default", "primary").is_ok() {
-            app_context.vault.set(vault.clone());
-            app_context
-                .devices
-                .set(vault.device_read().unwrap_or_default());
-            if let Ok(new_state) = vault.state_read() {
-                vault_state.set(new_state);
+        if app_context
+            .vault
+            .read()
+            .transition_to_primary("default", "primary")
+            .is_ok()
+        {
+            if let Err(e) = app_context.reload() {
+                tracing::warn!("failed to reload app: {}", e);
             }
         }
     };
@@ -149,14 +135,16 @@ fn TransitionToPrimaryButton() -> Element {
 #[component]
 fn TransitionToSecondaryButton() -> Element {
     let mut app_context = use_context::<AppContext>();
-    let mut vault_state = use_signal(|| VaultState::Uninitialized);
 
     let onclick = move |_| {
-        let vault = app_context.vault.read().clone();
-        if vault.transition_to_secondary("secondary").is_ok() {
-            app_context.vault.set(vault.clone());
-            if let Ok(new_state) = vault.state_read() {
-                vault_state.set(new_state);
+        if app_context
+            .vault
+            .read()
+            .transition_to_secondary("secondary")
+            .is_ok()
+        {
+            if let Err(e) = app_context.reload() {
+                tracing::warn!("failed to reload app: {}", e);
             }
         }
     };
@@ -173,9 +161,10 @@ fn TransitionToSecondaryButton() -> Element {
 fn TransitionToStandAloneButton() -> Element {
     let mut app_context = use_context::<AppContext>();
     let onclick = move |_| {
-        let vault = app_context.vault.read().clone();
-        if vault.transition_to_standalone().is_ok() {
-            app_context.vault.set(vault.clone());
+        if app_context.vault.read().transition_to_standalone().is_ok() {
+            if let Err(e) = app_context.reload() {
+                tracing::warn!("failed to reload app: {}", e);
+            }
         }
     };
 
@@ -344,21 +333,19 @@ fn DeviceRow(device: Device, read_only: bool) -> Element {
     let mut delete_dialog_open = use_signal(|| false);
     let mut delete_dialog_error = use_signal(|| String::new());
     let device_id = device.iroh_endpoint_id.clone();
-    let delete_device_confirm = move || match app_context.vault.read().device_delete(&device_id) {
-        Ok(_) => {
-            app_context.devices.set(
-                app_context
-                    .vault
-                    .read()
-                    .device_read()
-                    .expect("could not load devices"),
-            );
-            delete_dialog_open.set(false);
-        }
-        Err(e) => {
-            delete_dialog_error.set(format!("{}", e));
-        }
-    };
+    let delete_app_context = app_context.clone();
+    let delete_device_confirm =
+        move || match delete_app_context.vault.read().device_delete(&device_id) {
+            Ok(_) => {
+                if let Err(e) = app_context.reload() {
+                    tracing::warn!("failed to reload app: {}", e);
+                }
+                delete_dialog_open.set(false);
+            }
+            Err(e) => {
+                delete_dialog_error.set(format!("{}", e));
+            }
+        };
 
     rsx! {
         div { class: "flex-1 min-w-0",
@@ -455,7 +442,8 @@ fn JoinListenModal(onclose: EventHandler) -> Element {
     let mut err_message = use_signal(|| String::new());
 
     // Start listening on mount
-    let mut app_context = use_context::<AppContext>();
+    let app_context = use_context::<AppContext>();
+    let mut mut_app_context = app_context.clone();
     use_effect(move || {
         let vault = app_context.vault.read().clone();
         spawn(async move {
@@ -465,13 +453,9 @@ fn JoinListenModal(onclose: EventHandler) -> Element {
                         match event {
                             JoinEvent::Listening { join_url: url } => join_url.set(url),
                             JoinEvent::Success => {
-                                app_context.devices.set(
-                                    app_context
-                                        .vault
-                                        .read()
-                                        .device_read()
-                                        .expect("could not load devices"),
-                                );
+                                if let Err(e) = mut_app_context.reload() {
+                                    tracing::warn!("failed to reload app: {}", e);
+                                }
                                 onclose.call(())
                             }
                             JoinEvent::Error(e) => err_message.set(format!("{}", e)),
@@ -561,12 +545,16 @@ fn JoinModal(onclose: EventHandler) -> Element {
     use_drop(move || cancel_token().cancel());
 
     let app_context = use_context::<AppContext>();
+    let mut mut_app_context = use_context::<AppContext>();
     let join_action = move || {
         let vault = app_context.vault.read().clone();
         spawn(async move {
             // todo: cancel token
             match JoinService::join(&vault, &join_url()).await {
                 Ok(_) => {
+                    if let Err(e) = mut_app_context.reload() {
+                        tracing::warn!("failed to reload app: {}", e);
+                    }
                     onclose.call(());
                 }
                 Err(e) => {
