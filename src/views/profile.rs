@@ -1,3 +1,4 @@
+use crate::components::confirm_dialog::ConfirmDialog;
 use crate::context::AppContext;
 use crate::model::device::Device;
 use crate::model::vault::Vault;
@@ -315,7 +316,7 @@ fn DeviceListComponent(read_only: bool) -> Element {
 
 #[component]
 fn DeviceRow(device: Device, read_only: bool) -> Element {
-    let app_context = use_context::<AppContext>();
+    let mut app_context = use_context::<AppContext>();
     let device_for_outbound = device.clone();
     let outbound_device_status = use_signal(move || {
         match SyncStatusRecord::last_success(
@@ -340,6 +341,25 @@ fn DeviceRow(device: Device, read_only: bool) -> Element {
         }
     });
 
+    let mut delete_dialog_open = use_signal(|| false);
+    let mut delete_dialog_error = use_signal(|| String::new());
+    let device_id = device.iroh_endpoint_id.clone();
+    let delete_device_confirm = move || match app_context.vault.read().device_delete(&device_id) {
+        Ok(_) => {
+            app_context.devices.set(
+                app_context
+                    .vault
+                    .read()
+                    .device_read()
+                    .expect("could not load devices"),
+            );
+            delete_dialog_open.set(false);
+        }
+        Err(e) => {
+            delete_dialog_error.set(format!("{}", e));
+        }
+    };
+
     rsx! {
         div { class: "flex-1 min-w-0",
             div { class: "flex items-center gap-3 mb-2",
@@ -360,6 +380,35 @@ fn DeviceRow(device: Device, read_only: bool) -> Element {
             }
             p { class: "text-xs font-mono text-zinc-500 truncate",
                 "{device.iroh_endpoint_id}"
+            }
+        }
+        if !read_only {
+            button {
+                class: "opacity-0 group-hover:opacity-100 p-2 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded-md transition-all",
+                onclick: move |_| delete_dialog_open.set(true),
+                svg {
+                    class: "w-4 h-4",
+                    fill: "none",
+                    stroke: "currentColor",
+                    view_box: "0 0 24 24",
+                    path {
+                        d: "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16",
+                        stroke_linecap: "round",
+                        stroke_linejoin: "round",
+                        stroke_width: "2",
+                    }
+                }
+            }
+
+            if delete_dialog_open() {
+                ConfirmDialog {
+                    oncancel: move || delete_dialog_open.set(false),
+                    onconfirm: delete_device_confirm,
+                    p { class: "text-sm text-zinc-300 mb-6",
+                        "Deleting this device from your contact record will cease it from syncing with this device. The delete will need to propogate through the system before it is fully deleted. On the other device, transition to standalone to re-join.",
+                    }
+                    label { {delete_dialog_error} }
+                }
             }
         }
     }

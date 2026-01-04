@@ -374,6 +374,12 @@ impl Vault {
         Ok([Device::new(device_name, iroh_endpoint_id.to_string())].to_vec())
     }
 
+    pub fn device_delete(&self, iroh_endpoint: &str) -> anyhow::Result<()> {
+        let local_user = LocalUser::new(&self.path)?;
+        local_user.device_delete_from_contact_record(&iroh_endpoint)?;
+        Ok(())
+    }
+
     /// the device signing key is generated and stored local to each device. it
     /// is used in establishing verified connections between devices via iroh.
     fn create_device_key(&self, device_name: &str) -> anyhow::Result<()> {
