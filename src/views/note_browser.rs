@@ -1,4 +1,4 @@
-use crate::{components::directoy_browser::DirectoryBrowser, context::VaultContext, Route};
+use crate::{components::directoy_browser::DirectoryBrowser, context::AppContext, Route};
 use crate::{
     model::{note::Note, vault::Vault},
     platform::get_app_dir,
@@ -9,7 +9,8 @@ use std::{fmt::format, path::PathBuf};
 #[component]
 pub fn NoteBrowser() -> Element {
     tracing::trace!("NoteBrowser re-render");
-    let vault = use_context::<VaultContext>().get();
+    let app_context = use_context::<AppContext>();
+    let vault = app_context.vault.read().clone();
     let nav = navigator();
 
     rsx! {

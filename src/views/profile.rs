@@ -1,11 +1,12 @@
-use std::collections::HashMap;
-
+use crate::context::AppContext;
+use crate::model::device::Device;
+use crate::model::vault::Vault;
 use crate::model::vault::VaultState;
 use crate::service::join_service::JoinEvent;
 use crate::util::sync_status_record::{SyncDirection, SyncStatusRecord};
-use crate::{context::VaultContext, model::vault::Vault};
 use crate::{model::user::LocalUser, service::join_service::JoinService};
 use dioxus::prelude::*;
+use std::collections::HashMap;
 use tokio_util::sync::CancellationToken;
 
 // Elements of a user profile by VaultState:
@@ -38,10 +39,21 @@ use tokio_util::sync::CancellationToken;
 
 #[component]
 pub fn Profile() -> Element {
-    let vault = use_context::<VaultContext>().get();
-    let vault_for_primary = vault.clone();
-    let vault_for_secondary = vault.clone();
-    let mut vault_state = use_signal(|| vault.state_read().unwrap_or(VaultState::Uninitialized));
+    let app_context = use_context::<AppContext>();
+    let vault_state = use_memo(move || {
+        app_context
+            .vault
+            .read()
+            .state_read()
+            .unwrap_or(VaultState::Uninitialized)
+
+        // let app_context_clone = app_context.clone();
+        // let vault = app_context_clone.vault.read().clone();
+        // match vault.state_read() {
+        //     Ok(s) => return s,
+        //     _ => return VaultState::Uninitialized,
+        // }
+    });
 
     rsx! {
         div { class: "mb-12",
@@ -76,26 +88,8 @@ pub fn Profile() -> Element {
                                 "You're using footnote in standalone mode. Would you like to sync with other devices?"
                             }
                             div { class: "flex gap-4",
-                                button { class: "flex-1 px-6 py-3 bg-zinc-100 hover:bg-white text-zinc-900 rounded-lg font-medium transition-all",
-                                    onclick: move |_| {
-                                        if transition_to_primary().is_ok() {
-                                            if let Ok(new_state) = vault_for_primary.state_read() {
-                                                vault_state.set(new_state);
-                                            }
-                                        }
-                                    },
-                                    "Make This Primary"
-                                }
-                                button { class: "flex-1 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 text-zinc-100 rounded-lg font-medium transition-all",
-                                    onclick: move |_| {
-                                        if transition_to_secondary().is_ok() {
-                                            if let Ok(new_state) = vault_for_secondary.state_read() {
-                                                vault_state.set(new_state);
-                                            }
-                                        }
-                                    },
-                                    "Join Existing Vault"
-                                }
+                                TransitionToPrimaryButton{}
+                                TransitionToSecondaryButton{}
                             }
                         }
                     }
@@ -120,45 +114,95 @@ pub fn Profile() -> Element {
             }
         }
 
+        TransitionToStandAloneButton{}
+    }
+}
+
+#[component]
+fn TransitionToPrimaryButton() -> Element {
+    let mut app_context = use_context::<AppContext>();
+    let mut vault_state = use_signal(|| VaultState::Uninitialized);
+
+    let onclick = move |_| {
+        let vault = app_context.vault.read().clone();
+        if vault.transition_to_primary("default", "primary").is_ok() {
+            app_context.vault.set(vault.clone());
+            app_context
+                .devices
+                .set(vault.device_read().unwrap_or_default());
+            if let Ok(new_state) = vault.state_read() {
+                vault_state.set(new_state);
+            }
+        }
+    };
+
+    rsx! {
         button {
-            class: "border-1 mt-16",
-            onclick: move |_|
-                if transition_to_standalone().is_ok() {
-                    eprintln!("probably need to reset app");
-                },
-            "Debug: reset to standalone"
+            class: "flex-1 px-6 py-3 bg-zinc-100 hover:bg-white text-zinc-900 rounded-lg font-medium transition-all",
+            onclick: onclick,
+            "Make This Primary"
         }
     }
 }
 
-fn transition_to_primary() -> Result<()> {
-    let vault = use_context::<VaultContext>().get();
-    // todo: allow device name, or get hostname
-    vault.transition_to_primary("default_username", "primary")?;
-    Ok(())
+#[component]
+fn TransitionToSecondaryButton() -> Element {
+    let mut app_context = use_context::<AppContext>();
+    let mut vault_state = use_signal(|| VaultState::Uninitialized);
+
+    let onclick = move |_| {
+        let vault = app_context.vault.read().clone();
+        if vault.transition_to_secondary("secondary").is_ok() {
+            app_context.vault.set(vault.clone());
+            if let Ok(new_state) = vault.state_read() {
+                vault_state.set(new_state);
+            }
+        }
+    };
+
+    rsx! {
+        button { class: "flex-1 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 text-zinc-100 rounded-lg font-medium transition-all",
+            onclick: onclick,
+            "Join Existing Vault"
+        }
+    }
 }
-fn transition_to_secondary() -> Result<()> {
-    let vault = use_context::<VaultContext>().get();
-    // todo: allow device name, or get hostname
-    vault.transition_to_secondary("secondary")?;
-    Ok(())
-}
-fn transition_to_standalone() -> Result<()> {
-    let vault = use_context::<VaultContext>().get();
-    // todo: allow device name, or get hostname
-    vault.transition_to_standalone()?;
-    Ok(())
+
+#[component]
+fn TransitionToStandAloneButton() -> Element {
+    let mut app_context = use_context::<AppContext>();
+    let onclick = move |_| {
+        let vault = app_context.vault.read().clone();
+        if vault.transition_to_standalone().is_ok() {
+            app_context.vault.set(vault.clone());
+        }
+    };
+
+    rsx! {
+        button {
+            class: "border-1 mt-16",
+            onclick: onclick,
+            "Debug: Transition To Standalone"
+        }
+    }
 }
 
 #[component]
 fn LocalDeviceComponent(read_only: bool) -> Element {
-    let vault = use_context::<VaultContext>().get();
-    let (_, device_name) = vault.device_public_key().expect("device should exist");
-    let mut device_name_value = use_signal(|| device_name);
+    let app_context = use_context::<AppContext>();
+    let mut device_name = use_signal(move || {
+        let (_, device_name) = app_context
+            .vault
+            .read()
+            .device_public_key()
+            .expect("device should exist");
+        device_name
+    });
+
     let mut err_message = use_signal(|| String::new());
     let save_device_name = move |_| {
-        let name_update = device_name_value.read();
-        if let Err(e) = vault.device_key_update(&name_update) {
+        let name_update = device_name.read();
+        if let Err(e) = app_context.vault.read().device_key_update(&name_update) {
             err_message.set(format!("err updating device name: {}", e));
         }
     };
@@ -168,13 +212,13 @@ fn LocalDeviceComponent(read_only: bool) -> Element {
             div { class: "flex items-center gap-4",
                 label { class: "text-sm font-medium text-zinc-300 w-32", "This Device Name" }
                 if read_only {
-                    span { class: "flex-1 px-3 py-2 text-sm font-mono text-zinc-300", "{device_name_value}" }
+                    span { class: "flex-1 px-3 py-2 text-sm font-mono text-zinc-300", "{device_name}" }
                 } else {
                     input {
                         class: "flex-1 px-3 py-1.5 bg-zinc-900 border border-zinc-700 rounded-md text-sm font-mono focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
                         r#type: "text",
-                        value: "{device_name_value}",
-                        oninput: move |e| device_name_value.set(e.value()),
+                        value: "{device_name}",
+                        oninput: move |e| device_name.set(e.value()),
                     }
                     button {
                         class: "px-4 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
@@ -192,18 +236,17 @@ fn LocalDeviceComponent(read_only: bool) -> Element {
 
 #[component]
 fn UserComponent(read_only: bool) -> Element {
-    let vault = use_context::<VaultContext>().get();
+    let app_context = use_context::<AppContext>();
 
     let mut err_message = use_signal(|| String::new());
-    let mut username_value = use_signal(|| match vault.user_read() {
+    let mut username = use_signal(move || match app_context.vault.read().user_read() {
         Ok(Some(user)) => user.username,
         _ => String::new(),
     });
 
     let save_username = move |_| {
-        let vault = vault.clone();
-        let username_update = username_value.read();
-        if let Err(e) = vault.user_update(&*username_update) {
+        let vault = app_context.vault.read().clone();
+        if let Err(e) = vault.user_update(username.read().as_str()) {
             err_message.set(format!("err updating username: {}", e));
         }
     };
@@ -211,14 +254,14 @@ fn UserComponent(read_only: bool) -> Element {
         section { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 p-6",
             div { class: "flex items-center gap-4",
                 if read_only {
-                    span { class: "px-2", "{username_value}" }
+                    span { class: "px-2", "{username}" }
                 } else {
                     label { "Username" }
                     input {
                         class: "flex-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-md text-sm font-mono focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
                         r#type: "text",
-                        value: "{username_value}",
-                        oninput: move |e| username_value.set(e.value()),
+                        value: "{username}",
+                        oninput: move |e| username.set(e.value()),
                     }
                     button { class: "px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
                         onclick: save_username,
@@ -233,41 +276,8 @@ fn UserComponent(read_only: bool) -> Element {
 
 #[component]
 fn DeviceListComponent(read_only: bool) -> Element {
-    let vault = use_context::<VaultContext>().get();
-    let devices = vault.device_read()?;
-
-    let outbound_device_status = use_signal(|| {
-        devices
-            .iter()
-            .filter_map(|device| {
-                let last_sync = SyncStatusRecord::last_success(
-                    vault.path.clone(),
-                    &device.iroh_endpoint_id,
-                    SyncDirection::Outbound,
-                )
-                .ok()
-                .flatten()?;
-                Some((device.iroh_endpoint_id.clone(), last_sync))
-            })
-            .collect::<HashMap<String, SyncStatusRecord>>()
-    });
-
-    let inbound_device_status = use_signal(|| {
-        devices
-            .iter()
-            .filter_map(|device| {
-                let last_sync = SyncStatusRecord::last_success(
-                    vault.path.clone(),
-                    &device.iroh_endpoint_id,
-                    SyncDirection::Inbound,
-                )
-                .ok()
-                .flatten()?;
-                Some((device.iroh_endpoint_id.clone(), last_sync))
-            })
-            .collect::<HashMap<String, SyncStatusRecord>>()
-    });
-
+    let app_context = use_context::<AppContext>();
+    let devices = app_context.devices.clone();
     rsx! {
         div { class: "space-y-8 mt-4",
             section { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 overflow-hidden",
@@ -281,27 +291,7 @@ fn DeviceListComponent(read_only: bool) -> Element {
                     for device in devices.iter() {
                         div { class: "p-6 hover:bg-zinc-900/50 transition-colors group",
                             div { class: "flex items-start justify-between",
-                                div { class: "flex-1 min-w-0",
-                                    div { class: "flex items-center gap-3 mb-2",
-                                        h3 { class: "text-sm font-semibold",
-                                            "{device.name}"
-                                        }
-                                        if let Some(status) = outbound_device_status.read().get(&device.iroh_endpoint_id) {
-                                            div { class: "mt-2 text-xs text-zinc-400",
-                                                "Last outbound sync: ({status.files_transferred} files)" }
-                                        }
-                                        if let Some(status) = inbound_device_status.read().get(&device.iroh_endpoint_id) {
-                                            div { class: "mt-2 text-xs text-zinc-400",
-                                                "Last inbound sync: ({status.files_transferred} files)" }
-                                        }
-                                        // span { class: "px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-xs font-mono text-zinc-400",
-                                        //     "Primary"
-                                        // }
-                                    }
-                                    p { class: "text-xs font-mono text-zinc-500 truncate",
-                                        "{device.iroh_endpoint_id}"
-                                    }
-                                }
+                                DeviceRow{ device:device.clone(), read_only: read_only }
                             }
                         }
                     }
@@ -318,6 +308,58 @@ fn DeviceListComponent(read_only: bool) -> Element {
                 else {
                     JoinListenerComponent {}
                 }
+            }
+        }
+    }
+}
+
+#[component]
+fn DeviceRow(device: Device, read_only: bool) -> Element {
+    let app_context = use_context::<AppContext>();
+    let device_for_outbound = device.clone();
+    let outbound_device_status = use_signal(move || {
+        match SyncStatusRecord::last_success(
+            app_context.vault.read().base_path().clone(),
+            &device_for_outbound.iroh_endpoint_id,
+            SyncDirection::Outbound,
+        ) {
+            Ok(r) => r,
+            Err(e) => None,
+        }
+    });
+
+    let device_for_inbound = device.clone();
+    let inbound_device_status = use_signal(move || {
+        match SyncStatusRecord::last_success(
+            app_context.vault.read().base_path().clone(),
+            &device_for_inbound.iroh_endpoint_id,
+            SyncDirection::Inbound,
+        ) {
+            Ok(r) => r,
+            Err(e) => None,
+        }
+    });
+
+    rsx! {
+        div { class: "flex-1 min-w-0",
+            div { class: "flex items-center gap-3 mb-2",
+                h3 { class: "text-sm font-semibold",
+                    "{device.name}"
+                }
+                if let Some(status) = outbound_device_status() {
+                    div { class: "mt-2 text-xs text-zinc-400",
+                        "Last outbound sync: ({status.files_transferred} files)" }
+                }
+                if let Some(status) = inbound_device_status() {
+                    div { class: "mt-2 text-xs text-zinc-400",
+                        "Last inbound sync: ({status.files_transferred} files)" }
+                }
+                // span { class: "px-2 py-0.5 bg-zinc-800 border border-zinc-700 rounded text-xs font-mono text-zinc-400",
+                //     "Primary"
+                // }
+            }
+            p { class: "text-xs font-mono text-zinc-500 truncate",
+                "{device.iroh_endpoint_id}"
             }
         }
     }
@@ -364,9 +406,9 @@ fn JoinListenModal(onclose: EventHandler) -> Element {
     let mut err_message = use_signal(|| String::new());
 
     // Start listening on mount
-    let vault = use_context::<VaultContext>().get();
+    let app_context = use_context::<AppContext>();
     use_effect(move || {
-        let vault = vault.clone();
+        let vault = app_context.vault.read().clone();
         spawn(async move {
             match JoinService::listen(&vault, cancel_token()).await {
                 Ok(mut rx) => {
@@ -460,9 +502,9 @@ fn JoinModal(onclose: EventHandler) -> Element {
 
     use_drop(move || cancel_token().cancel());
 
-    let vault = use_context::<VaultContext>().get();
+    let app_context = use_context::<AppContext>();
     let join_action = move || {
-        let vault = vault.clone();
+        let vault = app_context.vault.read().clone();
         spawn(async move {
             // todo: cancel token
             match JoinService::join(&vault, &join_url()).await {
@@ -560,8 +602,8 @@ fn ExportComponent() -> Element {
 
 #[component]
 fn ExportModal(onclose: EventHandler) -> Element {
-    let vault = use_context::<VaultContext>().get();
-    let user_record_json = use_signal(|| match vault.user_read() {
+    let app_context = use_context::<AppContext>();
+    let user_record_json = use_signal(move || match app_context.vault.read().user_read() {
         Ok(Some(user)) => user
             .to_json_pretty()
             .unwrap_or_else(|e| format!("Failed to serialize: {}", e)),

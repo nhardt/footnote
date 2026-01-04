@@ -1,10 +1,9 @@
-use std::path::Path;
-
-use crate::context::VaultContext;
+use crate::context::AppContext;
 use crate::service::sync_service::SyncService;
 use crate::{model::vault::Vault, service::sync_service};
 use dioxus::prelude::*;
 use iroh::Endpoint;
+use std::path::Path;
 use tokio::time::{interval, Duration};
 use tokio_util::sync::CancellationToken;
 
@@ -33,7 +32,8 @@ pub fn SyncServiceToggle() -> Element {
             let send_token_clone = send_cancel_token.clone();
             send_cancel_token_signal.set(send_cancel_token);
 
-            let vault = use_context::<VaultContext>().get();
+            let app_context = use_context::<AppContext>();
+            let vault = app_context.vault.read();
             let Ok((secret_key, _)) = vault.device_secret_key() else {
                 tracing::warn!("could not get secret key");
                 return;

@@ -106,6 +106,50 @@ pub fn create_manifest_for_share(vault_path: &Path, shared_with: &str) -> Result
     Ok(manifest)
 }
 
+/// manifest of all files i might read and write to
+pub fn create_manifest_local(vault_path: &Path) -> Result<Manifest> {
+    let mut manifest = Manifest::new();
+
+    for entry in WalkDir::new(vault_path)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        let path = entry.path();
+
+        if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+            if file_name.starts_with('.') {
+                continue;
+            }
+        }
+
+        if !path.is_file() || path.extension().and_then(|s| s.to_str()) != Some("md") {
+            continue;
+        }
+
+        let relative_path = path
+            .strip_prefix(vault_path)
+            .context("Failed to get relative path")?
+            .to_path_buf();
+
+        // we will start with files created in footnote....
+        // it's tempting to re-write all files in the footnote dir.
+        let Ok(note) = Note::from_path(entry.path(), false) else {
+            continue;
+        };
+
+        let entry = ManifestEntry {
+            uuid: note.frontmatter.uuid,
+            path: relative_path,
+            modified: note.frontmatter.modified,
+        };
+
+        manifest.insert(note.frontmatter.uuid, entry);
+    }
+
+    Ok(manifest)
+}
+
 pub fn diff_manifests(local: &Manifest, remote: &Manifest) -> Vec<ManifestEntry> {
     let mut files_to_sync = Vec::new();
 

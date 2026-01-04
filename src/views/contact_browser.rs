@@ -1,34 +1,21 @@
 use crate::model::contact::Contact;
 use crate::model::device::Device;
 use crate::model::vault::Vault;
-use crate::VaultContext;
+use crate::AppContext;
 use dioxus::prelude::*;
 
 #[component]
 pub fn ContactBrowser() -> Element {
-    let vault = use_context::<VaultContext>().get();
-    let contacts = use_resource(move || {
-        let vault_copy = vault.clone();
-        async move { vault_copy.contact_read().ok() }
-    });
+    let app_context = use_context::<AppContext>();
+    let contact_list = app_context.contacts.read().clone();
 
     rsx! {
         div { class: "flex flex-col h-full w-2xl",
             ImportComponent {}
 
             div { class: "space-y-2",
-                match contacts() {
-                    Some(Some(contact_list)) => rsx! {
-                        for contact in contact_list {
-                            ContactRow { contact }
-                        }
-                    },
-                    Some(None) => rsx! {
-                        div { "No vault loaded" }
-                    },
-                    None => rsx! {
-                        div { "Loading..." }
-                    }
+                for contact in contact_list {
+                    ContactRow { contact }
                 }
             }
         }
@@ -136,13 +123,18 @@ fn ImportModal(onclose: EventHandler) -> Element {
     let mut contact_json = use_signal(|| String::new());
     let mut nickname = use_signal(|| String::new());
     let mut err_message = use_signal(|| String::new());
-    let vault = use_context::<VaultContext>().get();
-
-    let import_contact = move |_| match vault
-        .contact_import(&nickname.read().clone(), &contact_json.read().clone())
-    {
-        Ok(()) => onclose.call(()),
-        Err(e) => err_message.set(format!("Failed to import contact: {e}")),
+    let mut app_context = use_context::<AppContext>();
+    let import_contact = move |_| {
+        let vault = app_context.vault.read().clone();
+        match vault.contact_import(&nickname.read().clone(), &contact_json.read().clone()) {
+            Ok(()) => {
+                app_context
+                    .contacts
+                    .set(vault.contact_read().expect("could not load contacts"));
+                onclose.call(());
+            }
+            Err(e) => err_message.set(format!("Failed to import contact: {e}")),
+        };
     };
 
     rsx! {

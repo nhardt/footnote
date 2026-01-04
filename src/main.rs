@@ -11,6 +11,7 @@ mod util;
 mod views;
 
 use crate::model::vault::Vault;
+use crate::util::manifest::create_manifest_local;
 use tracing::Level;
 use util::filesystem::ensure_default_vault;
 
@@ -21,7 +22,7 @@ use views::note_view::NoteView;
 use views::profile::Profile;
 
 use crate::components::sync_service_toggle::SyncServiceToggle;
-use crate::context::VaultContext;
+use crate::context::AppContext;
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 enum Route {
@@ -59,7 +60,14 @@ fn main() {
 fn App() -> Element {
     let vault_path = ensure_default_vault()?;
     let vault = Vault::new(&vault_path)?;
-    use_context_provider(|| VaultContext::new(vault));
+    use_context_provider(|| AppContext {
+        vault: Signal::new(vault.clone()),
+        devices: Signal::new(vault.device_read().expect("could not load devices")),
+        contacts: Signal::new(vault.contact_read().expect("could not load contacts")),
+        manifest: Signal::new(
+            create_manifest_local(&vault.base_path()).expect("could not load local list of files"),
+        ),
+    });
 
     rsx! {
         document::Link { rel: "icon", href: FAVICON }

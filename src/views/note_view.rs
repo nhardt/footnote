@@ -1,11 +1,11 @@
-use crate::context::VaultContext;
-use crate::model::note::Note;
+use crate::{context::AppContext, model::note::Note};
 use dioxus::prelude::*;
 use std::path::PathBuf;
 
 #[component]
 pub fn NoteView(file_path: String) -> Element {
-    let vault = use_context::<VaultContext>().get();
+    let app_context = use_context::<AppContext>();
+    let vault = app_context.vault.read().clone();
 
     let decoded = urlencoding::decode(&file_path).unwrap();
     let original_path = PathBuf::from(decoded.to_string());

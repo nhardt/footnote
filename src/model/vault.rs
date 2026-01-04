@@ -18,6 +18,7 @@ pub struct Vault {
     pub path: PathBuf,
 }
 
+#[derive(PartialEq)]
 pub enum VaultState {
     Primary,
     SecondaryJoined,
