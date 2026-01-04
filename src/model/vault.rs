@@ -330,6 +330,10 @@ impl Vault {
     pub fn contact_read(&self) -> anyhow::Result<Vec<Contact>> {
         let contacts_dir = self.path.join(".footnote").join("contacts");
 
+        if !contacts_dir.exists() {
+            return Ok(Vec::new());
+        }
+
         fs::read_dir(contacts_dir)?
             .filter_map(|entry| {
                 let entry = match entry {
@@ -370,7 +374,12 @@ impl Vault {
             return Ok(owned_devices_record.devices);
         }
 
-        let (iroh_endpoint_id, device_name) = self.device_public_key()?;
+        let (iroh_endpoint_id, device_name) = match self.device_public_key() {
+            Ok(r) => r,
+            Err(_) => {
+                return Ok(Vec::new());
+            }
+        };
         Ok([Device::new(device_name, iroh_endpoint_id.to_string())].to_vec())
     }
 
