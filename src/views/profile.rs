@@ -455,7 +455,7 @@ fn JoinListenModal(onclose: EventHandler) -> Element {
     let mut err_message = use_signal(|| String::new());
 
     // Start listening on mount
-    let app_context = use_context::<AppContext>();
+    let mut app_context = use_context::<AppContext>();
     use_effect(move || {
         let vault = app_context.vault.read().clone();
         spawn(async move {
@@ -464,7 +464,16 @@ fn JoinListenModal(onclose: EventHandler) -> Element {
                     while let Some(event) = rx.recv().await {
                         match event {
                             JoinEvent::Listening { join_url: url } => join_url.set(url),
-                            JoinEvent::Success => onclose.call(()),
+                            JoinEvent::Success => {
+                                app_context.devices.set(
+                                    app_context
+                                        .vault
+                                        .read()
+                                        .device_read()
+                                        .expect("could not load devices"),
+                                );
+                                onclose.call(())
+                            }
                             JoinEvent::Error(e) => err_message.set(format!("{}", e)),
                         }
                     }
