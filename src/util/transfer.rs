@@ -141,11 +141,11 @@ pub async fn sync_to_target(
             .get(&file_uuid)
             .ok_or_else(|| anyhow::anyhow!("Requested file UUID not in manifest"))?;
 
-        if !vault.can_device_read_note(&remote_endpoint_id, &entry.path)? {
+        let full_path = vault.path.join(&entry.path);
+        if !vault.can_device_read_note(&remote_endpoint_id, &full_path)? {
             continue;
         }
 
-        let full_path = vault.path.join(&entry.path);
         let file_contents = fs::read(&full_path)
             .with_context(|| format!("Failed to read file: {}", full_path.display()))?;
 
