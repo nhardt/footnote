@@ -51,7 +51,7 @@ pub async fn receive_share(vault: &Vault, nickname: &str, connection: Connection
     Ok(())
 }
 
-pub async fn receive_replication(vault: &Vault, connection: Connection) -> Result<()> {
+pub async fn receive_mirror(vault: &Vault, connection: Connection) -> Result<()> {
     let Ok(mut transfer_record) = SyncStatusRecord::start(
         vault.base_path(),
         connection.remote_id(),
@@ -99,9 +99,10 @@ pub async fn receive_replication(vault: &Vault, connection: Connection) -> Resul
     Ok(())
 }
 
-pub async fn replicate_to_target(
+pub async fn sync_to_target(
     vault: &Vault,
     endpoint: Endpoint,
+    sync_type: SyncType,
     manifest: Manifest,
     remote_endpoint_id: iroh::PublicKey,
     alpn: &[u8],
@@ -109,7 +110,7 @@ pub async fn replicate_to_target(
     let Ok(mut transfer_record) = SyncStatusRecord::start(
         vault.base_path(),
         remote_endpoint_id,
-        SyncType::Mirror,
+        sync_type,
         SyncDirection::Outbound,
     ) else {
         anyhow::bail!("could not create log record");

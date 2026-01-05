@@ -93,14 +93,14 @@ async fn push_changes(vault: Vault, endpoint: Endpoint, cancel_token: Cancellati
                 for device in devices {
                     tracing::info!("attempting to push changes to {}", device.name);
                     if let Err(e) = SyncService::mirror_to_device(&vault, endpoint.clone(), &device.name).await {
-                        tracing::info!("Failed to sync to {}: {}", device.name, e);
+                        tracing::warn!("Failed to sync to {}: {}", device.name, e);
                     }
                 }
                 let contacts = vault.contact_read().unwrap_or_default();
                 for contact in contacts {
                     tracing::info!("attempting to share with {}", contact.nickname);
                     if let Err(e) = SyncService::share_to_device(&vault, endpoint.clone(), &contact.nickname).await {
-                        eprintln!("Failed to share with {}: {}", contact.nickname, e);
+                        tracing::warn!("Failed to share with {}: {}", contact.nickname, e);
                     }
                 }
             }

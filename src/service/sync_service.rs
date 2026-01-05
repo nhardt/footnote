@@ -1,3 +1,4 @@
+use crate::util::sync_status_record::SyncType;
 use crate::{
     model::vault::Vault,
     util::{manifest, transfer},
@@ -48,7 +49,7 @@ impl SyncService {
 
                             if let Ok(device_name) = vault.owned_device_endpoint_to_name(&remote_id) {
                                 tracing::info!("found our own device {} from endpoint {}", device_name, remote_id);
-                                transfer::receive_replication(&vault, connection).await?;
+                                transfer::receive_mirror(&vault, connection).await?;
                                 tracing::info!("succesfully handled replicate request from {} on {}", device_name, remote_id);
                                 return Ok(());
                             }
@@ -71,18 +72,26 @@ impl SyncService {
     pub async fn share_to_device(vault: &Vault, endpoint: Endpoint, nickname: &str) -> Result<()> {
         let endpoint_id = match vault.find_primary_device_by_nickname(nickname) {
             Ok(eid) => {
-                println!("will share with {} via {}", nickname, eid.to_string());
+                tracing::debug!("will share with {} via {}", nickname, eid.to_string());
                 eid
             }
             Err(e) => {
-                eprintln!("error getting primary device: {}", e);
+                tracing::error!("error getting primary device: {}", e);
                 anyhow::bail!("no primary device for nickname")
             }
         };
         let manifest = manifest::create_manifest_for_share(&vault.path, nickname)
             .context("Failed to create manifest for sharing")?;
 
-        transfer::replicate_to_target(vault, endpoint, manifest, endpoint_id, ALPN_SYNC).await?;
+        transfer::sync_to_target(
+            vault,
+            endpoint,
+            SyncType::Share,
+            manifest,
+            endpoint_id,
+            ALPN_SYNC,
+        )
+        .await?;
 
         Ok(())
     }
@@ -98,7 +107,15 @@ impl SyncService {
         let manifest =
             manifest::create_manifest_full(&vault.path).context("Failed to create manifest")?;
 
-        transfer::replicate_to_target(vault, endpoint, manifest, endpoint_id, ALPN_SYNC).await?;
+        transfer::sync_to_target(
+            vault,
+            endpoint,
+            SyncType::Mirror,
+            manifest,
+            endpoint_id,
+            ALPN_SYNC,
+        )
+        .await?;
 
         Ok(())
     }
