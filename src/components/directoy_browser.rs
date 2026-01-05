@@ -39,7 +39,7 @@ pub fn DirectoryBrowser(
         }
     };
 
-    let mut refresh_trigger = use_signal(|| 0);
+    let refresh_trigger = use_signal(|| 0);
     use_effect(move || {
         let path = current_path();
         let _ = refresh_trigger();
