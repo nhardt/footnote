@@ -1,10 +1,9 @@
+use crate::util::lamport_timestamp::LamportTimestamp;
 use anyhow::Result;
 use iroh::{EndpointAddr, PublicKey};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
-
-use crate::model::lamport_timestamp::LamportTimestamp;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SyncType {

@@ -1,6 +1,6 @@
 use crate::model::device::Device;
-use crate::model::lamport_timestamp::LamportTimestamp;
 use crate::util::crypto;
+use crate::util::lamport_timestamp::LamportTimestamp;
 use anyhow::{Context, Result};
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier};
 use serde::{Deserialize, Serialize};
