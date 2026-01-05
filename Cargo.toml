@@ -1,7 +1,25 @@
 [package]
 name = "footnote"
 version = "0.2.0"
+release = "1"
 edition = "2021"
+
+[application]
+name="footnote.wiki"
+
+[bundle]
+identifier = "wiki.footnote.app"
+resources = []
+depends = ["libxdo3"]
+copyright = "Copyright (c) Footnote.wiki 2025"
+category = "Productivity"
+short_description = "A local-first, zero-cloud, peer sync wiki for friends and family"
+long_description = """
+Footnote is a a local-first, zero-cloud, peer sync wiki for friends and family.
+"""
+
+[package.metadata.rpm]
+release = "1"
 
 [lints.rust]
 unused_imports = "allow"
