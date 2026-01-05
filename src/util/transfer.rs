@@ -86,14 +86,9 @@ pub async fn receive_mirror(vault: &Vault, connection: Connection) -> Result<()>
         }
         fs::write(&full_path, file_contents)?;
         transfer_count += 1;
-        if let Err(e) = transfer_record.update(transfer_count, None) {
-            tracing::warn!("could not update transfer record: {}", e);
-        };
+        transfer_record.update(transfer_count, None)?;
     }
-    if let Err(e) = transfer_record.finish(Ok(())) {
-        tracing::warn!("could not finalize transfer record: {}", e);
-    }
-
+    transfer_record.record_success()?;
     network::send_eof(&mut send).await?;
     connection.closed().await;
     Ok(())
@@ -119,6 +114,7 @@ pub async fn sync_to_target(
     let (secret_key, _) = vault.device_secret_key()?;
 
     if remote_endpoint_id == secret_key.public() {
+        transfer_record.record_failure("attempting to sync with self")?;
         anyhow::bail!("cannot replicate to self");
     }
 
@@ -159,11 +155,10 @@ pub async fn sync_to_target(
             tracing::warn!("could not update status: {}", e);
         }
     }
-    if let Err(e) = transfer_record.finish(Ok(())) {
-        tracing::warn!("could not finalize transfer record: {}", e);
-    }
+
+    transfer_record.record_success()?;
+
     conn.close(0u8.into(), b"done");
     conn.closed().await;
-
     Ok(())
 }

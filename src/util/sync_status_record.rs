@@ -74,21 +74,38 @@ impl SyncStatusRecord {
         self.write()
     }
 
-    pub fn finish(mut self, result: Result<()>) -> Result<()> {
-        self.state = match result {
-            Ok(()) => {
-                if self.files_transferred > 0 {
-                    SyncState::Success
-                } else {
-                    SyncState::Spurious
-                }
-            }
-            Err(e) => SyncState::Failure {
-                error: e.to_string(),
-            },
+    pub fn record_success(mut self) -> Result<()> {
+        if self.files_transferred > 0 {
+            self.state = SyncState::Success;
+            self.write()?;
+            fs::write(
+                self.pointer_dir().join("last_success"),
+                self.timestamp.as_i64().to_string(),
+            )?;
+        } else {
+            self.state = SyncState::Spurious;
+        }
+        fs::write(
+            self.pointer_dir().join("last_seen"),
+            self.timestamp.as_i64().to_string(),
+        )?;
+        Ok(())
+    }
+
+    pub fn record_failure(mut self, reason: &str) -> Result<()> {
+        self.state = SyncState::Failure {
+            error: reason.to_string(),
         };
         self.write()?;
-        self.update_pointers()
+        fs::write(
+            self.pointer_dir().join("last_failure"),
+            self.timestamp.as_i64().to_string(),
+        )?;
+        fs::write(
+            self.pointer_dir().join("last_seen"),
+            self.timestamp.as_i64().to_string(),
+        )?;
+        Ok(())
     }
 
     fn log_path(&self) -> PathBuf {
@@ -124,29 +141,6 @@ impl SyncStatusRecord {
 
         let json = serde_json::to_string_pretty(self)?;
         fs::write(log_path, json)?;
-        Ok(())
-    }
-
-    fn update_pointers(&self) -> Result<()> {
-        let pointer_dir = self.pointer_dir();
-
-        match &self.state {
-            SyncState::Success => {
-                fs::write(
-                    pointer_dir.join("last_success"),
-                    self.timestamp.as_i64().to_string(),
-                )?;
-            }
-            SyncState::Failure { .. } => {
-                fs::write(
-                    pointer_dir.join("last_failure"),
-                    self.timestamp.as_i64().to_string(),
-                )?;
-            }
-            SyncState::InProgress => {}
-            SyncState::Spurious => {}
-        }
-
         Ok(())
     }
 

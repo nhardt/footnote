@@ -1,6 +1,7 @@
 use crate::model::contact::Contact;
 use crate::model::device::Device;
 use crate::model::vault::Vault;
+use crate::util::sync_status_record::{SyncDirection, SyncStatusRecord};
 use crate::AppContext;
 use dioxus::prelude::*;
 
@@ -74,12 +75,45 @@ fn DeviceItems(devices: Vec<Device>) -> Element {
 
 #[component]
 fn DeviceItem(device: Device) -> Element {
+    let app_context = use_context::<AppContext>();
+    let device_for_outbound = device.clone();
+    let last_outbound_success = use_signal(move || {
+        match SyncStatusRecord::last_success(
+            app_context.vault.read().base_path().clone(),
+            &device_for_outbound.iroh_endpoint_id,
+            SyncDirection::Outbound,
+        ) {
+            Ok(r) => r,
+            Err(_) => None,
+        }
+    });
+
+    let device_for_inbound = device.clone();
+    let last_inbound_success = use_signal(move || {
+        match SyncStatusRecord::last_success(
+            app_context.vault.read().base_path().clone(),
+            &device_for_inbound.iroh_endpoint_id,
+            SyncDirection::Inbound,
+        ) {
+            Ok(r) => r,
+            Err(_) => None,
+        }
+    });
+
     rsx! {
         div { class: "flex items-center justify-between text-sm py-2",
             span { class: "text-zinc-300", "{device.name}"}
             span { class: "text-xs font-mono text-zinc-500 truncate ml-4",
                 "{device.iroh_endpoint_id}"
             }
+        }
+        if let Some(status) = last_outbound_success() {
+            div { class: "mt-2 text-xs text-zinc-400",
+                "Last outbound sync: ({status.files_transferred} files)" }
+        }
+        if let Some(status) = last_inbound_success() {
+            div { class: "mt-2 text-xs text-zinc-400",
+                "Last inbound sync: ({status.files_transferred} files)" }
         }
     }
 }
