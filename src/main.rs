@@ -23,7 +23,7 @@ use views::profile::Profile;
 enum Route {
     #[layout(Main)]
     #[route("/")]
-    NoteBrowser {},
+    NoteDefault {},
 
     #[route("/notes/:file_path")]
     NoteView { file_path: String },
@@ -83,12 +83,12 @@ fn Main() -> Element {
                 div { class: "px-6 py-3",
                     div { class: "flex items-center gap-8",
                         Link {
-                            class: if matches!(route, Route::NoteBrowser {} | Route::NoteView { .. }) {
+                            class: if matches!(route, Route::NoteDefault {} | Route::NoteView { .. }) {
                                 "px-4 py-2 text-sm font-medium text-zinc-100 border-b-2 border-zinc-100"
                             } else {
                                 "px-4 py-2 text-sm font-medium text-zinc-400 hover:text-zinc-100 transition-colors"
                             },
-                            to: Route::NoteBrowser{}, "Notes" }
+                            to: Route::NoteDefault{}, "Notes" }
                         Link {
                             class: if matches!(route, Route::Profile{}) {
                                 "px-4 py-2 text-sm font-medium text-zinc-100 border-b-2 border-zinc-100"
@@ -121,6 +121,31 @@ fn Main() -> Element {
                 },
                 Outlet::<Route> {}
             }
+        }
+    }
+}
+
+#[component]
+fn NoteDefault() -> Element {
+    let nav = navigator();
+    let app_context = use_context::<AppContext>();
+    use_effect(move || {
+        nav.push(Route::NoteView {
+            file_path: urlencoding::encode(
+                &app_context
+                    .vault
+                    .read()
+                    .base_path()
+                    .join("home.md")
+                    .to_string_lossy()
+                    .to_string(),
+            )
+            .to_string(),
+        });
+    });
+    rsx! {
+        div { class: "flex items-center justify-center h-screen",
+            "Loading..."
         }
     }
 }
