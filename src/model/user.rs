@@ -1,6 +1,6 @@
 use crate::model::contact::Contact;
 use crate::model::device::Device;
-use crate::model::lamport_timestamp::LamportTimestamp;
+use crate::util::lamport_timestamp::LamportTimestamp;
 use crate::util::sync_status_record;
 use anyhow::Result;
 use ed25519_dalek::SigningKey;

@@ -1,11 +1,10 @@
+use crate::util::lamport_timestamp::LamportTimestamp;
 use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 use uuid::Uuid;
-
-use super::lamport_timestamp::LamportTimestamp;
 
 #[derive(Debug, Clone)]
 pub struct Note {

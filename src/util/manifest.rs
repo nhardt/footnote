@@ -1,5 +1,5 @@
-use crate::model::lamport_timestamp::LamportTimestamp;
 use crate::model::note::Note;
+use crate::util::lamport_timestamp::LamportTimestamp;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
