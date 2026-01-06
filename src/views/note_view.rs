@@ -1,9 +1,13 @@
-use crate::{context::AppContext, elements::primary_button::PrimaryButton, model::note::Note};
+use crate::{
+    context::AppContext, elements::primary_button::PrimaryButton, model::note::Note,
+    util::manifest::Manifest, Route,
+};
 use dioxus::{html::i, prelude::*};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
 };
+use uuid::Uuid;
 use walkdir::{DirEntry, WalkDir};
 
 #[component]
@@ -12,10 +16,11 @@ pub fn NoteView(file_path: String) -> Element {
     let vault = app_context.vault.read().clone();
 
     let decoded = urlencoding::decode(&file_path).unwrap();
+    tracing::info!("loading {}", decoded);
     let original_path = PathBuf::from(decoded.to_string());
     let mut note = match Note::from_path(original_path.clone(), true) {
         Ok(n) => n,
-        Err(_) => Note::from_string("", true).expect("Expected to make blank note"),
+        Err(_) => Note::from_string("Failed to load", true).expect("Expected to make blank note"),
     };
 
     let display_path = original_path
@@ -108,7 +113,8 @@ pub fn NoteView(file_path: String) -> Element {
 
 #[component]
 fn NoteSelectModal(onselect: EventHandler, oncancel: EventHandler<MouseEvent>) -> Element {
-    let onclick_noop = move |_| {};
+    let app_context = use_context::<AppContext>();
+    let tree = use_memo(move || build_tree_from_manifest(&app_context.manifest.read()));
 
     rsx! {
         div { class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-start p-8 z-50",
@@ -142,30 +148,15 @@ fn NoteSelectModal(onselect: EventHandler, oncancel: EventHandler<MouseEvent>) -
                 }
 
                 div { class: "flex-1 overflow-y-auto p-2",
-                    div { class: "p-2",
-                        BrowserRowFolder { name:"inbox", open: false }
-                        BrowserRowFolder { name:"journal", open: false }
-                        BrowserRowFolder { name:"projects", open: false,
-                            div { class: "ml-6",
-                                BrowserRowFolder {
-                                    name:"archive",
-                                    open: false,
-                                }
-                                BrowserRowFolder {
-                                    name:"footnote",
-                                    open: false,
-                                    BrowserRowFileSelected { name:"architecture.md", onclick:onclick_noop }
-                                    BrowserRowFile { name:"roadmap.md", onclick:onclick_noop }
-                                    BrowserRowFile { name:"todo.md", onclick:onclick_noop }
-                                }
-                            }
+                    for (name, child) in tree().children {
+                        TreeNodeView {
+                            name: name,
+                            node: child,
+                            onselect: onselect,
                         }
-                        BrowserRowFile { name:"home.md", onclick:onclick_noop }
-                        BrowserRowFile { name:"inbox.md", onclick:onclick_noop }
                     }
                 }
 
-                // Cancel button at bottom
                 div { class: "p-4 border-t border-zinc-800 justify-right",
                     PrimaryButton { onclick: oncancel, "Cancel" }
                 }
@@ -175,43 +166,33 @@ fn NoteSelectModal(onselect: EventHandler, oncancel: EventHandler<MouseEvent>) -
 }
 
 #[component]
-fn BrowserRowFile(name: String, onclick: EventHandler<MouseEvent>) -> Element {
-    rsx! {
-        button { class: "flex gap-2 items-center py-1.5 px-2 w-full text-sm text-left rounded transition-colors hover:bg-zinc-800",
-            onclick: onclick,
-            div { class: "flex-shrink-0 w-4 h-4" }
-            svg {
-                class: "flex-shrink-0 w-4 h-4 text-zinc-500",
-                fill: "currentColor",
-                view_box: "0 0 20 20",
-                path {
-                    clip_rule: "evenodd",
-                    d: "M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z",
-                    fill_rule: "evenodd",
-                }
-            }
-            span { class: "text-zinc-300", "{name}" }
-        }
-    }
-}
+fn TreeNodeView(name: String, node: TreeNode, onselect: EventHandler) -> Element {
+    let is_folder = !node.children.is_empty();
+    let is_selected = node.uuid.is_some() && name == node.name;
 
-#[component]
-fn BrowserRowFileSelected(name: String, onclick: EventHandler<MouseEvent>) -> Element {
-    rsx! {
-        button { class: "flex gap-2 items-center py-1.5 px-2 w-full text-sm text-left rounded transition-colors bg-zinc-800/50 hover:bg-zinc-800",
-            onclick: onclick,
-            div { class: "flex-shrink-0 w-4 h-4" }
-            svg {
-                class: "flex-shrink-0 w-4 h-4 text-zinc-500",
-                fill: "currentColor",
-                view_box: "0 0 20 20",
-                path {
-                    clip_rule: "evenodd",
-                    d: "M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z",
-                    fill_rule: "evenodd",
+    if is_folder {
+        let mut sorted_children: Vec<_> = node.children.values().cloned().collect();
+        sorted_children.sort_by(|a, b| a.name.cmp(&b.name));
+
+        rsx! {
+            BrowserRowFolder {
+                name: node.name.clone(),
+                open: false,
+                for child in sorted_children {
+                    TreeNodeView {
+                        name: child.name.clone(),
+                        node: child,
+                        onselect: onselect
+                    }
                 }
             }
-            span { class: "text-zinc-300", "{name}" }
+        }
+    } else {
+        rsx! {
+            BrowserRowFile {
+                node: node,
+                onselect: onselect
+            }
         }
     }
 }
@@ -245,7 +226,9 @@ fn BrowserRowFolder(name: String, open: bool, children: Element) -> Element {
                 }
                 span { class: "font-medium", "{name}" }
             }
-            {children}
+            div { class: "ml-6",
+                {children}
+            }
         }
         else
         {
@@ -270,6 +253,101 @@ fn BrowserRowFolder(name: String, open: bool, children: Element) -> Element {
                     path { d: "M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" }
                 }
                 span { class: "font-medium", "{name}" }
+            }
+        }
+    }
+}
+
+#[component]
+fn BrowserRowFile(node: TreeNode, onselect: EventHandler) -> Element {
+    let nav = use_navigator();
+    let app_context = use_context::<AppContext>();
+    let path_clone = node.full_path.clone();
+
+    let onclick = move |_| {
+        if let Some(relative_path) = &path_clone {
+            tracing::info!("nav to {}", relative_path.to_string_lossy());
+            let full_path = app_context
+                .vault
+                .read()
+                .base_path()
+                .join(relative_path)
+                .to_string_lossy()
+                .to_string();
+            tracing::info!("full path {}", full_path);
+            let encoded = urlencoding::encode(&full_path);
+
+            nav.push(Route::NoteView {
+                file_path: encoded.into_owned(),
+            });
+
+            onselect(());
+        }
+    };
+    rsx! {
+        button { class: "flex gap-2 items-center py-1.5 px-2 w-full text-sm text-left rounded transition-colors hover:bg-zinc-800",
+            onclick: onclick,
+            div { class: "flex-shrink-0 w-4 h-4" }
+            svg {
+                class: "flex-shrink-0 w-4 h-4 text-zinc-500",
+                fill: "currentColor",
+                view_box: "0 0 20 20",
+                path {
+                    clip_rule: "evenodd",
+                    d: "M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z",
+                    fill_rule: "evenodd",
+                }
+            }
+            span { class: "text-zinc-300", "{node.name}" }
+        }
+    }
+}
+
+fn build_tree_from_manifest(manifest: &Manifest) -> TreeNode {
+    let mut tree = TreeNode {
+        name: "footnote.wiki".to_string(),
+        children: HashMap::new(),
+        uuid: None,
+        full_path: None,
+    };
+
+    for (uuid, entry) in manifest {
+        tree.insert_path(&entry.path, *uuid);
+    }
+    tree
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct TreeNode {
+    pub name: String,
+    pub children: HashMap<String, TreeNode>,
+    pub uuid: Option<Uuid>,
+    pub full_path: Option<PathBuf>,
+}
+
+impl TreeNode {
+    pub fn insert_path(&mut self, path: &Path, uuid: Uuid) {
+        let mut current = self;
+
+        let components: Vec<_> = path.components().collect();
+        for (i, component) in components.iter().enumerate() {
+            let name = component.as_os_str().to_string_lossy().to_string();
+            let is_last = i == components.len() - 1;
+
+            current = current.children.entry(name).or_insert_with(|| TreeNode {
+                name: component.as_os_str().to_string_lossy().to_string(),
+                children: HashMap::new(),
+                uuid: if is_last { Some(uuid) } else { None },
+                full_path: if is_last {
+                    Some(path.to_path_buf())
+                } else {
+                    None
+                },
+            });
+
+            if is_last && current.uuid.is_none() {
+                current.uuid = Some(uuid);
+                current.full_path = Some(path.to_path_buf());
             }
         }
     }
