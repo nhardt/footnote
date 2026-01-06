@@ -124,10 +124,10 @@ fn Main() -> Element {
                 },
                 _ => rsx! {
                     main {
-                        class:"max-w-3xl mx-auto px-6 py-12"
+                        class:"max-w-3xl mx-auto px-6 py-12",
+                        Outlet::<Route> {}
                     }
 
-                    Outlet::<Route> {}
                 }
             }
         }
