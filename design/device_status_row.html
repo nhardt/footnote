@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en" class="dark">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Device Row - Dashboard View</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+            rel="stylesheet"
+        />
+        <script>
+            tailwind.config = {
+                darkMode: "class",
+                theme: {
+                    extend: {
+                        fontFamily: {
+                            sans: ["IBM Plex Sans", "system-ui", "sans-serif"],
+                            mono: ["JetBrains Mono", "monospace"],
+                        },
+                    },
+                },
+            };
+        </script>
+        <style>
+            * {
+                transition:
+                    border-color 150ms ease,
+                    background-color 150ms ease,
+                    box-shadow 150ms ease;
+            }
+        </style>
+    </head>
+    <body class="bg-zinc-950 text-zinc-100 font-sans antialiased p-8">
+        <div class="max-w-4xl mx-auto space-y-4">
+            <h2 class="text-xl font-bold font-mono mb-6">Device Sync Status</h2>
+
+            <!-- Device Row - Everything working -->
+            <div
+                class="border border-zinc-800 rounded-lg bg-zinc-900/30 overflow-hidden"
+            >
+                <div class="p-4 hover:bg-zinc-900/50 transition-colors group">
+                    <!-- Header: name + endpoint + delete -->
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="flex-1 min-w-0">
+                            <h3 class="text-sm font-semibold mb-1">mac</h3>
+                            <p class="text-xs font-mono text-zinc-500 truncate">
+                                0df2eb0375d0ce46b4e15490b135f342069aff70d21a7f7a0e781ebf0ed23d3d
+                            </p>
+                        </div>
+                        <button
+                            class="opacity-0 group-hover:opacity-100 p-1.5 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded-md transition-all"
+                        >
+                            <svg
+                                class="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                ></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Sync status grid -->
+                    <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
+                        <!-- Outgoing column -->
+                        <div class="space-y-1.5">
+                            <div class="text-zinc-500 font-semibold mb-2">
+                                Outgoing
+                            </div>
+                            <div class="flex justify-between items-baseline">
+                                <span class="text-zinc-400">Last success</span>
+                                <span class="text-emerald-400 font-mono"
+                                    >2m ago (3 files)</span
+                                >
+                            </div>
+                            <div class="flex justify-between items-baseline">
+                                <span class="text-zinc-400">Last failure</span>
+                                <span class="text-zinc-600 font-mono">—</span>
+                            </div>
+                            <div class="flex justify-between items-baseline">
+                                <span class="text-zinc-400">Last seen</span>
+                                <span class="text-zinc-500 font-mono"
+                                    >2m ago</span
+                                >
+                            </div>
+                        </div>
+
+                        <!-- Incoming column -->
+                        <div class="space-y-1.5">
+                            <div class="text-zinc-500 font-semibold mb-2">
+                                Incoming
+                            </div>
+                            <div class="flex justify-between items-baseline">
+                                <span class="text-zinc-400">Last success</span>
+                                <span class="text-emerald-400 font-mono"
+                                    >5m ago (1 file)</span
+                                >
+                            </div>
+                            <div class="flex justify-between items-baseline">
+                                <span class="text-zinc-400">Last failure</span>
+                                <span class="text-zinc-600 font-mono">—</span>
+                            </div>
+                            <div class="flex justify-between items-baseline">
+                                <span class="text-zinc-400">Last seen</span>
+                                <span class="text-zinc-500 font-mono"
+                                    >5m ago</span
+                                >
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Device Row - Outgoing failing -->
+            <div
+                class="border border-zinc-800 rounded-lg bg-zinc-900/30 overflow-hidden"
+            >
+                <div class="p-4 hover:bg-zinc-900/50 transition-colors group">
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="flex-1 min-w-0">
+                            <h3 class="text-sm font-semibold mb-1">Phone</h3>
+                            <p class="text-xs font-mono text-zinc-500 truncate">
+                                6640aa2155ccc361906efe283363f73a7acf9d9c5e5e2a551b1202d81cdcc1c7
+                            </p>
+                        </div>
+                        <button
+                            class="opacity-0 group-hover:opacity-100 p-1.5 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded-md transition-all"
+                        >
+                            <svg
+                                class="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                ></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
+                        <div class="space-y-1.5">
+                            <div class="text-zinc-500 font-semibold mb-2">
+                                Outgoing
+                            </div>
+                            <div class="flex justify-between items-baseline">
+                                <span class="text-zinc-400">Last success</span>
+                                <span class="text-zinc-500 font-mono"
+                                    >3h ago (5 files)</span
+                                >
+                            </div>
+                            <div class="flex justify-between items-baseline">
+                                <span class="text-zinc-400">Last failure</span>
+                                <span class="text-red-400 font-mono"
+                                    >12m ago</span
+                                >
+                            </div>
+                            <div class="flex justify-between items-baseline">
+                                <span class="text-zinc-400">Last seen</span>
+                                <span class="text-zinc-500 font-mono"
+                                    >12m ago</span
+                                >
+                            </div>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <div class="text-zinc-500 font-semibold mb-2">
+                                Incoming
+                            </div>
+                            <div class="flex justify-between items-baseline">
+                                <span class="text-zinc-400">Last success</span>
+                                <span class="text-emerald-400 font-mono"
+                                    >8m ago (2 files)</span
+                                >
+                            </div>
+                            <div class="flex justify-between items-baseline">
+                                <span class="text-zinc-400">Last failure</span>
+                                <span class="text-zinc-600 font-mono">—</span>
+                            </div>
+                            <div class="flex justify-between items-baseline">
+                                <span class="text-zinc-400">Last seen</span>
+                                <span class="text-zinc-500 font-mono"
+                                    >8m ago</span
+                                >
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Device Row - Not seen recently (stale) -->
+            <div
+                class="border border-zinc-800 rounded-lg bg-zinc-900/30 overflow-hidden"
+            >
+                <div class="p-4 hover:bg-zinc-900/50 transition-colors group">
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="flex-1 min-w-0">
+                            <h3 class="text-sm font-semibold mb-1">
+                                secondary
+                            </h3>
+                            <p class="text-xs font-mono text-zinc-500 truncate">
+                                3f727fb5e22ff4a8e446464931011d1eba3460f4454d883a871d0410fae4ecfd
+                            </p>
+                        </div>
+                        <button
+                            class="opacity-0 group-hover:opacity-100 p-1.5 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded-md transition-all"
+                        >
+                            <svg
+                                class="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                ></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
+                        <div class="space-y-1.5">
+                            <div class="text-zinc-500 font-semibold mb-2">
+                                Outgoing
+                            </div>
+                            <div class="flex justify-between items-baseline">
+                                <span class="text-zinc-400">Last success</span>
+                                <span class="text-zinc-500 font-mono"
+                                    >Jan 3 (12 files)</span
+                                >
+                            </div>
+                            <div class="flex justify-between items-baseline">
+                                <span class="text-zinc-400">Last failure</span>
+                                <span class="text-zinc-600 font-mono">—</span>
+                            </div>
+                            <div class="flex justify-between items-baseline">
+                                <span class="text-zinc-400">Last seen</span>
+                                <span class="text-amber-500 font-mono"
+                                    >Jan 3</span
+                                >
+                            </div>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <div class="text-zinc-500 font-semibold mb-2">
+                                Incoming
+                            </div>
+                            <div class="flex justify-between items-baseline">
+                                <span class="text-zinc-400">Last success</span>
+                                <span class="text-zinc-500 font-mono"
+                                    >Jan 3 (0 files)</span
+                                >
+                            </div>
+                            <div class="flex justify-between items-baseline">
+                                <span class="text-zinc-400">Last failure</span>
+                                <span class="text-zinc-600 font-mono">—</span>
+                            </div>
+                            <div class="flex justify-between items-baseline">
+                                <span class="text-zinc-400">Last seen</span>
+                                <span class="text-amber-500 font-mono"
+                                    >Jan 3</span
+                                >
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Device Row - Never synced -->
+            <div
+                class="border border-zinc-800 rounded-lg bg-zinc-900/30 overflow-hidden"
+            >
+                <div class="p-4 hover:bg-zinc-900/50 transition-colors group">
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="flex-1 min-w-0">
+                            <h3 class="text-sm font-semibold mb-1">tablet</h3>
+                            <p class="text-xs font-mono text-zinc-500 truncate">
+                                a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2
+                            </p>
+                        </div>
+                        <button
+                            class="opacity-0 group-hover:opacity-100 p-1.5 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded-md transition-all"
+                        >
+                            <svg
+                                class="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                ></path>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
+                        <div class="space-y-1.5">
+                            <div class="text-zinc-500 font-semibold mb-2">
+                                Outgoing
+                            </div>
+                            <div class="flex justify-between items-baseline">
+                                <span class="text-zinc-400">Last success</span>
+                                <span class="text-zinc-600 font-mono">—</span>
+                            </div>
+                            <div class="flex justify-between items-baseline">
+                                <span class="text-zinc-400">Last failure</span>
+                                <span class="text-zinc-600 font-mono">—</span>
+                            </div>
+                            <div class="flex justify-between items-baseline">
+                                <span class="text-zinc-400">Last seen</span>
+                                <span class="text-zinc-600 font-mono">—</span>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <div class="text-zinc-500 font-semibold mb-2">
+                                Incoming
+                            </div>
+                            <div class="flex justify-between items-baseline">
+                                <span class="text-zinc-400">Last success</span>
+                                <span class="text-zinc-600 font-mono">—</span>
+                            </div>
+                            <div class="flex justify-between items-baseline">
+                                <span class="text-zinc-400">Last failure</span>
+                                <span class="text-zinc-600 font-mono">—</span>
+                            </div>
+                            <div class="flex justify-between items-baseline">
+                                <span class="text-zinc-400">Last seen</span>
+                                <span class="text-zinc-600 font-mono">—</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
