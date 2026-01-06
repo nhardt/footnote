@@ -2,6 +2,7 @@ use dioxus::prelude::*;
 use std::path::PathBuf;
 mod components;
 mod context;
+mod elements;
 mod model;
 mod platform;
 mod service;
