@@ -78,6 +78,7 @@ fn App() -> Element {
 #[component]
 fn Main() -> Element {
     let route = use_route::<Route>();
+    let route_clone = route.clone();
     rsx! {
         div { class: "flex flex-col flex-1 h-screen bg-zinc-950 text-zinc-100 font-sans antialiased",
             nav { class: "border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm",
@@ -113,14 +114,21 @@ fn Main() -> Element {
                 }
             }
 
-            main {
-                // todo: let child component control render rather than customizing here
-                class: if matches!(route, Route::NoteView { .. }) {
-                    "flex-1 flex flex-col"
-                } else {
-                    "max-w-3xl mx-auto px-6 py-12"
+            match route {
+                Route::NoteView { file_path } => rsx! {
+                    main {
+                        class: "flex-1 flex flex-col",
+                        key: "{file_path}",  // This forces remount on file_path change
+                        Outlet::<Route> {}
+                    }
                 },
-                Outlet::<Route> {}
+                _ => rsx! {
+                    main {
+                        class:"max-w-3xl mx-auto px-6 py-12"
+                    }
+
+                    Outlet::<Route> {}
+                }
             }
         }
     }
