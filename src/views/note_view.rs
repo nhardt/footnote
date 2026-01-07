@@ -9,6 +9,7 @@ use crate::{
     Route,
 };
 use dioxus::{html::i, prelude::*};
+use serde_yaml::from_str;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -18,38 +19,60 @@ use uuid::Uuid;
 #[component]
 pub fn NoteView(file_path: String) -> Element {
     let app_context = use_context::<AppContext>();
-    let vault = app_context.vault.read().clone();
+    let loaded_from = urlencoding::decode(&file_path).unwrap().to_string();
+    tracing::info!("loading {}", loaded_from);
 
-    let decoded = urlencoding::decode(&file_path).unwrap();
-    tracing::info!("loading {}", decoded);
-    let original_path = PathBuf::from(decoded.to_string());
-    let mut note = match Note::from_path(original_path.clone(), true) {
-        Ok(n) => n,
-        Err(_) => Note::from_string("Failed to load", true).expect("Expected to make blank note"),
-    };
-
-    let display_path = original_path
-        .strip_prefix(vault.base_path())
-        .unwrap_or(&original_path)
-        .to_string_lossy()
-        .to_string();
-
-    let mut file_path_input = use_signal(|| display_path);
-    let mut body = use_signal(|| note.content.clone());
-    let mut share_with = use_signal(|| note.frontmatter.share_with.join(" "));
+    let loaded_from_clone = loaded_from.clone();
+    let mut relative_path = use_signal(move || {
+        let loaded_from_path = PathBuf::from(loaded_from_clone);
+        loaded_from_path
+            .strip_prefix(app_context.vault.read().base_path())
+            .unwrap_or(&loaded_from_path)
+            .to_string_lossy()
+            .to_string()
+    });
+    let note = use_signal(move || {
+        let full_path = PathBuf::from(loaded_from);
+        let note_from_path = match Note::from_path(full_path, true) {
+            Ok(n) => n,
+            Err(_) => {
+                Note::from_string("Failed to load", true).expect("Expected to make blank note")
+            }
+        };
+        note_from_path
+    });
+    let mut share_with = use_signal(move || note.read().frontmatter.share_with.join(" "));
+    let body = use_signal(move || note.read().content.clone());
     let mut err_label = use_signal(|| String::new());
 
-    let save_note = move |_| {
-        let new_relative_path = file_path_input.read();
-        let new_full_path = vault.base_path().join(&*new_relative_path);
-        let share_with_str = share_with.read().clone();
+    let save_note = move |_| async move {
+        let new_relative_path = PathBuf::from(relative_path.read().to_string());
+        let new_full_path = app_context
+            .vault
+            .read()
+            .base_path()
+            .join(&*new_relative_path);
+
+        let share_with_str = share_with.read();
         let share_with = share_with_str
             .split_whitespace()
             .map(|s| s.to_string())
             .collect();
+
+        let mut note = note.read().cloned();
         note.frontmatter.share_with = share_with;
-        if let Err(e) = note.update(&new_full_path, &body.read().clone()) {
-            err_label.set(format!("Failed to save note: {e}"));
+        let mut note_body_eval =
+            document::eval("dioxus.send(document.getElementById('note-body').value)");
+
+        match note_body_eval.recv::<String>().await {
+            Ok(note_body) => {
+                if let Err(e) = note.update(&new_full_path, &note_body) {
+                    err_label.set(format!("Failed to save note: {e}"));
+                }
+            }
+            Err(e) => {
+                err_label.set(format!("JavaScript Eval Error: {e:?}"));
+            }
         }
     };
 
@@ -73,8 +96,8 @@ pub fn NoteView(file_path: String) -> Element {
                         input {
                             class: "px-3 py-1.5 bg-zinc-900 border border-zinc-700 rounded-md text-sm font-mono focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
                             r#type: "text",
-                            value: "{file_path_input}",
-                            oninput: move |e| file_path_input.set(e.value()),
+                            value: "{relative_path}",
+                            oninput: move |e| relative_path.set(e.value()),
                         }
                         button { class: "px-4 py-1.5 bg-zinc-100 hover:bg-white hover:shadow-lg text-zinc-900 rounded-md text-sm font-medium transition-all",
                             onclick: select_note,
@@ -105,10 +128,10 @@ pub fn NoteView(file_path: String) -> Element {
             div { class: "h-full flex-1 overflow-hidden",
                 div { class: "h-full max-w-5xl mx-auto px-6 py-6",
                     textarea {
+                        id: "note-body",
                         class: "w-full h-full px-4 py-3 bg-zinc-900/30 border border-zinc-800 rounded-lg text-sm font-mono text-zinc-100 resize-none focus:border-zinc-700 focus:ring-1 focus:ring-zinc-700",
-                        placeholder: "Start writing...",
-                        value: "{body}",
-                        oninput: move |e| body.set(e.value())
+                        placeholder: "Once upon a time...",
+                        initial_value: "{body}",
                     }
                 }
             }
