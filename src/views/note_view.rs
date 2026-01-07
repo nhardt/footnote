@@ -1,6 +1,12 @@
 use crate::{
-    context::AppContext, elements::primary_button::PrimaryButton, model::note::Note,
-    util::manifest::Manifest, Route,
+    context::AppContext,
+    elements::primary_button::PrimaryButton,
+    model::note::Note,
+    util::{
+        manifest::Manifest,
+        tree_node::{build_tree_from_manifest, TreeNode},
+    },
+    Route,
 };
 use dioxus::{html::i, prelude::*};
 use std::{
@@ -8,7 +14,6 @@ use std::{
     path::{Path, PathBuf},
 };
 use uuid::Uuid;
-use walkdir::{DirEntry, WalkDir};
 
 #[component]
 pub fn NoteView(file_path: String) -> Element {
@@ -168,7 +173,6 @@ fn NoteSelectModal(onselect: EventHandler, oncancel: EventHandler<MouseEvent>) -
 #[component]
 fn TreeNodeView(name: String, node: TreeNode, onselect: EventHandler) -> Element {
     let is_folder = !node.children.is_empty();
-    let is_selected = node.uuid.is_some() && name == node.name;
 
     if is_folder {
         let mut sorted_children: Vec<_> = node.children.values().cloned().collect();
@@ -299,56 +303,6 @@ fn BrowserRowFile(node: TreeNode, onselect: EventHandler) -> Element {
                 }
             }
             span { class: "text-zinc-300", "{node.name}" }
-        }
-    }
-}
-
-fn build_tree_from_manifest(manifest: &Manifest) -> TreeNode {
-    let mut tree = TreeNode {
-        name: "footnote.wiki".to_string(),
-        children: HashMap::new(),
-        uuid: None,
-        full_path: None,
-    };
-
-    for (uuid, entry) in manifest {
-        tree.insert_path(&entry.path, *uuid);
-    }
-    tree
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct TreeNode {
-    pub name: String,
-    pub children: HashMap<String, TreeNode>,
-    pub uuid: Option<Uuid>,
-    pub full_path: Option<PathBuf>,
-}
-
-impl TreeNode {
-    pub fn insert_path(&mut self, path: &Path, uuid: Uuid) {
-        let mut current = self;
-
-        let components: Vec<_> = path.components().collect();
-        for (i, component) in components.iter().enumerate() {
-            let name = component.as_os_str().to_string_lossy().to_string();
-            let is_last = i == components.len() - 1;
-
-            current = current.children.entry(name).or_insert_with(|| TreeNode {
-                name: component.as_os_str().to_string_lossy().to_string(),
-                children: HashMap::new(),
-                uuid: if is_last { Some(uuid) } else { None },
-                full_path: if is_last {
-                    Some(path.to_path_buf())
-                } else {
-                    None
-                },
-            });
-
-            if is_last && current.uuid.is_none() {
-                current.uuid = Some(uuid);
-                current.full_path = Some(path.to_path_buf());
-            }
         }
     }
 }
