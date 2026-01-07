@@ -1,4 +1,5 @@
 use crate::{
+    components::footnotes::Footnotes,
     context::AppContext,
     elements::primary_button::PrimaryButton,
     model::note::Note,
@@ -43,6 +44,7 @@ pub fn NoteView(file_path: String) -> Element {
     });
     let mut share_with = use_signal(move || note.read().frontmatter.share_with.join(" "));
     let body = use_signal(move || note.read().content.clone());
+    let footnotes = use_signal(move || note.read().footnotes.clone());
     let mut err_label = use_signal(|| String::new());
 
     let save_note = move |_| async move {
@@ -66,6 +68,7 @@ pub fn NoteView(file_path: String) -> Element {
 
         match note_body_eval.recv::<String>().await {
             Ok(note_body) => {
+                tracing::info!("saving note to {}", new_full_path.to_string_lossy());
                 if let Err(e) = note.update(&new_full_path, &note_body) {
                     err_label.set(format!("Failed to save note: {e}"));
                 }
@@ -133,6 +136,12 @@ pub fn NoteView(file_path: String) -> Element {
                         placeholder: "Once upon a time...",
                         initial_value: "{body}",
                     }
+                }
+            }
+
+            div { class: "max-w-5xl mx-auto px-6 py-6",
+                Footnotes {
+                    footnotes: footnotes
                 }
             }
         }
