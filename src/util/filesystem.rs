@@ -11,8 +11,8 @@ pub fn ensure_default_vault() -> Result<PathBuf> {
     // current task is just to expose joining a vault from a secondary vault,
     // will revisit this later.
 
-    let path_key = "PATH";
-    let vault_name_key = "VAULT";
+    let path_key = "FOOTNOTE_PATH";
+    let vault_name_key = "FOOTNOTE_VAULT";
 
     let vault_path = match env::var(path_key) {
         Ok(ref val) if val.is_empty() => crate::platform::get_app_dir()?,
