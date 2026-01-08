@@ -174,6 +174,19 @@ impl Note {
         self.save(path)?;
         Ok(())
     }
+
+    pub fn update_all(
+        &mut self,
+        path: &Path,
+        body: &str,
+        footnotes: IndexMap<String, String>,
+    ) -> Result<()> {
+        self.content = body.to_string();
+        self.footnotes = footnotes;
+        self.frontmatter.modified = LamportTimestamp::new(Some(self.frontmatter.modified));
+        self.save(path)?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

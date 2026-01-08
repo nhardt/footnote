@@ -1,8 +1,17 @@
+use std::path::PathBuf;
+
+use crate::{components::file_search::FileSearch, context::AppContext};
 use dioxus::prelude::*;
 use indexmap::IndexMap;
 
 #[component]
-pub fn Footnotes(footnotes: ReadSignal<IndexMap<String, String>>) -> Element {
+pub fn Footnotes(
+    footnotes: ReadSignal<IndexMap<String, String>>,
+    onlink: EventHandler<(String, String)>,
+) -> Element {
+    let app_context = use_context::<AppContext>();
+    let mut search_visible = use_signal(|| None::<String>);
+
     rsx! {
         div { class: "overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900/30",
             div { class: "py-3 px-4 border-b border-zinc-800 bg-zinc-900/50",
@@ -23,10 +32,51 @@ pub fn Footnotes(footnotes: ReadSignal<IndexMap<String, String>>) -> Element {
                 div { class: "py-3 px-4 transition-colors group hover:bg-zinc-800/50",
                     div { class: "flex gap-3 items-center",
                         span { class: "flex-shrink-0 w-20 font-mono text-xs text-zinc-500",
-                            "{footnote.0}"
+                            "[^{footnote.0}]"
                         }
-                        button { class: "flex flex-1 gap-2 items-center text-sm text-left transition-colors text-zinc-300 hover:text-zinc-100",
-                            span { "{footnote.1}" }
+
+                        if footnote.1.is_empty() {
+                            button {
+                                class: "flex flex-1 gap-2 items-center text-sm text-left transition-colors text-zinc-500 hover:text-zinc-300",
+                                onclick: move |_| {
+                                    let name = footnote.0.clone();
+                                    search_visible.set(Some(name));
+                                },
+                                span { class: "italic", "Set link" }
+                            }
+                        } else {
+                            button {
+                                class: "flex flex-1 gap-2 items-center text-sm text-left transition-colors text-zinc-300 hover:text-zinc-100",
+                                onclick: move |_| {
+                                    // TODO: navigate to footnote.1
+                                    tracing::info!("navigate to {}", footnote.1);
+                                },
+                                span { "{footnote.1}" }
+                            }
+                            button {
+                                class: "flex gap-2 items-center text-sm transition-colors text-zinc-500 hover:text-zinc-300",
+                                onclick: move |_| {
+                                    let name = footnote.0.clone();
+                                    search_visible.set(Some(name));
+                                },
+                                span { class: "text-xs", "Change" }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if let Some(footnote_name) = search_visible() {
+                div { class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50",
+                    div { class: "bg-zinc-900 border border-zinc-700 rounded-lg p-4 w-96",
+                        FileSearch {
+                            search_path: app_context.vault.read().base_path(),
+                            on_select: move |path: PathBuf| {
+                                let filename = path.file_stem().unwrap().to_string_lossy().to_string();
+                                tracing::info!("link {} to {}", footnote_name, filename);
+                                onlink.call((footnote_name.clone(), filename));
+                                search_visible.set(None);
+                            }
                         }
                     }
                 }
