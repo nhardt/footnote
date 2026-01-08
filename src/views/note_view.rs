@@ -9,10 +9,11 @@ use crate::{
     },
     Route,
 };
-use dioxus::{html::i, prelude::*};
+use dioxus::{document::EvalError, html::i, prelude::*};
+use regex::bytes::Regex;
 use serde_yaml::from_str;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     path::{Path, PathBuf},
 };
 use uuid::Uuid;
@@ -46,6 +47,35 @@ pub fn NoteView(file_path: String) -> Element {
     let body = use_signal(move || note.read().content.clone());
     let footnotes = use_signal(move || note.read().footnotes.clone());
     let mut err_label = use_signal(|| String::new());
+
+    let sync_body_to_footnotes = move |_| async move {
+        let mut footnotes_vec = footnotes.read().clone();
+
+        let mut note_body_eval =
+            document::eval("dioxus.send(document.getElementById('note-body').value)");
+        let Ok(note_body) = note_body_eval.recv::<String>().await else {
+            return;
+        };
+
+        let re = Regex::new(r"\[\^([^\]]+)\]").unwrap();
+        let mut link_names: Vec<String> = Vec::new();
+        for (_, [link_name]) in re.captures_iter(note_body.as_bytes()).map(|c| c.extract()) {
+            let link_name = std::str::from_utf8(link_name).unwrap();
+            link_names.push(link_name.to_string());
+        }
+
+        footnotes_vec.retain(|name, _| link_names.contains(&name));
+        for name in link_names {
+            footnotes_vec
+                .entry((&name).to_string())
+                .or_insert(String::new());
+        }
+        tracing::info!("sync'd {} footnotes", footnotes_vec.len());
+
+        footnotes_vec
+            .iter()
+            .for_each(|i| tracing::info!("{} -> {}", i.0, i.1));
+    };
 
     let save_note = move |_| async move {
         let new_relative_path = PathBuf::from(relative_path.read().to_string());
@@ -134,6 +164,7 @@ pub fn NoteView(file_path: String) -> Element {
                         id: "note-body",
                         class: "w-full h-full px-4 py-3 bg-zinc-900/30 border border-zinc-800 rounded-lg text-sm font-mono text-zinc-100 resize-none focus:border-zinc-700 focus:ring-1 focus:ring-zinc-700",
                         placeholder: "Once upon a time...",
+                        onblur: sync_body_to_footnotes,
                         initial_value: "{body}",
                     }
                 }
