@@ -13,32 +13,36 @@ pub fn FileSearch(search_path: PathBuf, on_select: EventHandler<PathBuf>) -> Ele
         let query = search_input();
         let path = search_path.clone();
         let mut files = Vec::new();
-        if let Ok(entries) = std::fs::read_dir(&path) {
-            for entry in entries.flatten() {
-                if let Ok(file_name) = entry.file_name().into_string() {
-                    if !file_name.starts_with('.') && file_name.ends_with(".md") {
-                        files.push(file_name);
-                    }
+
+        for entry in walkdir::WalkDir::new(&path)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if let Some(file_name) = entry.file_name().to_str() {
+                if !file_name.starts_with('.') && file_name.ends_with(".md") {
+                    files.push(entry.path().to_path_buf());
                 }
             }
         }
+
         let matcher = SkimMatcherV2::default();
-        let mut results: Vec<(String, i64)> = files
+        let mut results: Vec<(PathBuf, i64)> = files
             .iter()
-            .filter_map(|file| {
+            .filter_map(|path| {
+                let display = path.file_stem()?.to_str()?;
                 if query.is_empty() {
-                    Some((file.clone(), 0))
+                    Some((path.clone(), 0))
                 } else {
                     matcher
-                        .fuzzy_match(file, &query)
-                        .map(|score| (file.clone(), score))
+                        .fuzzy_match(display, &query)
+                        .map(|score| (path.clone(), score))
                 }
             })
             .collect();
         results.sort_by(|a, b| b.1.cmp(&a.1));
         results
             .into_iter()
-            .map(|(f, _)| f)
+            .map(|(p, _)| p)
             .take(10)
             .collect::<Vec<_>>()
     });
@@ -65,8 +69,9 @@ pub fn FileSearch(search_path: PathBuf, on_select: EventHandler<PathBuf>) -> Ele
             }
             if dropdown_open() && !filtered_files().is_empty() {
                 div { class: "search-dropdown",
-                    for file in filtered_files() {
+                    for path in filtered_files() {
                         {
+                            let file = path.to_string_lossy().to_string();
                             let file_path = search_path_clone.join(&file);
                             rsx! {
                                 div {

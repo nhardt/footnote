@@ -4,7 +4,7 @@ use crate::{
     elements::primary_button::PrimaryButton,
     model::note::Note,
     util::{
-        manifest::Manifest,
+        manifest::{create_manifest_local, Manifest},
         tree_node::{build_tree_from_manifest, TreeNode},
     },
     Route,
@@ -20,6 +20,7 @@ use uuid::Uuid;
 
 #[component]
 pub fn NoteView(file_path: String) -> Element {
+    let nav = navigator();
     let app_context = use_context::<AppContext>();
     let loaded_from = urlencoding::decode(&file_path).unwrap().to_string();
     tracing::info!("loading {}", loaded_from);
@@ -124,6 +125,26 @@ pub fn NoteView(file_path: String) -> Element {
         }
     };
 
+    let navigate_to_uuid = move |uuid| async move {
+        // let manifest = create_manifest_local(&app_context.vault.read().base_path());
+        // if let Ok(manifest) = manifest {
+        //     if let Ok(path) = manifest.get(uuid) {
+        //         nav.push(Route::NoteView {
+        //             file_path: urlencoding::encode(
+        //                 &app_context
+        //                     .vault
+        //                     .read()
+        //                     .base_path()
+        //                     .join("home.md")
+        //                     .to_string_lossy()
+        //                     .to_string(),
+        //             )
+        //             .to_string(),
+        //         });
+        //     }
+        // }
+    };
+
     let mut select_note_visible = use_signal(|| false);
     let select_note = move |_| {
         select_note_visible.set(true);
@@ -189,6 +210,7 @@ pub fn NoteView(file_path: String) -> Element {
                 Footnotes {
                     footnotes: footnotes,
                     onlink: save_link_to_footnote,
+                    onnavigate: navigate_to_uuid,
                 }
             }
         }

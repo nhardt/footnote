@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::{components::file_search::FileSearch, context::AppContext};
+use crate::{components::file_search::FileSearch, context::AppContext, model::note::Note};
 use dioxus::prelude::*;
 use indexmap::IndexMap;
 
@@ -8,6 +8,7 @@ use indexmap::IndexMap;
 pub fn Footnotes(
     footnotes: ReadSignal<IndexMap<String, String>>,
     onlink: EventHandler<(String, String)>,
+    onnavigate: EventHandler<String>,
 ) -> Element {
     let app_context = use_context::<AppContext>();
     let mut search_visible = use_signal(|| None::<String>);
@@ -48,8 +49,11 @@ pub fn Footnotes(
                             button {
                                 class: "flex flex-1 gap-2 items-center text-sm text-left transition-colors text-zinc-300 hover:text-zinc-100",
                                 onclick: move |_| {
-                                    // TODO: navigate to footnote.1
-                                    tracing::info!("navigate to {}", footnote.1);
+                                    if let Some(uuid_part) = footnote.1.split("footnote://").nth(1) {
+                                        tracing::info!("navigate to uuid: {}", uuid_part);
+                                        // TODO: call onnavigate event handler with uuid_parta
+                                        onnavigate.call(uuid_part.to_string());
+                                    }
                                 },
                                 span { "{footnote.1}" }
                             }
@@ -72,10 +76,13 @@ pub fn Footnotes(
                         FileSearch {
                             search_path: app_context.vault.read().base_path(),
                             on_select: move |path: PathBuf| {
-                                let filename = path.file_stem().unwrap().to_string_lossy().to_string();
-                                tracing::info!("link {} to {}", footnote_name, filename);
-                                onlink.call((footnote_name.clone(), filename));
-                                search_visible.set(None);
+                                tracing::info!("link {} to {}", footnote_name, path.to_string_lossy());
+                                let path_clone = path.clone();
+                                let filename = path_clone.file_stem().unwrap().to_string_lossy().to_string();
+                                if let Ok(note) = Note::from_path(path, false) {
+                                    onlink.call((footnote_name.clone(), format!("{}|footnote://{}", filename, note.frontmatter.uuid)));
+                                    search_visible.set(None);
+                                };
                             }
                         }
                     }
