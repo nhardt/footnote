@@ -186,6 +186,17 @@ fn NoteSelectModal(onselect: EventHandler, oncancel: EventHandler<MouseEvent>) -
     let app_context = use_context::<AppContext>();
     let tree = use_memo(move || build_tree_from_manifest(&app_context.manifest.read()));
 
+    let mut root_children: Vec<_> = tree().children.into_iter().collect();
+    root_children.sort_by(|(_, a), (_, b)| {
+        let a_is_folder = !a.children.is_empty();
+        let b_is_folder = !b.children.is_empty();
+        match (a_is_folder, b_is_folder) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => a.name.cmp(&b.name),
+        }
+    });
+
     rsx! {
         div { class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-start p-8 z-50",
 
@@ -218,7 +229,7 @@ fn NoteSelectModal(onselect: EventHandler, oncancel: EventHandler<MouseEvent>) -
                 }
 
                 div { class: "flex-1 overflow-y-auto p-2",
-                    for (name, child) in tree().children {
+                    for (name, child) in root_children {
                         TreeNodeView {
                             name: name,
                             node: child,
@@ -241,7 +252,16 @@ fn TreeNodeView(name: String, node: TreeNode, onselect: EventHandler) -> Element
 
     if is_folder {
         let mut sorted_children: Vec<_> = node.children.values().cloned().collect();
-        sorted_children.sort_by(|a, b| a.name.cmp(&b.name));
+        sorted_children.sort_by(|a, b| {
+            let a_is_folder = !a.children.is_empty();
+            let b_is_folder = !b.children.is_empty();
+
+            match (a_is_folder, b_is_folder) {
+                (true, false) => std::cmp::Ordering::Less, // folders first
+                (false, true) => std::cmp::Ordering::Greater,
+                _ => a.name.cmp(&b.name), // then alphabetical within type
+            }
+        });
 
         rsx! {
             BrowserRowFolder {
