@@ -79,7 +79,20 @@ pub fn NoteView(file_path: String) -> Element {
         footnotes_signal.set(footnotes_vec);
     };
 
+    let save_link_to_footnote = move |(link_name, link_value)| async move {
+        let mut footnotes_signal = footnotes.clone();
+        let mut footnotes_vec = footnotes.read().clone();
+
+        tracing::info!("saving {} -> {} to footnotes", link_name, link_value);
+        footnotes_vec.insert(link_name, link_value);
+        footnotes_vec
+            .iter()
+            .for_each(|i| tracing::info!("{} -> {}", i.0, i.1));
+        footnotes_signal.set(footnotes_vec);
+    };
+
     let save_note = move |_| async move {
+        let footnotes_vec = footnotes.read().clone();
         let new_relative_path = PathBuf::from(relative_path.read().to_string());
         let new_full_path = app_context
             .vault
@@ -101,7 +114,7 @@ pub fn NoteView(file_path: String) -> Element {
         match note_body_eval.recv::<String>().await {
             Ok(note_body) => {
                 tracing::info!("saving note to {}", new_full_path.to_string_lossy());
-                if let Err(e) = note.update(&new_full_path, &note_body) {
+                if let Err(e) = note.update_all(&new_full_path, &note_body, footnotes_vec) {
                     err_label.set(format!("Failed to save note: {e}"));
                 }
             }
@@ -174,7 +187,8 @@ pub fn NoteView(file_path: String) -> Element {
 
             div { class: "max-w-5xl mx-auto px-6 py-6",
                 Footnotes {
-                    footnotes: footnotes
+                    footnotes: footnotes,
+                    onlink: save_link_to_footnote,
                 }
             }
         }
