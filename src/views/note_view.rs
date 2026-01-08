@@ -49,6 +49,7 @@ pub fn NoteView(file_path: String) -> Element {
     let mut err_label = use_signal(|| String::new());
 
     let sync_body_to_footnotes = move |_| async move {
+        let mut footnotes_signal = footnotes.clone();
         let mut footnotes_vec = footnotes.read().clone();
 
         let mut note_body_eval =
@@ -75,6 +76,7 @@ pub fn NoteView(file_path: String) -> Element {
         footnotes_vec
             .iter()
             .for_each(|i| tracing::info!("{} -> {}", i.0, i.1));
+        footnotes_signal.set(footnotes_vec);
     };
 
     let save_note = move |_| async move {
