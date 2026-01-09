@@ -3,6 +3,11 @@
 The footnote CLI is a command line interface to the footnote sync and share
 mechanisms.
 
+To build and use locally:
+`cargo build --features=cli --bin footnote-cli && cargo install --features cli --bin footnote-cli --path .`
+
+footnote-cli assumes the current directory is a vault.
+
 ## Objects
 
 ### Vault

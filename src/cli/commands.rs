@@ -55,6 +55,13 @@ pub enum VaultAction {
         /// colloquial name of this device
         device_name: String,
     },
+    /// look through vault for md files that don't have metadata or have
+    /// duplicate ids
+    Doctor {
+        /// uniquify uuids
+        #[arg(short, long, default_value_t = false)]
+        fix: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -127,6 +134,7 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
                 device_name,
             } => vault_create_primary(username, device_name),
             VaultAction::CreateSecondary { device_name } => vault_create_secondary(device_name),
+            VaultAction::Doctor { fix } => vault_doctor(fix),
         },
         Commands::Service { action } => match action {
             ServiceAction::JoinListen {} => service_join_listen().await,
@@ -172,6 +180,16 @@ fn vault_create_secondary(device_name: String) -> anyhow::Result<()> {
     });
     println!("{}", serde_json::to_string(&output)?);
 
+    Ok(())
+}
+
+fn vault_doctor(fix: bool) -> anyhow::Result<()> {
+    let vault_path = std::env::current_dir()?;
+    let vault = Vault::new(&vault_path)?;
+    let diagnostics = vault.doctor(fix)?;
+    for (u, m) in diagnostics {
+        println!("{}:{}", u, m);
+    }
     Ok(())
 }
 
