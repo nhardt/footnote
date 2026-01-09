@@ -1,17 +1,19 @@
+use crate::model::contact;
+use crate::model::device::Device;
+use crate::model::{contact::Contact, note::Note, user::LocalUser};
 use anyhow::Result;
 use core::fmt;
 use iroh::Endpoint;
 use n0_error::StdResultExt;
 use serde::{Deserialize, Serialize};
+use std::collections::hash_map::Entry;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tokio::fs::remove_dir_all;
 use tokio::sync::mpsc::{self, Receiver};
 use uuid::Uuid;
-
-use crate::model::contact;
-use crate::model::device::Device;
-use crate::model::{contact::Contact, note::Note, user::LocalUser};
+use walkdir::{DirEntry, WalkDir};
 
 #[derive(Clone)]
 pub struct Vault {
@@ -456,5 +458,118 @@ impl Vault {
     pub fn note_create(&self, path: &Path, content: &str) -> anyhow::Result<()> {
         Note::create(path, content)?;
         Ok(())
+    }
+
+    pub fn doctor(&self, fix: bool) -> Result<Vec<(String, String)>> {
+        let mut ret = Vec::new();
+        let mut uuids = HashMap::new();
+        let mut needs_new_uuid = Vec::new();
+        let mut needs_frontmatter = Vec::new();
+
+        let is_hidden = |e: &DirEntry| {
+            e.file_name()
+                .to_str()
+                .map(|s| s.starts_with("."))
+                .unwrap_or(false)
+        };
+
+        for entry in WalkDir::new(self.base_path())
+            .follow_links(false)
+            .into_iter()
+            .filter_entry(|e| !is_hidden(e))
+            .filter_map(|e| e.ok())
+        {
+            let path = entry.path();
+
+            if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+                if file_name.starts_with('.') {
+                    continue;
+                }
+            }
+
+            if !path.is_file() {
+                continue;
+            }
+
+            if path.extension().and_then(|s| s.to_str()) != Some("md") {
+                continue;
+            }
+
+            let Ok(_) = Note::from_path(path, true) else {
+                ret.push((
+                    path.to_string_lossy().to_string(),
+                    "cannot coerce to note".to_string(),
+                ));
+                continue;
+            };
+
+            let Ok(note) = Note::from_path(path, false) else {
+                ret.push((
+                    path.to_string_lossy().to_string(),
+                    "does not parse as note".to_string(),
+                ));
+                needs_frontmatter.push(path.to_path_buf());
+                continue;
+            };
+
+            if note.frontmatter.uuid.is_nil() {
+                ret.push((
+                    path.to_string_lossy().to_string(),
+                    "has a nil uuid".to_string(),
+                ));
+                continue;
+            }
+
+            match uuids.entry(note.frontmatter.uuid) {
+                Entry::Vacant(uuid_entry) => {
+                    uuid_entry.insert((note.frontmatter.uuid, path.to_string_lossy().to_string()));
+                }
+                Entry::Occupied(uuid_entry) => {
+                    ret.push((
+                        path.to_string_lossy().to_string(),
+                        format!(
+                            "{} duplicates {}",
+                            path.to_string_lossy(),
+                            uuid_entry.get().1
+                        ),
+                    ));
+                    needs_new_uuid.push(path.to_path_buf());
+                    continue;
+                }
+            }
+        }
+
+        if fix {
+            for rewrite in needs_new_uuid {
+                if let Ok(mut note) = Note::from_path(&rewrite, false) {
+                    note.frontmatter.uuid = Uuid::new_v4();
+                    if let Err(_) = note.save(&rewrite) {
+                        ret.push((
+                            rewrite.to_string_lossy().to_string(),
+                            format!(
+                                "{} could not rewrite",
+                                rewrite.to_string_lossy().to_string()
+                            ),
+                        ));
+                    }
+                };
+            }
+
+            for note_without_metdata in needs_frontmatter {
+                if let Ok(note) = Note::from_path(&note_without_metdata, true) {
+                    if let Err(_) = note.save(&note_without_metdata) {
+                        ret.push((
+                            note_without_metdata.to_string_lossy().to_string(),
+                            format!(
+                                "{} could not add metadata",
+                                note_without_metdata.to_string_lossy().to_string()
+                            ),
+                        ));
+                    }
+                };
+            }
+        }
+
+        Ok(ret)
     }
 }
