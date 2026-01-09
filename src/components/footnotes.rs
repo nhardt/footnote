@@ -3,12 +3,13 @@ use std::path::PathBuf;
 use crate::{components::file_search::FileSearch, context::AppContext, model::note::Note};
 use dioxus::prelude::*;
 use indexmap::IndexMap;
+use uuid::Uuid;
 
 #[component]
 pub fn Footnotes(
     footnotes: ReadSignal<IndexMap<String, String>>,
     onlink: EventHandler<(String, String)>,
-    onnavigate: EventHandler<String>,
+    onuuidclick: EventHandler<String>,
 ) -> Element {
     let app_context = use_context::<AppContext>();
     let mut search_visible = use_signal(|| None::<String>);
@@ -50,9 +51,8 @@ pub fn Footnotes(
                                 class: "flex flex-1 gap-2 items-center text-sm text-left transition-colors text-zinc-300 hover:text-zinc-100",
                                 onclick: move |_| {
                                     if let Some(uuid_part) = footnote.1.split("footnote://").nth(1) {
-                                        tracing::info!("navigate to uuid: {}", uuid_part);
-                                        // TODO: call onnavigate event handler with uuid_parta
-                                        onnavigate.call(uuid_part.to_string());
+                                        tracing::info!("found uuid, requiesting to uuid: {}", uuid_part);
+                                        onuuidclick.call(uuid_part.to_string());
                                     }
                                 },
                                 span { "{footnote.1}" }

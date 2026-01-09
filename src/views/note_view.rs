@@ -125,24 +125,31 @@ pub fn NoteView(file_path: String) -> Element {
         }
     };
 
-    let navigate_to_uuid = move |uuid| async move {
-        // let manifest = create_manifest_local(&app_context.vault.read().base_path());
-        // if let Ok(manifest) = manifest {
-        //     if let Ok(path) = manifest.get(uuid) {
-        //         nav.push(Route::NoteView {
-        //             file_path: urlencoding::encode(
-        //                 &app_context
-        //                     .vault
-        //                     .read()
-        //                     .base_path()
-        //                     .join("home.md")
-        //                     .to_string_lossy()
-        //                     .to_string(),
-        //             )
-        //             .to_string(),
-        //         });
-        //     }
-        // }
+    let navigate_to_uuid = move |uuid: String| async move {
+        tracing::info!("navigate_to_uuid: {}", uuid);
+        let app_context = use_context::<AppContext>();
+        if let Ok(uuid) = Uuid::parse_str(&uuid) {
+            if let Some(entry) = app_context.manifest.read().get(&uuid) {
+                tracing::info!(
+                    "found entry for uuid, requesting nav to: {}",
+                    entry.path.to_string_lossy()
+                );
+                nav.push(Route::NoteView {
+                    file_path: urlencoding::encode(
+                        &app_context
+                            .vault
+                            .read()
+                            .base_path()
+                            .join(&entry.path)
+                            .to_string_lossy()
+                            .to_string(),
+                    )
+                    .to_string(),
+                });
+            }
+        } else {
+            tracing::info!("could not convert uuid str {} to uuid", uuid);
+        }
     };
 
     let mut select_note_visible = use_signal(|| false);
@@ -210,7 +217,7 @@ pub fn NoteView(file_path: String) -> Element {
                 Footnotes {
                     footnotes: footnotes,
                     onlink: save_link_to_footnote,
-                    onnavigate: navigate_to_uuid,
+                    onuuidclick: navigate_to_uuid,
                 }
             }
         }
