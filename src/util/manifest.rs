@@ -36,6 +36,10 @@ pub fn create_manifest_full(vault_path: &Path) -> Result<Manifest> {
         }
 
         if !path.is_file() || path.extension().and_then(|s| s.to_str()) != Some("md") {
+            tracing::info!(
+                "not adding non-md-file {} to manifest",
+                path.to_string_lossy()
+            );
             continue;
         }
 
@@ -45,15 +49,19 @@ pub fn create_manifest_full(vault_path: &Path) -> Result<Manifest> {
             .to_path_buf();
 
         let Ok(note) = Note::from_path(entry.path(), false) else {
+            tracing::info!(
+                "not adding non-note {} to manifest",
+                relative_path.to_string_lossy()
+            );
             continue;
         };
 
+        tracing::info!("adding {} to manifest", relative_path.to_string_lossy());
         let entry = ManifestEntry {
             uuid: note.frontmatter.uuid,
             path: relative_path,
             modified: note.frontmatter.modified,
         };
-
         manifest.insert(note.frontmatter.uuid, entry);
     }
 
