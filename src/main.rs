@@ -78,7 +78,6 @@ fn App() -> Element {
 #[component]
 fn Main() -> Element {
     let route = use_route::<Route>();
-    let route_clone = route.clone();
     rsx! {
         div { class: "flex flex-col flex-1 h-screen bg-zinc-950 text-zinc-100 font-sans antialiased",
             nav { class: "border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm",
