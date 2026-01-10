@@ -154,7 +154,7 @@
                     div { class: "divide-y divide-zinc-800",
                         div { class: "py-2 px-3 transition-colors hover:bg-zinc-800/50",
                             div { class: "flex gap-2 items-center",
-                                span { class: "font-mono text-xs text-zinc-500", "[^1]" }
+                                span { class: "font-mono text-xs text-zinc-500", "[1]" }
                                 button { class: "flex-1 text-xs text-left text-zinc-300 truncate",
                                     "\n                                Introduction to Systems\n                            "
                                 }

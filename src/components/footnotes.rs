@@ -25,7 +25,7 @@ pub fn Footnotes(
             if footnotes().len() == 0 {
                 div { class: "py-8 px-4 text-center",
                     p { class: "text-sm italic text-zinc-500",
-                        "No footnotes found. Use [^name] to add references."
+                        "No footnotes found. Use [number] to add references."
                     }
                 }
             }
@@ -34,7 +34,7 @@ pub fn Footnotes(
                 div { class: "py-3 px-4 transition-colors group hover:bg-zinc-800/50",
                     div { class: "flex gap-3 items-center",
                         span { class: "flex-shrink-0 w-20 font-mono text-xs text-zinc-500",
-                            "[^{footnote.0}]"
+                            "[{footnote.0}]"
                         }
 
                         if footnote.1.is_empty() {

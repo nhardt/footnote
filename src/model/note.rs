@@ -81,8 +81,7 @@ impl Note {
     /// To start, we will support a specific markdown compatible but restricted
     /// format. One link per line, footnotes must be at the end of the file
     /// (newline)
-    /// [^(footnotename)]: footnote body
-    /// [^(footnotename2)]: footnote body2
+    /// [\d]: footnote body
     fn parse_body_and_footnotes(content: &str) -> (String, IndexMap<String, String>) {
         let lines: Vec<&str> = content.lines().collect();
         let mut footnotes = IndexMap::new();
@@ -91,7 +90,7 @@ impl Note {
         for idx in (0..lines.len()).rev() {
             let trimmed = lines[idx].trim();
 
-            if trimmed.starts_with("[^") && trimmed.contains("]:") {
+            if trimmed.starts_with("[") && trimmed.contains("]:") {
                 footnote_start_idx = Some(idx);
             } else if !trimmed.is_empty() && footnote_start_idx.is_some() {
                 break;
@@ -114,7 +113,7 @@ impl Note {
     }
 
     fn parse_footnote_line(line: &str) -> Option<(String, String)> {
-        let rest = &line[2..]; // Skip "[^"
+        let rest = &line[1..];
         let close_bracket = rest.find("]:")?;
 
         let id = rest[..close_bracket].to_string();
@@ -133,7 +132,7 @@ impl Note {
         if !self.footnotes.is_empty() {
             result.push_str("\n\n");
             for (id, text) in &self.footnotes {
-                result.push_str(&format!("[^{}]: {}\n", id, text));
+                result.push_str(&format!("[{}]: {}\n", id, text));
             }
         }
 
@@ -261,10 +260,10 @@ modified: 1705316400
 share_with: []
 ---
 
-This is some text with [^1] and [^second] references.
+This is some text with one [1] and two [2] references.
 
-[^1]: First footnote text
-[^second]: Second footnote text
+[1]: First footnote text
+[2]: Second footnote text
 "#;
 
         let note = Note::from_string(content, false).unwrap();
@@ -274,12 +273,12 @@ This is some text with [^1] and [^second] references.
             Some(&"First footnote text".to_string())
         );
         assert_eq!(
-            note.footnotes.get("second"),
+            note.footnotes.get("2"),
             Some(&"Second footnote text".to_string())
         );
         assert_eq!(
             note.content,
-            "This is some text with [^1] and [^second] references.\n"
+            "This is some text with one [1] and two [2] references.\n"
         );
     }
 
@@ -293,14 +292,14 @@ share_with: []
 
 Text with refs.
 
-[^third]: Third
-[^first]: First
-[^second]: Second
+[3]: Third
+[1]: First
+[2]: Second
 "#;
 
         let note = Note::from_string(content, false).unwrap();
         let keys: Vec<&String> = note.footnotes.keys().collect();
-        assert_eq!(keys, vec!["third", "first", "second"]);
+        assert_eq!(keys, vec!["3", "1", "2"]);
     }
 
     #[test]
@@ -391,9 +390,10 @@ modified: 1705316400
 share_with: []
 ---
 
-Content with [^1] reference.
+Content with [1] reference.
 
-[^1]: Footnote text here
+
+[1]: Footnote text here
 "#;
 
         let note = Note::from_string(content, false).unwrap();

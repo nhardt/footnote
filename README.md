@@ -215,11 +215,11 @@ share_with:
 
 # My Research Notes
 
-I found Alice's research[^1] really insightful.
+I found Alice's research[1] really insightful.
 
 This connects to my earlier thoughts in [[interesting_ideas]].
 
-[^1] footnote.wiki://450332400-e29b-41d4-a716-446655440000
+[1]: footnote.wiki://450332400-e29b-41d4-a716-446655440000
 
 ```
 

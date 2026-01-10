@@ -59,8 +59,18 @@ pub fn NoteView(file_path: String) -> Element {
             return;
         };
 
-        let re = Regex::new(r"\[\^([^\]]+)\]").unwrap();
+        let re = Regex::new(r"\[(\d+)\]").unwrap();
         let mut link_names: Vec<String> = Vec::new();
+        for cap in re.captures_iter(note_body.as_bytes()) {
+            let full_match = cap.get(0).unwrap();
+            let link_name = std::str::from_utf8(&cap[1]).unwrap();
+            let end_pos = full_match.end();
+            if end_pos < note_body.len() && note_body.as_bytes()[end_pos] == b'(' {
+                continue;
+            }
+            link_names.push(link_name.to_string());
+        }
+
         for (_, [link_name]) in re.captures_iter(note_body.as_bytes()).map(|c| c.extract()) {
             let link_name = std::str::from_utf8(link_name).unwrap();
             link_names.push(link_name.to_string());
