@@ -14,11 +14,9 @@ use crate::model::vault::{Vault, VaultState};
 use crate::util::manifest::create_manifest_local;
 use tracing::Level;
 use util::filesystem::ensure_default_vault;
-use views::contact_browser::ContactBrowser;
-use views::contact_view::ContactView;
-use views::note_browser::NoteBrowser;
+use views::contact_view::ContactBrowser;
 use views::note_view::NoteView;
-use views::profile::Profile;
+use views::profile_view::Profile;
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 enum Route {
@@ -31,9 +29,6 @@ enum Route {
 
     #[route("/contacts")]
     ContactBrowser {},
-
-    #[route("/contacts/:nickname")]
-    ContactView { nickname: String },
 
     #[route("/profile")]
     Profile {},
