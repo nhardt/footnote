@@ -79,7 +79,7 @@ fn App() -> Element {
 fn Main() -> Element {
     let route = use_route::<Route>();
     rsx! {
-        div { class: "flex flex-col flex-1 min-h-screen bg-zinc-950 text-zinc-100 font-sans antialiased",
+        div { class: "flex flex-col flex-1 h-screen bg-zinc-950 text-zinc-100 font-sans antialiased",
             nav { class: "border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm",
                 div { class: "px-6 py-3",
                     div { class: "flex items-center gap-8",
