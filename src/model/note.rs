@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
@@ -11,6 +11,7 @@ pub struct Note {
     pub frontmatter: Frontmatter,
     pub content: String,
     pub footnotes: IndexMap<String, String>,
+    loaded_from: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,7 +28,9 @@ impl Note {
     pub fn from_path(path: impl AsRef<Path>, coerce_to_footnote: bool) -> Result<Self> {
         let content = fs::read_to_string(path.as_ref())
             .with_context(|| format!("Failed to read note: {}", path.as_ref().display()))?;
-        Self::from_string(&content, coerce_to_footnote)
+        let mut note = Self::from_string(&content, coerce_to_footnote)?;
+        note.loaded_from = Some(path.as_ref().to_path_buf());
+        Ok(note)
     }
 
     pub fn from_string(content: &str, coerce_to_footnote: bool) -> Result<Self> {
@@ -55,6 +58,7 @@ impl Note {
             frontmatter,
             content: body,
             footnotes,
+            loaded_from: None,
         })
     }
 
@@ -151,6 +155,7 @@ impl Note {
             frontmatter,
             content: body,
             footnotes,
+            loaded_from: Some(path.to_path_buf()),
         };
 
         note.save(path)?;
@@ -307,6 +312,7 @@ Text with refs.
             frontmatter,
             content: "# Content".to_string(),
             footnotes: IndexMap::new(),
+            loaded_from: None,
         };
 
         let serialized = note.to_string().unwrap();
