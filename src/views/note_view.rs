@@ -34,7 +34,7 @@ pub fn NoteView(file_path: String) -> Element {
             .to_string_lossy()
             .to_string()
     });
-    let note = use_signal(move || {
+    let mut note = use_signal(move || {
         let full_path = PathBuf::from(loaded_from);
         let note_from_path = match Note::from_path(full_path, true) {
             Ok(n) => n,
@@ -107,17 +107,25 @@ pub fn NoteView(file_path: String) -> Element {
             .map(|s| s.to_string())
             .collect();
 
-        let mut note = note.read().cloned();
-        note.frontmatter.share_with = share_with;
+        let mut note_copy = note.read().clone();
+        note_copy.frontmatter.share_with = share_with;
+
         let mut note_body_eval =
             document::eval("dioxus.send(document.getElementById('note-body').value)");
 
         match note_body_eval.recv::<String>().await {
             Ok(note_body) => {
                 tracing::info!("saving note to {}", new_full_path.to_string_lossy());
-                if let Err(e) = note.update_all(&new_full_path, &note_body, footnotes_vec) {
+
+                note_copy.content = note_body;
+                note_copy.footnotes = footnotes_vec;
+
+                if let Err(e) = note_copy.to_file(&new_full_path) {
                     err_label.set(format!("Failed to save note: {e}"));
+                    return;
                 }
+
+                note.set(note_copy);
             }
             Err(e) => {
                 err_label.set(format!("JavaScript Eval Error: {e:?}"));
