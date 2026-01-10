@@ -140,7 +140,7 @@ impl Note {
         Ok(result)
     }
 
-    pub fn save(&self, path: impl AsRef<Path>) -> Result<()> {
+    pub fn to_file(&self, path: impl AsRef<Path>) -> Result<()> {
         let serialized = self.to_string()?;
         fs::write(path.as_ref(), serialized)
             .with_context(|| format!("Failed to write note: {}", path.as_ref().display()))?;
@@ -158,7 +158,7 @@ impl Note {
             loaded_from: Some(path.to_path_buf()),
         };
 
-        note.save(path)?;
+        note.to_file(path)?;
         Ok(note)
     }
 
@@ -176,7 +176,7 @@ impl Note {
         self.content = body;
         self.footnotes = footnotes;
         self.frontmatter.modified = LamportTimestamp::new(Some(self.frontmatter.modified));
-        self.save(path)?;
+        self.to_file(path)?;
         Ok(())
     }
 
@@ -189,7 +189,7 @@ impl Note {
         self.content = body.to_string();
         self.footnotes = footnotes;
         self.frontmatter.modified = LamportTimestamp::new(Some(self.frontmatter.modified));
-        self.save(path)?;
+        self.to_file(path)?;
         Ok(())
     }
 }

@@ -543,7 +543,7 @@ impl Vault {
             for rewrite in needs_new_uuid {
                 if let Ok(mut note) = Note::from_path(&rewrite, false) {
                     note.frontmatter.uuid = Uuid::new_v4();
-                    if let Err(_) = note.save(&rewrite) {
+                    if let Err(_) = note.to_file(&rewrite) {
                         ret.push((
                             rewrite.to_string_lossy().to_string(),
                             format!(
@@ -557,7 +557,7 @@ impl Vault {
 
             for note_without_metdata in needs_frontmatter {
                 if let Ok(note) = Note::from_path(&note_without_metdata, true) {
-                    if let Err(_) = note.save(&note_without_metdata) {
+                    if let Err(_) = note.to_file(&note_without_metdata) {
                         ret.push((
                             note_without_metdata.to_string_lossy().to_string(),
                             format!(
