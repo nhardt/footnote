@@ -1,5 +1,5 @@
 use crate::{
-    components::footnotes::Footnotes,
+    components::{footnotes::Footnotes, new_note_modal::NewNoteModal},
     context::AppContext,
     elements::primary_button::PrimaryButton,
     model::note::Note,
@@ -152,6 +152,7 @@ pub fn NoteView(file_path: String) -> Element {
         }
     };
 
+    let mut show_new_note_modal = use_signal(|| false);
     let mut select_note_visible = use_signal(|| false);
     let select_note = move |_| {
         select_note_visible.set(true);
@@ -166,37 +167,53 @@ pub fn NoteView(file_path: String) -> Element {
     rsx! {
         div { class: "h-full flex flex-col flex-1",
             div { class: "border-b border-zinc-800 bg-zinc-900/30 px-6 py-4",
-                div { class: "max-w-5xl mx-auto",
-                    div { class: "grid grid-cols-[auto_1fr_auto] gap-x-3 gap-y-3 items-center",
-                        label { class: "text-sm font-medium text-zinc-400", "File" }
-                        input {
-                            class: "px-3 py-1.5 bg-zinc-900 border border-zinc-700 rounded-md text-sm font-mono focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
-                            r#type: "text",
-                            value: "{relative_path}",
-                            oninput: move |e| relative_path.set(e.value()),
-                        }
-                        button { class: "px-4 py-1.5 bg-zinc-100 hover:bg-white hover:shadow-lg text-zinc-900 rounded-md text-sm font-medium transition-all",
-                            onclick: select_note,
-                            "Open"
-                        }
-                        if select_note_visible() {
-                            NoteSelectModal {
-                                oncancel: select_note_modal_oncancel,
-                                onselect: select_note_modal_onselect
+                div { class: "border-b border-zinc-800 bg-zinc-900/30 px-6 py-4",
+                    div { class: "max-w-5xl mx-auto",
+                        div { class: "grid grid-cols-[auto_1fr] gap-x-3 gap-y-3 items-center mb-4",
+                            label { class: "text-sm font-medium text-zinc-400", "File" }
+                            input {
+                                class: "px-3 py-1.5 bg-zinc-900 border border-zinc-700 rounded-md text-sm font-mono focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
+                                r#type: "text",
+                                value: "{relative_path}",
+                                oninput: move |e| relative_path.set(e.value()),
+                            }
+
+                            label { class: "text-sm font-medium text-zinc-400", "Shared with" }
+                            input {
+                                class: "px-3 py-1.5 bg-zinc-900 border border-zinc-700 rounded-md text-sm font-mono focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
+                                r#type: "text",
+                                value: "{share_with}",
+                                oninput: move |e| share_with.set(e.value())
                             }
                         }
 
-
-                        label { class: "text-sm font-medium text-zinc-400", "Shared with" }
-                        input {
-                            class: "flex-1 px-3 py-1.5 bg-zinc-900 border border-zinc-700 rounded-md text-sm font-mono focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
-                            r#type: "text",
-                            value: "{share_with}",
-                            oninput: move |e| share_with.set(e.value())
-                        }
-                        button { class: "px-4 py-1.5 bg-zinc-100 hover:bg-white hover:shadow-lg text-zinc-900 rounded-md text-sm font-medium transition-all",
-                            onclick: save_note,
-                            "Save"
+                        div { class: "flex gap-3 w-full",
+                            button {
+                                class: "flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
+                                onclick: select_note,
+                                "Open"
+                            }
+                            if select_note_visible() {
+                                NoteSelectModal {
+                                    oncancel: select_note_modal_oncancel,
+                                    onselect: select_note_modal_onselect
+                                }
+                            }
+                            button {
+                                class: "flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
+                                onclick: move |_| show_new_note_modal.set(true),
+                                "New Note"
+                            }
+                            if show_new_note_modal() {
+                                NewNoteModal {
+                                    oncancel: move |_| show_new_note_modal.set(false)
+                                }
+                            }
+                            button {
+                                class: "flex-1 px-4 py-2 bg-zinc-100 hover:bg-white hover:shadow-lg text-zinc-900 rounded-md text-sm font-medium transition-all",
+                                onclick: save_note,
+                                "Save"
+                            }
                         }
                     }
                 }
