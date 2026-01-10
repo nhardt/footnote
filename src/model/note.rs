@@ -140,10 +140,28 @@ impl Note {
         Ok(result)
     }
 
-    pub fn to_file(&self, path: impl AsRef<Path>) -> Result<()> {
+    pub fn to_file(&mut self, path: impl AsRef<Path>) -> Result<()> {
+        let path = path.as_ref();
+        self.frontmatter.modified = LamportTimestamp::new(Some(self.frontmatter.modified));
+
+        if let Some(old_path) = &self.loaded_from {
+            if old_path != path && old_path.exists() {
+                if let Some(parent) = path.parent() {
+                    fs::create_dir_all(parent)?;
+                }
+                let temp_path = path.with_extension("tmp");
+                let serialized = self.to_string()?;
+                fs::write(&temp_path, serialized)?;
+                fs::rename(&temp_path, path)?;
+                fs::remove_file(old_path)?;
+                self.loaded_from = Some(path.to_path_buf());
+                return Ok(());
+            }
+        }
+
         let serialized = self.to_string()?;
-        fs::write(path.as_ref(), serialized)
-            .with_context(|| format!("Failed to write note: {}", path.as_ref().display()))?;
+        fs::write(path, serialized)?;
+        self.loaded_from = Some(path.to_path_buf());
         Ok(())
     }
 
@@ -151,7 +169,7 @@ impl Note {
         let (body, footnotes) = Self::parse_body_and_footnotes(&content);
 
         let frontmatter = Note::create_frontmatter();
-        let note = Note {
+        let mut note = Note {
             frontmatter,
             content: body,
             footnotes,

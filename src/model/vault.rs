@@ -556,7 +556,7 @@ impl Vault {
             }
 
             for note_without_metdata in needs_frontmatter {
-                if let Ok(note) = Note::from_path(&note_without_metdata, true) {
+                if let Ok(mut note) = Note::from_path(&note_without_metdata, true) {
                     if let Err(_) = note.to_file(&note_without_metdata) {
                         ret.push((
                             note_without_metdata.to_string_lossy().to_string(),
