@@ -197,6 +197,16 @@ pub fn NoteView(file_path: String) -> Element {
 
                         div { class: "flex gap-3 w-full",
                             button {
+                                class: "px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
+                                onclick: move |_| nav.go_back(),
+                                "←"
+                            }
+                            button {
+                                class: "px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
+                                onclick: move |_| nav.go_forward(),
+                                "→"
+                            }
+                            button {
                                 class: "flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
                                 onclick: select_note,
                                 "Open"
