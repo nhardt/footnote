@@ -4,32 +4,35 @@ Ultimately, Dioxus allows us to build for linux, mac, window, ios and android.
 
 ## Instructions
 
-- cargo build --release --bin footnote-cli --features cli
+Verify all tests pass:
+`cargo test --all-features`
 
-## Linux
+### CLI
 
+`cargo build --release --bin footnote-cli --features cli`
 
-### deb
+### Linux
+
+#### deb
 
 `dx bundle --release --features desktop --package-types "deb"`
 
 Status: works
 
-### rpm
+#### rpm
 
 `dx bundle --release --features desktop --package-types "rpm"`
 
 Status: works outside of a missing release number. generated as:
 Footnote-0.2.0-.x86_64.rpm
 
-### appimage
+#### appimage
 
 `dx bundle --release --features desktop --package-types "appimage"`
 
 Status: fails, need an AppImage icon
 
-
-## Windows
+### Windows
 
 The two hurdles two windows were getting CMake installed (or recognized) and creating
 an icon file. For the icon, a 256x256 png named icons/icon.ico worked.
