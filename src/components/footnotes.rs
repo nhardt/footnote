@@ -1,9 +1,9 @@
-use std::path::PathBuf;
-
-use crate::{components::file_search::FileSearch, context::AppContext, model::note::Note};
+use crate::{
+    components::fuzzy_file_select::FuzzyFileSelect, context::AppContext, model::note::Note,
+};
 use dioxus::prelude::*;
 use indexmap::IndexMap;
-use uuid::Uuid;
+use std::path::PathBuf;
 
 #[component]
 pub fn Footnotes(
@@ -12,7 +12,7 @@ pub fn Footnotes(
     onuuidclick: EventHandler<String>,
 ) -> Element {
     let app_context = use_context::<AppContext>();
-    let mut search_visible = use_signal(|| None::<String>);
+    let mut editing_footnote = use_signal(|| None::<String>);
 
     rsx! {
         div { class: "overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900/30",
@@ -41,8 +41,7 @@ pub fn Footnotes(
                             button {
                                 class: "flex flex-1 gap-2 items-center text-sm text-left transition-colors text-zinc-500 hover:text-zinc-300",
                                 onclick: move |_| {
-                                    let name = footnote.0.clone();
-                                    search_visible.set(Some(name));
+                                    editing_footnote.set(Some(footnote.0.clone()));
                                 },
                                 span { class: "italic", "Set link" }
                             }
@@ -51,7 +50,7 @@ pub fn Footnotes(
                                 class: "flex flex-1 gap-2 items-center text-sm text-left transition-colors text-zinc-300 hover:text-zinc-100",
                                 onclick: move |_| {
                                     if let Some(uuid_part) = footnote.1.split("footnote://").nth(1) {
-                                        tracing::info!("found uuid, requiesting to uuid: {}", uuid_part);
+                                        tracing::info!("found uuid, requesting nav to: {}", uuid_part);
                                         onuuidclick.call(uuid_part.to_string());
                                     }
                                 },
@@ -60,8 +59,7 @@ pub fn Footnotes(
                             button {
                                 class: "flex gap-2 items-center text-sm transition-colors text-zinc-500 hover:text-zinc-300",
                                 onclick: move |_| {
-                                    let name = footnote.0.clone();
-                                    search_visible.set(Some(name));
+                                    editing_footnote.set(Some(footnote.0.clone()));
                                 },
                                 span { class: "text-xs", "Change" }
                             }
@@ -70,22 +68,23 @@ pub fn Footnotes(
                 }
             }
 
-            if let Some(footnote_name) = search_visible() {
-                div { class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50",
-                    div { class: "bg-zinc-900 border border-zinc-700 rounded-lg p-4 w-96",
-                        FileSearch {
-                            search_path: app_context.vault.read().base_path(),
-                            on_select: move |path: PathBuf| {
-                                tracing::info!("link {} to {}", footnote_name, path.to_string_lossy());
-                                let path_clone = path.clone();
-                                let filename = path_clone.file_stem().unwrap().to_string_lossy().to_string();
-                                if let Ok(note) = Note::from_path(path, false) {
-                                    onlink.call((footnote_name.clone(), format!("{}|footnote://{}", filename, note.frontmatter.uuid)));
-                                    search_visible.set(None);
-                                };
-                            }
+            if let Some(footnote_name) = editing_footnote() {
+                FuzzyFileSelect {
+                    onselect: move |path: PathBuf| {
+                        tracing::info!("linking [{}] to {}", footnote_name, path.display());
+                        let full_path = app_context.vault.read().base_path().join(&path);
+                        let filename = path.file_stem()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .to_string();
+
+                        if let Ok(note) = Note::from_path(full_path, false) {
+                            let link_value = format!("{}|footnote://{}", filename, note.frontmatter.uuid);
+                            onlink.call((footnote_name.clone(), link_value));
                         }
-                    }
+                        editing_footnote.set(None);
+                    },
+                    oncancel: move |_| editing_footnote.set(None),
                 }
             }
         }
