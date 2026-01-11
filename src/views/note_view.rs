@@ -34,6 +34,7 @@ pub fn NoteView(file_path: String) -> Element {
             .to_string_lossy()
             .to_string()
     });
+
     let mut note = use_signal(move || {
         let full_path = PathBuf::from(loaded_from);
         let note_from_path = match Note::from_path(full_path, true) {
@@ -44,6 +45,9 @@ pub fn NoteView(file_path: String) -> Element {
         };
         note_from_path
     });
+
+    let read_only = use_signal(move || relative_path.read().starts_with("footnotes"));
+
     let mut share_with = use_signal(move || note.read().frontmatter.share_with.join(" "));
     let body = use_signal(move || note.read().content.clone());
     let footnotes = use_signal(move || note.read().footnotes.clone());
@@ -237,10 +241,12 @@ pub fn NoteView(file_path: String) -> Element {
                                     oncancel: move |_| show_new_note_modal.set(false)
                                 }
                             }
-                            button {
-                                class: "flex-1 px-4 py-2 bg-zinc-100 hover:bg-white hover:shadow-lg text-zinc-900 rounded-md text-sm font-medium transition-all",
-                                onclick: save_note,
-                                "Save"
+                            if !read_only() {
+                                button {
+                                    class: "flex-1 px-4 py-2 bg-zinc-100 hover:bg-white hover:shadow-lg text-zinc-900 rounded-md text-sm font-medium transition-all",
+                                    onclick: save_note,
+                                    "Save"
+                                }
                             }
                         }
                     }
@@ -254,6 +260,7 @@ pub fn NoteView(file_path: String) -> Element {
                         placeholder: "Once upon a time...",
                         onblur: sync_body_to_footnotes,
                         initial_value: "{body}",
+                        readonly: read_only
                     }
                 }
             }
