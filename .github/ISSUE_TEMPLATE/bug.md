@@ -1,5 +1,5 @@
 ---
-name: Fix
+name: Bug
 about: Software is not in alignment with intended behavior
 title: ''
 labels: bug
@@ -9,16 +9,13 @@ assignees: ''
 
 ## Description
 
+
 ## Expected behavior
 
-
-## Actual behavior
-
-
-## Applicable Platform Information
+## Platform
 
 - Hardware: 
 - OS and Version: 
 - Footnote Version:
 
-## Detilas
+## Notes
