@@ -11,4 +11,4 @@ assignees: ''
 
 ## Proposed Solution
 
-## Details
+## Context
