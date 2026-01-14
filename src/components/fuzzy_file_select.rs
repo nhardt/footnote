@@ -6,8 +6,14 @@ use std::path::PathBuf;
 
 #[component]
 pub fn FuzzyFileSelect(onselect: EventHandler<PathBuf>, oncancel: EventHandler) -> Element {
-    let app_context = use_context::<AppContext>();
+    let mut app_context = use_context::<AppContext>();
     let mut search_input = use_signal(|| String::new());
+
+    use_hook(|| {
+        if let Err(e) = app_context.reload_manifest() {
+            tracing::warn!("failed to reload manifest: {}", e);
+        }
+    });
 
     let filtered_files = use_memo(move || {
         let query = search_input();
