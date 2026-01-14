@@ -176,8 +176,14 @@ pub fn NoteView(file_path: String) -> Element {
 
     let mut show_new_note_modal = use_signal(|| false);
     let mut select_note_visible = use_signal(|| false);
+
     let select_note = move |_| {
-        select_note_visible.set(true);
+        let mut app_context = use_context::<AppContext>();
+        if let Ok(_) = app_context.reload_manifest() {
+            select_note_visible.set(true);
+        } else {
+            tracing::info!("could not read filsystem");
+        }
     };
     let select_note_modal_oncancel = move |_| {
         select_note_visible.set(false);

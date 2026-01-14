@@ -4,7 +4,7 @@ use crate::{
         device::Device,
         vault::{Vault, VaultState},
     },
-    util::manifest::Manifest,
+    util::manifest::{create_manifest_local, Manifest},
 };
 use dioxus::prelude::*;
 use std::path::PathBuf;
@@ -31,6 +31,14 @@ impl AppContext {
             .set(vault.state_read().unwrap_or(VaultState::Uninitialized));
         self.devices.set(vault.device_read()?);
         self.contacts.set(vault.contact_read()?);
+        Ok(())
+    }
+
+    pub fn reload_manifest(&mut self) -> Result<()> {
+        self.manifest.set(
+            create_manifest_local(&self.vault.read().base_path())
+                .expect("could not load local list of files"),
+        );
         Ok(())
     }
 }
