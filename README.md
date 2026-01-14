@@ -1,7 +1,7 @@
 # Footnote
 
 Footnote is a local-first personal wiki of markdown documents with support for
-sync across your own devices and sharing with known, trusted peers.
+mirror across your own devices and sharing with known, trusted peers.
 
 ## Core Concepts
 
@@ -96,7 +96,7 @@ shared files will be in is footnotes/mom/.
   expected to be created by the same secret key.
 - The contact record exchange mechanism is a potential weak point.
 - Iroh protocol identifiers are sent in plain text.
-- The overall design goal is data ownership, no vendor lock in, no data mining
+- The overall design goal is data ownership, vendor neutrality, no data mining
   for marketing, etc. The app is not anonymous, you should know your trusted
   contacts as you will be allowing them to write files to your hard drive.
 
@@ -286,10 +286,10 @@ Layers of security:
 - fzf full text search
 - debt: rework components to take the data they need, vs taking a path and getting it
 - debt: factor tailwind heavy primitives (button, modal)
+- Trigger mirror immediately on save
 
 ### Medium
 
-- Sync to primary on save
 - contact refresh
 - local file rename 
 - local file deletes
@@ -331,6 +331,7 @@ line. By hand testing has been done during development on:
 - android
 - macos
 - iphone
+- windows
 
 ## References
 
