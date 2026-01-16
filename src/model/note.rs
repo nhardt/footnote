@@ -82,17 +82,17 @@ impl Note {
     /// format. One link per line, footnotes must be at the end of the file
     /// (newline)
     /// [\d]: footnote body
+    /// (newline at the end of files are trimmed)
     fn parse_body_and_footnotes(content: &str) -> (String, IndexMap<String, String>) {
+        let content = content.trim();
         let lines: Vec<&str> = content.lines().collect();
         let mut footnotes = IndexMap::new();
 
         let mut footnote_start_idx = None;
         for idx in (0..lines.len()).rev() {
-            let trimmed = lines[idx].trim();
-
-            if trimmed.starts_with("[") && trimmed.contains("]:") {
+            if lines[idx].starts_with("[") && lines[idx].contains("]:") {
                 footnote_start_idx = Some(idx);
-            } else if !trimmed.is_empty() && footnote_start_idx.is_some() {
+            } else {
                 break;
             }
         }
@@ -401,5 +401,68 @@ Content with [1] reference.
         let reparsed = Note::from_string(&serialized, false).unwrap();
 
         assert_eq!(note.footnotes, reparsed.footnotes);
+    }
+
+    #[test]
+    fn test_unrecognized_note_formats_do_not_cause_crash() {
+        let odd_notes = vec![
+            ("empty footnote", "[1]:\n"),
+            ("no space", "body\n\n[1]:footnote"),
+            ("nbsp in text", "some\u{a0}text [1]: link"),
+            ("nbsp in footnote", "text\n\n[1]:\u{a0}text"),
+            ("no footnote body", "[1]:\n[2]:\n"),
+            ("extra space in footnote", "[1]:         \n[2]:\t\t\t\n"),
+            ("mixed valid/invalid", "text\n[1]: valid\n[2]:\n"),
+            ("duplicate footnotes", "[1]: one\n[1]: two\n"),
+            ("no newline", "[1]: one\n[2]: two"),
+            ("spurious newlines", "[1]: one\n[2]: two\n\n\n\n\n\n"),
+            ("no newline duplicate", "[1]: one\n[1]: two"),
+            (
+                "added footnotes in textarea",
+                r#"---
+uuid: 7ee9fcff-f5a4-4ce7-8d74-e0bc16fcb818
+modified: 1768591570
+share_with: []
+---
+
+a much younger me thought there was a "right answer" to life somewhere. i believed that if we could start with agreed upon axioms and take agreed upon logical steps we could arrive at truth. (so basically, i was current with 16th century liebnetz philosophy [1], although i definitely did not take his same axioms!)
+
+these days, i just think it's an interesting concept. i know conclusions come from lots of combinations of logic, evidence, lived experience, influence and feelings. and sometimes the conclusion comes first and the rest comes second! [2]
+
+[1]: https://en.wikipedia.org/wiki/Gottfried_Wilhelm_Leibniz
+[2]: https://youtu.be/NiTc-ORKlxE
+
+
+[1]:
+[2]:
+"#,
+            ),
+        ];
+
+        for (name, content) in odd_notes {
+            println!("Testing without coercing header: {}", name);
+            match Note::from_string(content, false) {
+                Ok(note) => {
+                    println!("Passed");
+                    dbg!(note);
+                }
+                Err(e) => {
+                    println!("Err but no crash");
+                    dbg!(e);
+                }
+            }
+            println!("Testing with header coersion: {}", name);
+            match Note::from_string(content, true) {
+                Ok(note) => {
+                    println!("Passed");
+                    dbg!(note);
+                }
+                Err(e) => {
+                    println!("Err but no crash");
+                    dbg!(e);
+                    panic!("unrecognized notes should be ingested");
+                }
+            }
+        }
     }
 }
