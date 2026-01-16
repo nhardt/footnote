@@ -107,7 +107,9 @@ pub fn NoteView(file_path: String) -> Element {
     };
 
     let save_note = move |_| async move {
-        let footnotes_vec = footnotes.read().clone();
+        let mut footnotes_vec = footnotes.read().clone();
+        // do not insert or save foonotes with empty values
+        footnotes_vec.retain(|_key, value| !value.trim().is_empty());
         let new_relative_path = PathBuf::from(relative_path.read().to_string());
         let new_full_path = app_context
             .vault
