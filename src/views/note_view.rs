@@ -94,12 +94,16 @@ pub fn NoteView(file_path: String) -> Element {
         footnotes_signal.set(footnotes_vec);
     };
 
-    let save_link_to_footnote = move |(link_name, link_value)| async move {
+    let save_link_to_footnote = move |(footnote_number, footnote_text)| async move {
         let mut footnotes_signal = footnotes.clone();
         let mut footnotes_vec = footnotes.read().clone();
 
-        tracing::info!("saving {} -> {} to footnotes", link_name, link_value);
-        footnotes_vec.insert(link_name, link_value);
+        tracing::info!(
+            "saving {} -> {} to footnotes",
+            footnote_number,
+            footnote_text
+        );
+        footnotes_vec.insert(footnote_number, footnote_text);
         footnotes_vec
             .iter()
             .for_each(|i| tracing::info!("{} -> {}", i.0, i.1));
@@ -149,30 +153,37 @@ pub fn NoteView(file_path: String) -> Element {
         }
     };
 
-    let navigate_to_uuid = move |uuid: String| async move {
-        tracing::info!("navigate_to_uuid: {}", uuid);
+    let navigate_to_footnote = move |footnote_text: String| async move {
+        tracing::info!("navigate_to_uuid: {}", footnote_text);
         let app_context = use_context::<AppContext>();
-        if let Ok(uuid) = Uuid::parse_str(&uuid) {
-            if let Some(entry) = app_context.manifest.read().get(&uuid) {
-                tracing::info!(
-                    "found entry for uuid, requesting nav to: {}",
-                    entry.path.to_string_lossy()
-                );
-                nav.push(Route::NoteView {
-                    file_path: urlencoding::encode(
-                        &app_context
-                            .vault
-                            .read()
-                            .base_path()
-                            .join(&entry.path)
-                            .to_string_lossy()
-                            .to_string(),
-                    )
-                    .to_string(),
-                });
+
+        if let Some(uuid_part) = footnote_text.split("footnote://").nth(1) {
+            tracing::info!("found uuid, requesting nav to: {}", uuid_part);
+
+            if let Ok(uuid) = Uuid::parse_str(&uuid_part) {
+                if let Some(entry) = app_context.manifest.read().get(&uuid) {
+                    tracing::info!(
+                        "found entry for uuid, requesting nav to: {}",
+                        entry.path.to_string_lossy()
+                    );
+                    nav.push(Route::NoteView {
+                        file_path: urlencoding::encode(
+                            &app_context
+                                .vault
+                                .read()
+                                .base_path()
+                                .join(&entry.path)
+                                .to_string_lossy()
+                                .to_string(),
+                        )
+                        .to_string(),
+                    });
+                }
+            } else {
+                tracing::info!("could not convert uuid str {} to uuid", uuid_part);
             }
         } else {
-            tracing::info!("could not convert uuid str {} to uuid", uuid);
+            tracing::info!("unsupported link to {}", footnote_text);
         }
     };
 
@@ -277,7 +288,7 @@ pub fn NoteView(file_path: String) -> Element {
                 Footnotes {
                     footnotes: footnotes,
                     onlink: save_link_to_footnote,
-                    onuuidclick: navigate_to_uuid,
+                    onlinkclick: navigate_to_footnote,
                 }
             }
         }
