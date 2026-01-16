@@ -182,6 +182,11 @@ pub fn NoteView(file_path: String) -> Element {
             } else {
                 tracing::info!("could not convert uuid str {} to uuid", uuid_part);
             }
+        } else if footnote_text.starts_with("http://") || footnote_text.starts_with("https://") {
+            tracing::info!("opening external link in system browser: {}", footnote_text);
+            if let Err(e) = open::that(&footnote_text) {
+                tracing::error!("failed to open link: {}", e);
+            }
         } else {
             tracing::info!("unsupported link to {}", footnote_text);
         }
