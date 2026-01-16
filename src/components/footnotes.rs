@@ -1,6 +1,4 @@
-use crate::{
-    components::fuzzy_file_select::FuzzyFileSelect, context::AppContext, model::note::Note,
-};
+use crate::{components::footnote_editor::FootnoteEditor, context::AppContext, model::note::Note};
 use dioxus::prelude::*;
 use indexmap::IndexMap;
 use std::path::PathBuf;
@@ -9,10 +7,9 @@ use std::path::PathBuf;
 pub fn Footnotes(
     footnotes: ReadSignal<IndexMap<String, String>>,
     onlink: EventHandler<(String, String)>,
-    onuuidclick: EventHandler<String>,
+    onlinkclick: EventHandler<String>,
 ) -> Element {
-    let app_context = use_context::<AppContext>();
-    let mut editing_footnote = use_signal(|| None::<String>);
+    let mut editing_footnote = use_signal(|| None::<(String, String)>);
 
     rsx! {
         div { class: "overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900/30",
@@ -38,50 +35,55 @@ pub fn Footnotes(
                         }
 
                         if footnote.1.is_empty() {
-                            button {
-                                class: "flex flex-1 gap-2 items-center text-sm text-left transition-colors text-zinc-500 hover:text-zinc-300",
-                                onclick: move |_| {
-                                    editing_footnote.set(Some(footnote.0.clone()));
-                                },
-                                span { class: "italic", "Set link" }
+                            {
+                                let footnote_clone = footnote.clone();
+                                rsx! {
+                                    button {
+                                        class: "flex flex-1 gap-2 items-center text-sm text-left transition-colors text-zinc-500 hover:text-zinc-300",
+                                        onclick: move |_| {
+                                            editing_footnote.set(
+                                                Some(
+                                                    (footnote_clone.0.clone(), String::new())
+                                                )
+                                            );
+                                        },
+                                        span { class: "italic", "Set link" }
+                                    }
+                                }
                             }
                         } else {
-                            button {
-                                class: "flex flex-1 gap-2 items-center text-sm text-left transition-colors text-zinc-300 hover:text-zinc-100",
-                                onclick: move |_| {
-                                    if let Some(uuid_part) = footnote.1.split("footnote://").nth(1) {
-                                        tracing::info!("found uuid, requesting nav to: {}", uuid_part);
-                                        onuuidclick.call(uuid_part.to_string());
+                            {
+                                let footnote_clone = footnote.clone();
+                                let footnote_clone2 = footnote.clone();
+                                rsx! {
+                                    button {
+                                        class: "flex flex-1 gap-2 items-center text-sm text-left transition-colors text-zinc-300 hover:text-zinc-100",
+                                        onclick: move |_| {
+                                            tracing::info!("requesting nav to: {}", footnote.1);
+                                            onlinkclick.call(footnote_clone.1.clone());
+                                        },
+                                        span { "{footnote.1}" }
                                     }
-                                },
-                                span { "{footnote.1}" }
-                            }
-                            button {
-                                class: "flex gap-2 items-center text-sm transition-colors text-zinc-500 hover:text-zinc-300",
-                                onclick: move |_| {
-                                    editing_footnote.set(Some(footnote.0.clone()));
-                                },
-                                span { class: "text-xs", "Change" }
+                                    button {
+                                        class: "flex gap-2 items-center text-sm transition-colors text-zinc-500 hover:text-zinc-300",
+                                        onclick: move |_| {
+                                            editing_footnote.set(Some(footnote_clone2.clone()));
+                                        },
+                                        span { class: "text-xs", "Change" }
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
 
-            if let Some(footnote_name) = editing_footnote() {
-                FuzzyFileSelect {
-                    onselect: move |path: PathBuf| {
-                        tracing::info!("linking [{}] to {}", footnote_name, path.display());
-                        let full_path = app_context.vault.read().base_path().join(&path);
-                        let filename = path.file_stem()
-                            .unwrap_or_default()
-                            .to_string_lossy()
-                            .to_string();
-
-                        if let Ok(note) = Note::from_path(full_path, false) {
-                            let link_value = format!("{}|footnote://{}", filename, note.frontmatter.uuid);
-                            onlink.call((footnote_name.clone(), link_value));
-                        }
+            if let Some((footnote_number, footnote_text)) = editing_footnote() {
+                FootnoteEditor {
+                    initial_value: (footnote_number, footnote_text),
+                    onsave: move |(number, text): (String, String)| {
+                        tracing::info!("footnote editor onsave: [{}] = {}", number, text);
+                        onlink.call((number, text));
                         editing_footnote.set(None);
                     },
                     oncancel: move |_| editing_footnote.set(None),
