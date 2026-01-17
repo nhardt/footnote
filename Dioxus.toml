@@ -5,4 +5,6 @@ macos_entitlements = "macos.app.entitlements"
 
 [bundle]
 identifier = "wiki.footnote.app"
-publisher = "Foonote Wiki Co"
+publisher = "Nate Hardt"
+icon = ["assets/icon.png"]
+resources = ["assets/*"]
