@@ -28,6 +28,7 @@ jobs:
           - os: ubuntu-latest
             platform: desktop
             artifact: linux-packages
+            no_strip: true
           - os: windows-latest
             platform: desktop
             artifact: windows-msi
@@ -76,6 +77,8 @@ jobs:
         run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       - name: Bundle
+        env:
+          NO_STRIP: ${{ matrix.no_strip || 'false' }}
         run: dx bundle --release --platform ${{ matrix.platform }}
 
       - name: Upload Artifacts
