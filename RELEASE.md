@@ -2,6 +2,18 @@
 
 Ultimately, Dioxus allows us to build for linux, mac, window, ios and android.
 
+## Trigger the automated github process
+
+The release cycle looks like:
+
+- update version in Cargo.toml
+`git commit -m 'version X.Y.Z'`
+- do all work for X.Y.Z
+`git tag vX.Y.Z`
+`git push origin vX.Y.Z` # triggers build and release
+- update version in Cargo.toml to X.Y.Z+1
+`git commit -m 'version X.Y.Z+1'`
+
 ## Instructions
 
 Verify all tests pass:
