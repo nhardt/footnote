@@ -159,8 +159,42 @@ fn read_content_uri(
 
     let input_stream = input_stream_result.ok()?.l().ok()?;
 
-    // Now we enter the byte-reading loop we perfected earlier...
     perform_stream_read(env, &input_stream)
+}
+
+fn perform_stream_read(env: &mut JNIEnv, input_stream: &JObject) -> Option<String> {
+    let buffer_size = 1024;
+    let byte_array = env.new_byte_array(buffer_size).ok()?;
+    let mut result_bytes = Vec::new();
+
+    loop {
+        let bytes_read = env
+            .call_method(
+                input_stream,
+                "read",
+                "([B)I",
+                &[jni::objects::JValue::Object(byte_array.as_ref())],
+            )
+            .ok()?
+            .i()
+            .ok()?;
+
+        if bytes_read <= 0 {
+            break;
+        }
+
+        let mut temp_buf = vec![0i8; bytes_read as usize];
+        env.get_byte_array_region(&byte_array, 0, &mut temp_buf[..])
+            .ok()?;
+
+        let unsigned_buf: Vec<u8> = temp_buf.into_iter().map(|b| b as u8).collect();
+        result_bytes.extend_from_slice(&unsigned_buf);
+    }
+
+    // Always close the stream to avoid file descriptor leaks
+    let _ = env.call_method(input_stream, "close", "()V", &[]);
+
+    String::from_utf8(result_bytes).ok()
 }
 
 /// Get the application's writable directory
