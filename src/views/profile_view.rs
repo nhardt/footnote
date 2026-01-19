@@ -649,6 +649,8 @@ fn ExportComponent() -> Element {
 #[component]
 fn ExportModal(onclose: EventHandler) -> Element {
     let app_context = use_context::<AppContext>();
+    let mut error_message = use_signal(|| None::<String>);
+
     let user_record_json = use_signal(move || match app_context.vault.read().user_read() {
         Ok(Some(user)) => user
             .to_json_pretty()
@@ -656,6 +658,27 @@ fn ExportModal(onclose: EventHandler) -> Element {
         Ok(None) => "User record not found".to_string(),
         Err(e) => format!("Contact record unable to load: {}", e),
     });
+
+    let handle_share = move |_| {
+        error_message.set(None);
+
+        let json_content = user_record_json();
+
+        let temp_dir = std::env::temp_dir();
+        let file_path = temp_dir.join("contact.footnote-contact");
+
+        match std::fs::write(&file_path, json_content) {
+            Ok(_) => {
+                if let Err(e) = crate::platform::share_contact_file(&file_path) {
+                    error_message.set(Some(format!("Share failed: {}", e)));
+                }
+            }
+            Err(e) => {
+                error_message.set(Some(format!("Failed to create file: {}", e)));
+            }
+        }
+    };
+
     rsx! {
         div {
             id: "export-modal",
@@ -668,7 +691,11 @@ fn ExportModal(onclose: EventHandler) -> Element {
                         "Export Contact Record"
                     }
                     p { class: "text-sm text-zinc-500 mt-1",
-                        "Copy and share this with your trusted contacts"
+                        if cfg!(target_os = "android") {
+                            "Share or copy this with your trusted contacts"
+                        } else {
+                            "Copy and share this with your trusted contacts"
+                        }
                     }
                 }
                 div { class: "p-6 flex-1 min-h-0 flex flex-col",
@@ -677,9 +704,32 @@ fn ExportModal(onclose: EventHandler) -> Element {
                         readonly: "true",
                         "{user_record_json}"
                     }
-                    button { class: "w-full px-4 py-2 bg-zinc-300 hover:bg-white text-zinc-900 rounded-md text-sm font-medium transition-all",
-                        onclick: move |_| onclose.call(()),
-                        "Done"
+
+                    if let Some(error) = error_message() {
+                        div { class: "mb-4 p-3 bg-red-900/20 border border-red-800 rounded-lg text-sm text-red-400",
+                            "{error}"
+                        }
+                    }
+
+                    if cfg!(target_os = "android") {
+                        div { class: "flex gap-3",
+                            button {
+                                class: "flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-md text-sm font-medium transition-all",
+                                onclick: handle_share,
+                                "Share"
+                            }
+                            button {
+                                class: "flex-1 px-4 py-2 bg-zinc-300 hover:bg-white text-zinc-900 rounded-md text-sm font-medium transition-all",
+                                onclick: move |_| onclose.call(()),
+                                "Done"
+                            }
+                        }
+                    } else {
+                        button {
+                            class: "w-full px-4 py-2 bg-zinc-300 hover:bg-white text-zinc-900 rounded-md text-sm font-medium transition-all",
+                            onclick: move |_| onclose.call(()),
+                            "Done"
+                        }
                     }
                 }
             }
