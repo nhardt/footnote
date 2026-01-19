@@ -244,96 +244,120 @@ pub fn get_app_dir() -> anyhow::Result<PathBuf> {
 pub const SHARE_SHEET_SUPPORTED: bool = true;
 /// Share via the OS provided share sheet
 pub fn share_contact_file(file_path: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
-    use jni::objects::{JObject, JValue};
+    with_android_context(|env, activity| {
+        // 1. Validate file exists before even touching JNI
+        if !file_path.exists() {
+            return None;
+        }
 
-    let ctx = ndk_context::android_context();
-    let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast())? };
-    let mut env = vm.attach_current_thread()?;
+        // 2. Load OS Constants and Classes
+        let constants = AndroidConstants::fetch(env)?;
+        let intent_class = env.find_class("android/content/Intent").ok()?;
+        let fp_class = env.find_class("androidx/core/content/FileProvider").ok()?;
 
-    let activity = unsafe { JObject::from_raw(ctx.context().cast()) };
+        // 3. Create the Java File object
+        let file_path_str = file_path.to_string_lossy();
+        let j_path = env.new_string(&file_path_str).ok()?;
+        let file_obj = env
+            .new_object(
+                "java/io/File",
+                "(Ljava/lang/String;)V",
+                &[JValue::Object(&j_path)],
+            )
+            .ok()?;
 
-    let file_path_str = file_path.to_string_lossy();
-    let j_file_path = env.new_string(&file_path_str)?;
+        // 4. Get the Content URI via FileProvider
+        let authority = format!("{}.fileprovider", get_package_name(env, activity).ok()?);
+        let j_authority = env.new_string(&authority).ok()?;
 
-    let file_class = env.find_class("java/io/File")?;
-    let file = env.new_object(
-        file_class,
-        "(Ljava/lang/String;)V",
-        &[JValue::Object(&j_file_path)],
-    )?;
+        let uri = env
+            .call_static_method(
+                fp_class,
+                "getUriForFile",
+                "(Landroid/content/Context;Ljava/lang/String;Ljava/io/File;)Landroid/net/Uri;",
+                &[
+                    JValue::Object(activity),
+                    JValue::Object(&j_authority),
+                    JValue::Object(&file_obj),
+                ],
+            )
+            .ok()?
+            .l()
+            .ok()?;
 
-    let package_name = get_package_name(&mut env, &activity)?;
-    let authority = format!("{}.fileprovider", package_name);
-    let j_authority = env.new_string(&authority)?;
+        // 5. Build the Intent
+        let action_send = env
+            .get_static_field(&intent_class, "ACTION_SEND", "Ljava/lang/String;")
+            .ok()?
+            .l()
+            .ok()?;
+        let intent = env
+            .new_object(
+                &intent_class,
+                "(Ljava/lang/String;)V",
+                &[JValue::Object(&action_send)],
+            )
+            .ok()?;
 
-    let file_provider_class = env.find_class("androidx/core/content/FileProvider")?;
-    let uri = env
-        .call_static_method(
-            file_provider_class,
-            "getUriForFile",
-            "(Landroid/content/Context;Ljava/lang/String;Ljava/io/File;)Landroid/net/Uri;",
-            &[
-                JValue::Object(&activity),
-                JValue::Object(&j_authority),
-                JValue::Object(&file),
-            ],
-        )?
-        .l()?;
+        // 6. Set Content and Flags
+        let mime_type = env
+            .new_string("application/vnd.footnote.contact+json")
+            .ok()?;
+        env.call_method(
+            &intent,
+            "setType",
+            "(Ljava/lang/String;)Landroid/content/Intent;",
+            &[JValue::Object(&mime_type)],
+        )
+        .ok()?;
 
-    let intent_class = env.find_class("android/content/Intent")?;
-    let action_send = env
-        .get_static_field(&intent_class, "ACTION_SEND", "Ljava/lang/String;")?
-        .l()?;
+        let extra_stream = env
+            .get_static_field(&intent_class, "EXTRA_STREAM", "Ljava/lang/String;")
+            .ok()?
+            .l()
+            .ok()?;
+        env.call_method(
+            &intent,
+            "putExtra",
+            "(Ljava/lang/String;Landroid/os/Parcelable;)Landroid/content/Intent;",
+            &[JValue::Object(&extra_stream), JValue::Object(&uri)],
+        )
+        .ok()?;
 
-    let intent = env.new_object(
-        &intent_class,
-        "(Ljava/lang/String;)V",
-        &[JValue::Object(&action_send)],
-    )?;
+        // Grant read permission to the receiving app
+        let flags = constants.flag_read | constants.flag_new_task;
+        env.call_method(
+            &intent,
+            "addFlags",
+            "(I)Landroid/content/Intent;",
+            &[JValue::Int(flags)],
+        )
+        .ok()?;
 
-    let mime_type = env.new_string("application/vnd.footnote.contact+json")?;
-    env.call_method(
-        &intent,
-        "setType",
-        "(Ljava/lang/String;)Landroid/content/Intent;",
-        &[JValue::Object(&mime_type)],
-    )?;
+        // 7. Show the System Chooser (The most stable way to trigger a share)
+        let title = env.new_string("Share Contact").ok()?;
+        let chooser = env
+            .call_static_method(
+                &intent_class,
+                "createChooser",
+                "(Landroid/content/Intent;Ljava/lang/CharSequence;)Landroid/content/Intent;",
+                &[JValue::Object(&intent), JValue::Object(&title)],
+            )
+            .ok()?
+            .l()
+            .ok()?;
 
-    let extra_stream = env
-        .get_static_field(&intent_class, "EXTRA_STREAM", "Ljava/lang/String;")?
-        .l()?;
+        env.call_method(
+            activity,
+            "startActivity",
+            "(Landroid/content/Intent;)V",
+            &[JValue::Object(&chooser)],
+        )
+        .ok()?;
 
-    env.call_method(
-        &intent,
-        "putExtra",
-        "(Ljava/lang/String;Landroid/os/Parcelable;)Landroid/content/Intent;",
-        &[JValue::Object(&extra_stream), JValue::Object(&uri)],
-    )?;
-
-    let flag_grant_read = 1;
-    env.call_method(
-        &intent,
-        "addFlags",
-        "(I)Landroid/content/Intent;",
-        &[JValue::Int(flag_grant_read)],
-    )?;
-
-    let chooser_title = env.new_string("Share contact")?;
-    let chooser = env
-        .call_static_method(
-            &intent_class,
-            "createChooser",
-            "(Landroid/content/Intent;Ljava/lang/CharSequence;)Landroid/content/Intent;",
-            &[JValue::Object(&intent), JValue::Object(&chooser_title)],
-        )?
-        .l()?;
-
-    env.call_method(
-        &activity,
-        "startActivity",
-        "(Landroid/content/Intent;)V",
-        &[JValue::Object(&chooser)],
-    )?;
+        Some(())
+    })
+    .ok_or("Failed to execute Android share")?;
 
     Ok(())
 }
@@ -349,97 +373,4 @@ fn get_package_name(
         .l()?;
 
     Ok(env.get_string(&package_name.into())?.into())
-}
-
-pub fn handle_incoming_share() -> Option<String> {
-    use jni::objects::JObject;
-
-    let ctx = ndk_context::android_context();
-    let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()).ok()? };
-    let mut env = vm.attach_current_thread().ok()?;
-    let activity = unsafe { JObject::from_raw(ctx.context().cast()) };
-
-    let intent = env
-        .call_method(&activity, "getIntent", "()Landroid/content/Intent;", &[])
-        .ok()?
-        .l()
-        .ok()?;
-
-    let action = env
-        .call_method(&intent, "getAction", "()Ljava/lang/String;", &[])
-        .ok()?
-        .l()
-        .ok()?;
-
-    let action_str: String = env.get_string(&action.into()).ok()?.into();
-
-    if action_str != "android.intent.action.VIEW" {
-        return None;
-    }
-
-    let uri = env
-        .call_method(&intent, "getData", "()Landroid/net/Uri;", &[])
-        .ok()?
-        .l()
-        .ok()?;
-
-    read_content_uri(&mut env, &activity, &uri)
-}
-
-fn read_content_uri(env: &mut jni::JNIEnv, activity: &JObject, uri: &JObject) -> Option<String> {
-    use jni::objects::JValue;
-
-    let resolver = env
-        .call_method(
-            activity,
-            "getContentResolver",
-            "()Landroid/content/ContentResolver;",
-            &[],
-        )
-        .ok()?
-        .l()
-        .ok()?;
-
-    let input_stream = env
-        .call_method(
-            &resolver,
-            "openInputStream",
-            "(Landroid/net/Uri;)Ljava/io/InputStream;",
-            &[JValue::Object(uri)],
-        )
-        .ok()?
-        .l()
-        .ok()?;
-
-    let buffer_size = 1024;
-    let byte_array = env.new_byte_array(buffer_size).ok()?;
-    let mut result = Vec::new();
-
-    loop {
-        let bytes_read = env
-            .call_method(
-                &input_stream,
-                "read",
-                "([B)I",
-                &[JValue::Object(byte_array.as_ref())],
-            )
-            .ok()?
-            .i()
-            .ok()?;
-
-        if bytes_read <= 0 {
-            break;
-        }
-
-        let mut buf = vec![0i8; bytes_read as usize];
-        env.get_byte_array_region(&byte_array, 0, &mut buf[..])
-            .ok()?;
-
-        let unsigned_buf: Vec<u8> = buf.into_iter().map(|b| b as u8).collect();
-        result.extend_from_slice(&unsigned_buf);
-    }
-
-    let _ = env.call_method(&input_stream, "close", "()V", &[]);
-
-    String::from_utf8(result).ok()
 }
