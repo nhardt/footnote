@@ -3,6 +3,7 @@ use crate::context::AppContext;
 use crate::model::device::Device;
 use crate::model::vault::Vault;
 use crate::model::vault::VaultState;
+use crate::platform;
 use crate::service::join_service::JoinEvent;
 use crate::util::sync_status_record::{SyncDirection, SyncStatusRecord};
 use crate::{model::user::LocalUser, service::join_service::JoinService};
@@ -711,7 +712,7 @@ fn ExportModal(onclose: EventHandler) -> Element {
                         }
                     }
 
-                    if cfg!(target_os = "android") {
+                    if platform::SHARE_SHEET_SUPPORTED {
                         div { class: "flex gap-3",
                             button {
                                 class: "flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-md text-sm font-medium transition-all",
