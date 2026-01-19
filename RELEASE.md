@@ -67,4 +67,4 @@ known to work:
 ### Android
 
 At this moment, Dioxus does not support adding file_paths.xml to the build. It
-can be added before the build by running ./packaging/dx_prebuild.sh.
+can be added before the build by running ./platform_build/dx_prebuild.sh.

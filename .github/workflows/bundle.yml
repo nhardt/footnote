@@ -97,7 +97,7 @@ jobs:
         if: matrix.platform == 'android'
         run: |
           mkdir -p ./target/dx/footnote/release/android/app/app/src/main/res/xml
-          cp packaging/file_paths.xml ./target/dx/footnote/release/android/app/app/src/main/res/xml/
+          cp platform_build/file_paths.xml ./target/dx/footnote/release/android/app/app/src/main/res/xml/
 
       - name: Bundle
         env:
