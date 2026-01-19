@@ -1,6 +1,4 @@
-use jni::objects::JObject;
 use jni::objects::JValue;
-use jni::JNIEnv;
 use jni::{objects::JObject, JNIEnv, JavaVM};
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -55,14 +53,14 @@ impl AndroidConstants {
 
 pub fn handle_incoming_share() -> Option<String> {
     with_android_context(|env, activity| {
-        // 1. Get the Intent
+        tracing::debug!("getting the intent");
         let intent = env
             .call_method(activity, "getIntent", "()Landroid/content/Intent;", &[])
             .ok()?
             .l()
             .ok()?;
 
-        // 2. Get the Action string
+        tracing::debug!("getting the action");
         let action_obj = env
             .call_method(&intent, "getAction", "()Ljava/lang/String;", &[])
             .ok()?
@@ -70,11 +68,9 @@ pub fn handle_incoming_share() -> Option<String> {
             .ok()?;
 
         let action_str: String = env.get_string(&action_obj.into()).ok()?.into();
-
-        // 3. Determine if we care about this action
+        tracing::debug!("action: {}", action_str);
         if action_str == "android.intent.action.SEND" || action_str == "android.intent.action.VIEW"
         {
-            // ACTION FOUND - Move to Step 2: Extracting the URI
             return read_content_uri(env, activity, &intent, &action_str);
         }
 
@@ -88,11 +84,10 @@ fn read_content_uri(
     intent: &JObject,
     action: &str,
 ) -> Option<String> {
-    use jni::objects::JValue;
+    tracing::debug!("attempting to read content uri");
 
-    // 1. Fork extraction logic based on Action
     let uri = if action == "android.intent.action.SEND" {
-        // ShareSheet logic: look in Extras
+        tracing::debug!("getting uri via extra");
         let extra_key = env
             .get_static_field(
                 "android/content/Intent",
@@ -113,14 +108,14 @@ fn read_content_uri(
         .l()
         .ok()?
     } else {
-        // File Manager logic: look in Data
+        tracing::debug!("getting uri via Data");
         env.call_method(intent, "getData", "()Landroid/net/Uri;", &[])
             .ok()?
             .l()
             .ok()?
     };
 
-    // 2. Get the ContentResolver
+    tracing::debug!("getContentResolver");
     let resolver = env
         .call_method(
             activity,
@@ -132,7 +127,7 @@ fn read_content_uri(
         .l()
         .ok()?;
 
-    // 3. Open the Stream
+    tracing::debug!("openInputStream");
     let input_stream = env
         .call_method(
             &resolver,
@@ -146,6 +141,7 @@ fn read_content_uri(
 
     // the URI is null if the OS refuses to open it (SecurityException)
     if uri.is_null() {
+        tracing::info!("got null url, cannot handle action");
         return None;
     }
 
@@ -181,11 +177,11 @@ fn read_content_uri(
     }
 
     let input_stream = input_stream_result.ok()?.l().ok()?;
-
     perform_stream_read(env, &input_stream)
 }
 
 fn perform_stream_read(env: &mut JNIEnv, input_stream: &JObject) -> Option<String> {
+    tracing::info!("perform_stream_read");
     let buffer_size = 1024;
     let byte_array = env.new_byte_array(buffer_size).ok()?;
     let mut result_bytes = Vec::new();
@@ -216,7 +212,6 @@ fn perform_stream_read(env: &mut JNIEnv, input_stream: &JObject) -> Option<Strin
 
     // Always close the stream to avoid file descriptor leaks
     let _ = env.call_method(input_stream, "close", "()V", &[]);
-
     String::from_utf8(result_bytes).ok()
 }
 

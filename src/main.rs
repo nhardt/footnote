@@ -11,6 +11,8 @@ mod views;
 use crate::components::sync_service_toggle::SyncServiceToggle;
 use crate::context::AppContext;
 use crate::model::vault::{Vault, VaultState};
+#[cfg(target_os = "android")]
+use crate::platform::handle_incoming_share;
 use crate::util::manifest::create_manifest_local;
 use tracing::Level;
 use util::filesystem::ensure_default_vault;
@@ -49,6 +51,16 @@ fn main() {
 
 #[component]
 fn App() -> Element {
+    #[cfg(target_os = "android")]
+    use_hook(|| {
+        tracing::info!("setting up hook to handle share");
+        spawn(async move {
+            if let Some(contact_data) = handle_incoming_share() {
+                tracing::info!("Received contact: {}", contact_data);
+            }
+        });
+    });
+
     let vault_path = ensure_default_vault()?;
     let vault = Vault::new(&vault_path)?;
     use_context_provider(|| AppContext {
