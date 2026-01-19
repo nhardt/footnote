@@ -121,6 +121,44 @@ fn read_content_uri(
         .l()
         .ok()?;
 
+    // the URI is null if the OS refuses to open it (SecurityException)
+    if uri.is_null() {
+        return None;
+    }
+
+    let resolver = env
+        .call_method(
+            activity,
+            "getContentResolver",
+            "()Landroid/content/ContentResolver;",
+            &[],
+        )
+        .ok()?
+        .l()
+        .ok()?;
+
+    let input_stream_result = env.call_method(
+        &resolver,
+        "openInputStream",
+        "(Landroid/net/Uri;)Ljava/io/InputStream;",
+        &[JValue::Object(&uri)],
+    );
+
+    // CHECK FOR EXCEPTIONS
+    // If the user revoked permission, this call throws a SecurityException
+    //
+    // In JNI, once an exception is thrown in Java, almost every subsequent JNI
+    // call will fail/crash until the exception is cleared. If you don't clear
+    // it, your app won't just fail to read the file, it will likely lock up or
+    // exit entirely the next time you try to do anything with the UI.
+    if env.exception_check().ok().unwrap_or(false) {
+        env.exception_describe().ok(); // Log the error for your debugging
+        env.exception_clear().ok(); // Clear it so the app doesn't crash on the next JNI call
+        return None;
+    }
+
+    let input_stream = input_stream_result.ok()?.l().ok()?;
+
     // Now we enter the byte-reading loop we perfected earlier...
     perform_stream_read(env, &input_stream)
 }
