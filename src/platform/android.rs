@@ -59,6 +59,72 @@ pub fn handle_incoming_share() -> Option<String> {
     })
 }
 
+fn read_content_uri(
+    env: &mut JNIEnv,
+    activity: &JObject,
+    intent: &JObject,
+    action: &str,
+) -> Option<String> {
+    use jni::objects::JValue;
+
+    // 1. Fork extraction logic based on Action
+    let uri = if action == "android.intent.action.SEND" {
+        // ShareSheet logic: look in Extras
+        let extra_key = env
+            .get_static_field(
+                "android/content/Intent",
+                "EXTRA_STREAM",
+                "Ljava/lang/String;",
+            )
+            .ok()?
+            .l()
+            .ok()?;
+
+        env.call_method(
+            intent,
+            "getParcelableExtra",
+            "(Ljava/lang/String;)Landroid/os/Parcelable;",
+            &[JValue::Object(&extra_key)],
+        )
+        .ok()?
+        .l()
+        .ok()?
+    } else {
+        // File Manager logic: look in Data
+        env.call_method(intent, "getData", "()Landroid/net/Uri;", &[])
+            .ok()?
+            .l()
+            .ok()?
+    };
+
+    // 2. Get the ContentResolver
+    let resolver = env
+        .call_method(
+            activity,
+            "getContentResolver",
+            "()Landroid/content/ContentResolver;",
+            &[],
+        )
+        .ok()?
+        .l()
+        .ok()?;
+
+    // 3. Open the Stream
+    let input_stream = env
+        .call_method(
+            &resolver,
+            "openInputStream",
+            "(Landroid/net/Uri;)Ljava/io/InputStream;",
+            &[JValue::Object(&uri)],
+        )
+        .ok()?
+        .l()
+        .ok()?;
+
+    // Now we enter the byte-reading loop we perfected earlier...
+    perform_stream_read(env, &input_stream)
+}
+
 /// Get the application's writable directory
 pub fn get_app_dir() -> anyhow::Result<PathBuf> {
     use jni::JavaVM;
