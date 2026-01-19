@@ -30,6 +30,35 @@ where
     f(&mut env, &activity)
 }
 
+pub fn handle_incoming_share() -> Option<String> {
+    with_android_context(|env, activity| {
+        // 1. Get the Intent
+        let intent = env
+            .call_method(activity, "getIntent", "()Landroid/content/Intent;", &[])
+            .ok()?
+            .l()
+            .ok()?;
+
+        // 2. Get the Action string
+        let action_obj = env
+            .call_method(&intent, "getAction", "()Ljava/lang/String;", &[])
+            .ok()?
+            .l()
+            .ok()?;
+
+        let action_str: String = env.get_string(&action_obj.into()).ok()?.into();
+
+        // 3. Determine if we care about this action
+        if action_str == "android.intent.action.SEND" || action_str == "android.intent.action.VIEW"
+        {
+            // ACTION FOUND - Move to Step 2: Extracting the URI
+            return read_content_uri(env, activity, &intent, &action_str);
+        }
+
+        None
+    })
+}
+
 /// Get the application's writable directory
 pub fn get_app_dir() -> anyhow::Result<PathBuf> {
     use jni::JavaVM;
