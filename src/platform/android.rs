@@ -1,6 +1,34 @@
 use jni::objects::JObject;
+use jni::objects::JValue;
 use jni::JNIEnv;
+use jni::{objects::JObject, JNIEnv, JavaVM};
 use std::path::PathBuf;
+use std::sync::OnceLock;
+
+// We store the JVM globally so any thread can "attach" to it later
+static JVM: OnceLock<JavaVM> = OnceLock::new();
+
+pub fn with_android_context<F, R>(f: F) -> Option<R>
+where
+    F: FnOnce(&mut JNIEnv, &JObject) -> Option<R>,
+{
+    // 1. Get the VM (initialize it if this is the first time)
+    let vm = JVM.get_or_init(|| {
+        let ctx = ndk_context::android_context();
+        unsafe { JavaVM::from_raw(ctx.vm().cast()).expect("Failed to get JVM") }
+    });
+
+    // 2. Attach the current thread to the JVM
+    // This is vital for Dioxus because Dioxus often runs on its own threads
+    let mut env = vm.attach_current_thread().ok()?;
+
+    // 3. Get the Activity context
+    let ctx = ndk_context::android_context();
+    let activity = unsafe { JObject::from_raw(ctx.context().cast()) };
+
+    // 4. Run your logic
+    f(&mut env, &activity)
+}
 
 /// Get the application's writable directory
 pub fn get_app_dir() -> anyhow::Result<PathBuf> {
