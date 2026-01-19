@@ -30,6 +30,29 @@ where
     f(&mut env, &activity)
 }
 
+struct AndroidConstants {
+    flag_read: i32,
+    flag_new_task: i32,
+}
+
+impl AndroidConstants {
+    fn fetch(env: &mut jni::JNIEnv) -> Option<Self> {
+        let cls = env.find_class("android/content/Intent").ok()?;
+        Some(Self {
+            flag_read: env
+                .get_static_field(&cls, "FLAG_GRANT_READ_URI_PERMISSION", "I")
+                .ok()?
+                .i()
+                .ok()?,
+            flag_new_task: env
+                .get_static_field(&cls, "FLAG_ACTIVITY_NEW_TASK", "I")
+                .ok()?
+                .i()
+                .ok()?,
+        })
+    }
+}
+
 pub fn handle_incoming_share() -> Option<String> {
     with_android_context(|env, activity| {
         // 1. Get the Intent
