@@ -137,3 +137,96 @@ fn get_package_name(
 
     Ok(env.get_string(&package_name.into())?.into())
 }
+
+pub fn handle_incoming_share() -> Option<String> {
+    use jni::objects::JObject;
+
+    let ctx = ndk_context::android_context();
+    let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()).ok()? };
+    let mut env = vm.attach_current_thread().ok()?;
+    let activity = unsafe { JObject::from_raw(ctx.context().cast()) };
+
+    let intent = env
+        .call_method(&activity, "getIntent", "()Landroid/content/Intent;", &[])
+        .ok()?
+        .l()
+        .ok()?;
+
+    let action = env
+        .call_method(&intent, "getAction", "()Ljava/lang/String;", &[])
+        .ok()?
+        .l()
+        .ok()?;
+
+    let action_str: String = env.get_string(&action.into()).ok()?.into();
+
+    if action_str != "android.intent.action.VIEW" {
+        return None;
+    }
+
+    let uri = env
+        .call_method(&intent, "getData", "()Landroid/net/Uri;", &[])
+        .ok()?
+        .l()
+        .ok()?;
+
+    read_content_uri(&mut env, &activity, &uri)
+}
+
+fn read_content_uri(env: &mut jni::JNIEnv, activity: &JObject, uri: &JObject) -> Option<String> {
+    use jni::objects::JValue;
+
+    let resolver = env
+        .call_method(
+            activity,
+            "getContentResolver",
+            "()Landroid/content/ContentResolver;",
+            &[],
+        )
+        .ok()?
+        .l()
+        .ok()?;
+
+    let input_stream = env
+        .call_method(
+            &resolver,
+            "openInputStream",
+            "(Landroid/net/Uri;)Ljava/io/InputStream;",
+            &[JValue::Object(uri)],
+        )
+        .ok()?
+        .l()
+        .ok()?;
+
+    let buffer_size = 1024;
+    let byte_array = env.new_byte_array(buffer_size).ok()?;
+    let mut result = Vec::new();
+
+    loop {
+        let bytes_read = env
+            .call_method(
+                &input_stream,
+                "read",
+                "([B)I",
+                &[JValue::Object(byte_array.as_ref())],
+            )
+            .ok()?
+            .i()
+            .ok()?;
+
+        if bytes_read <= 0 {
+            break;
+        }
+
+        let mut buf = vec![0i8; bytes_read as usize];
+        env.get_byte_array_region(&byte_array, 0, &mut buf[..])
+            .ok()?;
+
+        let unsigned_buf: Vec<u8> = buf.into_iter().map(|b| b as u8).collect();
+        result.extend_from_slice(&unsigned_buf);
+    }
+
+    let _ = env.call_method(&input_stream, "close", "()V", &[]);
+
+    String::from_utf8(result).ok()
+}
