@@ -1,5 +1,6 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 /// Lamport timestamp for tracking note modifications with causal ordering.
 ///
@@ -9,6 +10,12 @@ use serde::{Deserialize, Serialize};
 /// - Works correctly even when device clocks are skewed
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct LamportTimestamp(pub i64);
+
+impl fmt::Display for LamportTimestamp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 impl LamportTimestamp {
     /// Create a new timestamp for a modification.
