@@ -51,31 +51,51 @@ impl AndroidConstants {
     }
 }
 
-pub fn handle_incoming_share() -> Option<String> {
+pub fn handle_incoming_share() -> Result<Option<String>, String> {
     with_android_context(|env, activity| {
         tracing::debug!("getting the intent");
         let intent = env
             .call_method(activity, "getIntent", "()Landroid/content/Intent;", &[])
+            .map_err(|e| format!("JNI Error getting intent: {:?}", e))
             .ok()?
             .l()
             .ok()?;
+        if intent.is_null() {
+            return Some(Ok(None));
+        }
 
         tracing::debug!("getting the action");
         let action_obj = env
             .call_method(&intent, "getAction", "()Ljava/lang/String;", &[])
+            .map_err(|e| format!("JNI Error getting action: {:?}", e))
             .ok()?
             .l()
             .ok()?;
-
+        if action_obj.is_null() {
+            return Some(Ok(None));
+        }
         let action_str: String = env.get_string(&action_obj.into()).ok()?.into();
-        tracing::debug!("action: {}", action_str);
-        if action_str == "android.intent.action.SEND" || action_str == "android.intent.action.VIEW"
+        if action_str != "android.intent.action.SEND" && action_str != "android.intent.action.VIEW"
         {
-            return read_content_uri(env, activity, &intent, &action_str);
+            return Some(Ok(None));
         }
 
-        None
+        match read_content_uri(env, activity, &intent, &action_str) {
+            Some(data) => Some(Ok(Some(data))),
+            None => {
+                // Check if we exited read_content_uri because of a Java Exception
+                if env.exception_check().unwrap_or(false) {
+                    let _ = env.exception_describe(); // Prints to Logcat
+                    let _ = env.exception_clear();
+                    return Some(Err(
+                        "Java Exception while reading URI (Security?)".to_string()
+                    ));
+                }
+                Some(Err("Failed to read URI content".to_string()))
+            }
+        }
     })
+    .unwrap_or(Ok(None))
 }
 
 fn read_content_uri(
@@ -106,14 +126,19 @@ fn read_content_uri(
         )
         .ok()?
         .l()
-        .ok()?
+        .unwrap_or(JObject::null()) // Don't use .ok()? here
     } else {
         tracing::debug!("getting uri via Data");
         env.call_method(intent, "getData", "()Landroid/net/Uri;", &[])
-            .ok()?
-            .l()
-            .ok()?
+            .ok()? // This catches JNI execution errors
+            .l() // This gets the object (even if null)
+            .unwrap_or(JObject::null()) // This ensures we keep going even if it's null
     };
+    // the URI is null if the OS refuses to open it (SecurityException)
+    if uri.is_null() {
+        tracing::info!("got null url, cannot handle action");
+        return None;
+    }
 
     tracing::debug!("getContentResolver");
     let resolver = env
@@ -128,34 +153,6 @@ fn read_content_uri(
         .ok()?;
 
     tracing::debug!("openInputStream");
-    let input_stream = env
-        .call_method(
-            &resolver,
-            "openInputStream",
-            "(Landroid/net/Uri;)Ljava/io/InputStream;",
-            &[JValue::Object(&uri)],
-        )
-        .ok()?
-        .l()
-        .ok()?;
-
-    // the URI is null if the OS refuses to open it (SecurityException)
-    if uri.is_null() {
-        tracing::info!("got null url, cannot handle action");
-        return None;
-    }
-
-    let resolver = env
-        .call_method(
-            activity,
-            "getContentResolver",
-            "()Landroid/content/ContentResolver;",
-            &[],
-        )
-        .ok()?
-        .l()
-        .ok()?;
-
     let input_stream_result = env.call_method(
         &resolver,
         "openInputStream",

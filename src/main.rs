@@ -55,8 +55,10 @@ fn App() -> Element {
     use_hook(|| {
         tracing::info!("setting up hook to handle share");
         spawn(async move {
-            if let Some(contact_data) = handle_incoming_share() {
-                tracing::info!("Received contact: {}", contact_data);
+            match handle_incoming_share() {
+                Ok(Some(data)) => tracing::info!("Received contact! {}", data),
+                Ok(None) => tracing::info!("No share intent detected"),
+                Err(e) => tracing::error!("failed to handle intent: {}", e),
             }
         });
     });

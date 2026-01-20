@@ -663,10 +663,20 @@ fn ExportModal(onclose: EventHandler) -> Element {
     let handle_share = move |_| {
         error_message.set(None);
 
-        let json_content = user_record_json();
+        let Some((username, timestamp, Some(json_content))) = app_context
+            .vault
+            .read()
+            .user_read()
+            .ok()
+            .flatten()
+            .map(|u| (u.username.clone(), u.updated_at, u.to_json_pretty().ok()))
+        else {
+            error_message.set(Some("failed to get user record".into()));
+            return;
+        };
 
         let temp_dir = std::env::temp_dir();
-        let file_path = temp_dir.join("contact.footnote-contact");
+        let file_path = temp_dir.join(format!("{}.{}.fnc", username, timestamp));
 
         match std::fs::write(&file_path, json_content) {
             Ok(_) => {
