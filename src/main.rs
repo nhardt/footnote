@@ -20,17 +20,14 @@ use views::note_view::NoteView;
 use views::profile_view::Profile;
 
 #[cfg(target_os = "android")]
-use crate::platform::get_uri_channel;
-#[cfg(target_os = "android")]
-use crate::platform::handle_incoming_share;
-#[cfg(target_os = "android")]
-use crate::platform::read_uri_from_string;
-#[cfg(target_os = "android")]
-use std::sync::mpsc::{channel, Receiver, Sender};
-#[cfg(target_os = "android")]
-use std::sync::Mutex;
-#[cfg(target_os = "android")]
-use std::sync::OnceLock;
+use {
+    crate::platform::get_uri_channel,
+    crate::platform::handle_incoming_share,
+    crate::platform::read_uri_from_string,
+    std::sync::mpsc::{channel, Receiver, Sender},
+    std::sync::Mutex,
+    std::sync::OnceLock,
+};
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 enum Route {
