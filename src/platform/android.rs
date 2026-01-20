@@ -5,6 +5,35 @@ use std::sync::OnceLock;
 
 // We store the JVM globally so any thread can "attach" to it later
 static JVM: OnceLock<JavaVM> = OnceLock::new();
+pub static URI_SENDER: OnceLock<Sender<String>> = OnceLock::new();
+pub static URI_RECEIVER: OnceLock<Mutex<Receiver<String>>> = OnceLock::new();
+
+pub fn get_uri_channel() -> (&'static Sender<String>, &'static Mutex<Receiver<String>>) {
+    let s = URI_SENDER.get_or_init(|| {
+        let (s, r) = channel();
+        let _ = URI_RECEIVER.set(Mutex::new(r));
+        s
+    });
+    let r = URI_RECEIVER
+        .get()
+        .expect("Receiver should be initialized with Sender");
+    (s, r)
+}
+
+#[no_mangle]
+pub extern "C" fn Java_dev_dioxus_main_MainActivity_notifyOnNewIntent(
+    mut env: jni::JNIEnv,
+    _class: jni::objects::JClass,
+    data: jni::objects::JString,
+) {
+    if let Ok(uri) = env.get_string(&data) {
+        let uri_str: String = uri.into();
+
+        let (sender, _) = get_uri_channel();
+
+        let _ = sender.send(uri_str);
+    }
+}
 
 pub fn with_android_context<F, R>(f: F) -> Option<R>
 where
@@ -60,7 +89,7 @@ pub fn handle_incoming_share() -> Result<Option<String>, String> {
             .ok()?
             .l()
             .ok()?;
-        if intent.is_null() {
+        if intent.is_null() || is_intent_processed(env, &intent) {
             return Some(Ok(None));
         }
 
@@ -81,7 +110,10 @@ pub fn handle_incoming_share() -> Result<Option<String>, String> {
         }
 
         match read_content_uri(env, activity, &intent, &action_str) {
-            Some(data) => Some(Ok(Some(data))),
+            Some(data) => {
+                mark_intent_processed(env, &intent);
+                Some(Ok(Some(data)))
+            }
             None => {
                 // Check if we exited read_content_uri because of a Java Exception
                 if env.exception_check().unwrap_or(false) {
@@ -96,6 +128,38 @@ pub fn handle_incoming_share() -> Result<Option<String>, String> {
         }
     })
     .unwrap_or(Ok(None))
+}
+
+fn mark_intent_processed(env: &mut JNIEnv, intent: &JObject) {
+    let mut mark = || -> jni::errors::Result<()> {
+        let key = env.new_string("processed")?;
+        env.call_method(
+            intent,
+            "putExtra",
+            "(Ljava/lang/String;Z)Landroid/content/Intent;",
+            &[JValue::Object(&key), JValue::Bool(true.into())],
+        )?;
+        Ok(())
+    };
+
+    let _ = mark(); // We ignore errors here as it's a "best effort" cleanup
+}
+
+fn is_intent_processed(env: &mut JNIEnv, intent: &JObject) -> bool {
+    let mut check = || -> jni::errors::Result<bool> {
+        let key = env.new_string("processed")?;
+        let processed = env
+            .call_method(
+                intent,
+                "getBooleanExtra",
+                "(Ljava/lang/String;Z)Z",
+                &[JValue::Object(&key), JValue::Bool(false.into())],
+            )?
+            .z()?;
+        Ok(processed)
+    };
+
+    check().unwrap_or(false)
 }
 
 fn read_content_uri(
