@@ -1,6 +1,8 @@
 use jni::objects::JValue;
 use jni::{objects::JObject, JNIEnv, JavaVM};
 use std::path::PathBuf;
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::Mutex;
 use std::sync::OnceLock;
 
 // We store the JVM globally so any thread can "attach" to it later
@@ -28,9 +30,7 @@ pub extern "C" fn Java_dev_dioxus_main_MainActivity_notifyOnNewIntent(
 ) {
     if let Ok(uri) = env.get_string(&data) {
         let uri_str: String = uri.into();
-
         let (sender, _) = get_uri_channel();
-
         let _ = sender.send(uri_str);
     }
 }

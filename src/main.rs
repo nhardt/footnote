@@ -12,8 +12,16 @@ use crate::components::sync_service_toggle::SyncServiceToggle;
 use crate::context::AppContext;
 use crate::model::vault::{Vault, VaultState};
 #[cfg(target_os = "android")]
+use crate::platform::get_uri_channel;
+#[cfg(target_os = "android")]
 use crate::platform::handle_incoming_share;
 use crate::util::manifest::create_manifest_local;
+#[cfg(target_os = "android")]
+use std::sync::mpsc::{channel, Receiver, Sender};
+#[cfg(target_os = "android")]
+use std::sync::Mutex;
+#[cfg(target_os = "android")]
+use std::sync::OnceLock;
 use tracing::Level;
 use util::filesystem::ensure_default_vault;
 use views::contact_view::ContactBrowser;
@@ -59,6 +67,22 @@ fn App() -> Element {
                 Ok(Some(data)) => tracing::info!("Received contact! {}", data),
                 Ok(None) => tracing::info!("No share intent detected"),
                 Err(e) => tracing::error!("failed to handle intent: {}", e),
+            }
+            let (_, rx_mutex): (&Sender<String>, &Mutex<Receiver<String>>) = get_uri_channel();
+            loop {
+                if let Ok(rx) = rx_mutex.lock() {
+                    if let Ok(new_uri) = rx.try_recv() {
+                        let new_uri: String = new_uri;
+                        tracing::info!("Kotlin notified us of a new file: {}", new_uri);
+
+                        match handle_incoming_share() {
+                            Ok(Some(data)) => tracing::info!("Received contact! {}", data),
+                            Ok(None) => tracing::info!("No share intent detected"),
+                            Err(e) => tracing::error!("failed to handle intent: {}", e),
+                        }
+                    }
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
             }
         });
     });
