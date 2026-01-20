@@ -11,22 +11,25 @@ mod views;
 use crate::components::sync_service_toggle::SyncServiceToggle;
 use crate::context::AppContext;
 use crate::model::vault::{Vault, VaultState};
+use crate::util::manifest::create_manifest_local;
+use tracing::Level;
+use util::filesystem::ensure_default_vault;
+use views::contact_view::ContactBrowser;
+use views::note_view::NoteView;
+use views::profile_view::Profile;
+
 #[cfg(target_os = "android")]
 use crate::platform::get_uri_channel;
 #[cfg(target_os = "android")]
 use crate::platform::handle_incoming_share;
-use crate::util::manifest::create_manifest_local;
+#[cfg(target_os = "android")]
+use crate::platform::read_uri_from_string;
 #[cfg(target_os = "android")]
 use std::sync::mpsc::{channel, Receiver, Sender};
 #[cfg(target_os = "android")]
 use std::sync::Mutex;
 #[cfg(target_os = "android")]
 use std::sync::OnceLock;
-use tracing::Level;
-use util::filesystem::ensure_default_vault;
-use views::contact_view::ContactBrowser;
-use views::note_view::NoteView;
-use views::profile_view::Profile;
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 enum Route {
@@ -71,14 +74,18 @@ fn App() -> Element {
             let (_, rx_mutex): (&Sender<String>, &Mutex<Receiver<String>>) = get_uri_channel();
             loop {
                 if let Ok(rx) = rx_mutex.lock() {
-                    if let Ok(new_uri) = rx.try_recv() {
-                        let new_uri: String = new_uri;
-                        tracing::info!("Kotlin notified us of a new file: {}", new_uri);
+                    if let Ok(incoming_uri) = rx.try_recv() {
+                        let incoming_uri: String = incoming_uri;
+                        tracing::info!("Kotlin notified us of a new file: {}", incoming_uri);
 
-                        match handle_incoming_share() {
-                            Ok(Some(data)) => tracing::info!("Received contact! {}", data),
-                            Ok(None) => tracing::info!("No share intent detected"),
-                            Err(e) => tracing::error!("failed to handle intent: {}", e),
+                        match read_uri_from_string(incoming_uri) {
+                            Some(content) => {
+                                tracing::debug!("Successfully content: {}", content);
+                                // TODO: Update your Dioxus Signal here!
+                            }
+                            None => tracing::warn!(
+                                "Failed to read content from the URI provided by Kotlin"
+                            ),
                         }
                     }
                 }

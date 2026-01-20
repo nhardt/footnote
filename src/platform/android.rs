@@ -162,6 +162,51 @@ fn is_intent_processed(env: &mut JNIEnv, intent: &JObject) -> bool {
     check().unwrap_or(false)
 }
 
+pub fn read_uri_from_string(uri_str: String) -> Option<String> {
+    with_android_context(|env, activity| {
+        let uri_cls = env.find_class("android/net/Uri").ok()?;
+        let j_uri_str = env.new_string(&uri_str).ok()?;
+        let uri_obj = env
+            .call_static_method(
+                uri_cls,
+                "parse",
+                "(Ljava/lang/String;)Landroid/net/Uri;",
+                &[jni::objects::JValue::Object(&j_uri_str)],
+            )
+            .ok()?
+            .l()
+            .ok()?;
+
+        let resolver = env
+            .call_method(
+                activity,
+                "getContentResolver",
+                "()Landroid/content/ContentResolver;",
+                &[],
+            )
+            .ok()?
+            .l()
+            .ok()?;
+
+        let input_stream_result = env.call_method(
+            &resolver,
+            "openInputStream",
+            "(Landroid/net/Uri;)Ljava/io/InputStream;",
+            &[JValue::Object(&uri_obj)],
+        );
+
+        if env.exception_check().ok().unwrap_or(false) {
+            env.exception_describe().ok();
+            env.exception_clear().ok();
+            return None;
+        }
+
+        let input_stream = input_stream_result.ok()?.l().ok()?;
+
+        perform_stream_read(env, &input_stream)
+    })
+}
+
 fn read_content_uri(
     env: &mut JNIEnv,
     activity: &JObject,
