@@ -8,8 +8,9 @@ mod platform;
 mod service;
 mod util;
 mod views;
+use crate::components::import_contact_modal::ImportContactModal;
 use crate::components::sync_service_toggle::SyncServiceToggle;
-use crate::context::AppContext;
+use crate::context::{AppContext, ImportContactModalVisible};
 use crate::model::vault::{Vault, VaultState};
 use crate::util::manifest::create_manifest_local;
 use tracing::Level;
@@ -106,6 +107,8 @@ fn App() -> Element {
         ),
     });
 
+    use_context_provider(|| ImportContactModalVisible(Signal::new(false)));
+
     rsx! {
         document::Link { rel: "icon", href: FAVICON }
         document::Link { rel: "stylesheet", href: TAILWIND_CSS }
@@ -118,6 +121,8 @@ fn App() -> Element {
 #[component]
 fn Main() -> Element {
     let route = use_route::<Route>();
+    let contact_modal_visible = use_context::<ImportContactModalVisible>();
+
     rsx! {
         div { class: "flex flex-col flex-1 h-screen bg-zinc-950 text-zinc-100 font-sans antialiased",
             nav { class: "border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm",
@@ -169,6 +174,10 @@ fn Main() -> Element {
 
                 }
             }
+        }
+
+        if contact_modal_visible.0() {
+            ImportContactModal {}
         }
     }
 }
