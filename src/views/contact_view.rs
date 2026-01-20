@@ -145,7 +145,7 @@ fn ImportComponent() -> Element {
          }
 
         if show_modal() {
-            ImportModal {
+            ImportContactModal {
                 onclose: move |_| show_modal.set(false)
             }
         }
@@ -153,7 +153,7 @@ fn ImportComponent() -> Element {
 }
 
 #[component]
-fn ImportModal(onclose: EventHandler) -> Element {
+fn ImportContactModal(onclose: EventHandler) -> Element {
     let mut contact_json = use_signal(|| String::new());
     let mut nickname = use_signal(|| String::new());
     let mut err_message = use_signal(|| String::new());
