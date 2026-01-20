@@ -14,6 +14,10 @@ class MainActivity : WryActivity() {
     override fun onNewIntent(intent: Intent) {
         Log.d(TAG, "onNewIntent called")
         super.onNewIntent(intent)
+        // If you notice that read_uri_from_string works for the first share but fails on
+        // the second one while the app is still open, it’s almost always because the
+        // "Permission Grant" from the Intent expired. To fix:
+        //intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         setIntent(intent)
         Log.d(TAG, "onNewIntent received: ${intent.action}")
         intent.data?.let { uri ->
