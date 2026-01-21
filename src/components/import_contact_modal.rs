@@ -1,5 +1,23 @@
-use crate::context::{AppContext, ImportContactModalVisible};
+use crate::context::AppContext;
 use dioxus::prelude::*;
+
+#[derive(Clone, Copy, PartialEq)]
+pub struct ImportContactModalVisible(pub Signal<bool>);
+
+impl ImportContactModalVisible {
+    pub fn set(&mut self, value: bool) {
+        self.0.set(value);
+    }
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub struct ImportedContactString(pub Signal<String>);
+
+impl ImportedContactString {
+    pub fn set(&mut self, value: String) {
+        self.0.set(value);
+    }
+}
 
 #[component]
 pub fn ImportContactModal() -> Element {
@@ -7,6 +25,15 @@ pub fn ImportContactModal() -> Element {
     let mut nickname = use_signal(|| String::new());
     let mut err_message = use_signal(|| String::new());
     let mut app_context = use_context::<AppContext>();
+
+    let mut imported_contact_data = use_context::<ImportedContactString>();
+    use_effect(move || {
+        let data = imported_contact_data.0.read();
+        if !data.is_empty() {
+            contact_json.set(data.clone());
+        }
+    });
+
     let import_contact = move |_| {
         let vault = app_context.vault.read().clone();
         match vault.contact_import(&nickname.read().clone(), &contact_json.read().clone()) {

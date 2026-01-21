@@ -1,5 +1,4 @@
-use crate::components::import_contact_modal::ImportContactModal;
-use crate::context::ImportContactModalVisible;
+use crate::components::import_contact_modal::{ImportContactModal, ImportContactModalVisible};
 use crate::model::contact::Contact;
 use crate::model::device::Device;
 use crate::model::vault::Vault;

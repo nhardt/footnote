@@ -42,12 +42,3 @@ impl AppContext {
         Ok(())
     }
 }
-
-#[derive(Clone, Copy, PartialEq)]
-pub struct ImportContactModalVisible(pub Signal<bool>);
-
-impl ImportContactModalVisible {
-    pub fn set(&mut self, value: bool) {
-        self.0.set(value);
-    }
-}

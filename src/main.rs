@@ -8,9 +8,11 @@ mod platform;
 mod service;
 mod util;
 mod views;
-use crate::components::import_contact_modal::ImportContactModal;
+use crate::components::import_contact_modal::{
+    ImportContactModal, ImportContactModalVisible, ImportedContactString,
+};
 use crate::components::sync_service_toggle::SyncServiceToggle;
-use crate::context::{AppContext, ImportContactModalVisible};
+use crate::context::AppContext;
 use crate::model::vault::{Vault, VaultState};
 use crate::util::manifest::create_manifest_local;
 use tracing::Level;
@@ -60,12 +62,19 @@ fn main() {
 
 #[component]
 fn App() -> Element {
+    use_context_provider(|| ImportContactModalVisible(Signal::new(false)));
+    use_context_provider(|| ImportedContactString(Signal::new(String::new())));
+
     #[cfg(target_os = "android")]
     use_hook(|| {
         tracing::info!("setting up hook to handle share");
         spawn(async move {
             match handle_incoming_share() {
-                Ok(Some(data)) => tracing::info!("Received contact! {}", data),
+                Ok(Some(data)) => {
+                    tracing::info!("Received contact! {}", data);
+                    consume_context::<ImportedContactString>().set(data);
+                    consume_context::<ImportContactModalVisible>().set(true);
+                }
                 Ok(None) => tracing::info!("No share intent detected"),
                 Err(e) => tracing::error!("failed to handle intent: {}", e),
             }
@@ -78,8 +87,9 @@ fn App() -> Element {
 
                         match read_uri_from_string(incoming_uri) {
                             Some(content) => {
-                                tracing::debug!("Successfully content: {}", content);
-                                // TODO: Update your Dioxus Signal here!
+                                tracing::info!("Received content! {}", content);
+                                consume_context::<ImportedContactString>().set(content);
+                                consume_context::<ImportContactModalVisible>().set(true);
                             }
                             None => tracing::warn!(
                                 "Failed to read content from the URI provided by Kotlin"
@@ -103,8 +113,6 @@ fn App() -> Element {
             create_manifest_local(&vault.base_path()).expect("could not load local list of files"),
         ),
     });
-
-    use_context_provider(|| ImportContactModalVisible(Signal::new(false)));
 
     rsx! {
         document::Link { rel: "icon", href: FAVICON }
