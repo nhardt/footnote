@@ -1,7 +1,9 @@
 [application]
-ios_info_plist = "ios.info.plist"
-ios_entitlements = "ios.app.entitlements"
-macos_entitlements = "macos.app.entitlements"
+ios_info_plist = "platform_build/ios.info.plist"
+ios_entitlements = "platform_build/ios.app.entitlements"
+macos_entitlements = "platform_build/macos.app.entitlements"
+android_manifest = "platform_build/AndroidManifest.xml"
+android_main_activity = "platform_build/MainActivity.kt"
 
 [bundle]
 identifier = "wiki.footnote.app"

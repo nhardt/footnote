@@ -8,6 +8,9 @@ mod platform;
 mod service;
 mod util;
 mod views;
+use crate::components::import_contact_modal::{
+    ImportContactModal, ImportContactModalVisible, ImportedContactString,
+};
 use crate::components::sync_service_toggle::SyncServiceToggle;
 use crate::context::AppContext;
 use crate::model::vault::{Vault, VaultState};
@@ -17,6 +20,16 @@ use util::filesystem::ensure_default_vault;
 use views::contact_view::ContactBrowser;
 use views::note_view::NoteView;
 use views::profile_view::Profile;
+
+#[cfg(target_os = "android")]
+use {
+    crate::platform::get_uri_channel,
+    crate::platform::handle_incoming_share,
+    crate::platform::read_uri_from_string,
+    std::sync::mpsc::{channel, Receiver, Sender},
+    std::sync::Mutex,
+    std::sync::OnceLock,
+};
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 enum Route {
@@ -49,6 +62,46 @@ fn main() {
 
 #[component]
 fn App() -> Element {
+    use_context_provider(|| ImportContactModalVisible(Signal::new(false)));
+    use_context_provider(|| ImportedContactString(Signal::new(String::new())));
+
+    #[cfg(target_os = "android")]
+    use_hook(|| {
+        tracing::info!("setting up hook to handle share");
+        spawn(async move {
+            match handle_incoming_share() {
+                Ok(Some(data)) => {
+                    tracing::info!("Received contact! {}", data);
+                    consume_context::<ImportedContactString>().set(data);
+                    consume_context::<ImportContactModalVisible>().set(true);
+                }
+                Ok(None) => tracing::info!("No share intent detected"),
+                Err(e) => tracing::error!("failed to handle intent: {}", e),
+            }
+            let (_, rx_mutex): (&Sender<String>, &Mutex<Receiver<String>>) = get_uri_channel();
+            loop {
+                if let Ok(rx) = rx_mutex.lock() {
+                    if let Ok(incoming_uri) = rx.try_recv() {
+                        let incoming_uri: String = incoming_uri;
+                        tracing::info!("Kotlin notified us of a new file: {}", incoming_uri);
+
+                        match read_uri_from_string(incoming_uri) {
+                            Some(content) => {
+                                tracing::info!("Received content! {}", content);
+                                consume_context::<ImportedContactString>().set(content);
+                                consume_context::<ImportContactModalVisible>().set(true);
+                            }
+                            None => tracing::warn!(
+                                "Failed to read content from the URI provided by Kotlin"
+                            ),
+                        }
+                    }
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            }
+        });
+    });
+
     let vault_path = ensure_default_vault()?;
     let vault = Vault::new(&vault_path)?;
     use_context_provider(|| AppContext {
@@ -73,6 +126,8 @@ fn App() -> Element {
 #[component]
 fn Main() -> Element {
     let route = use_route::<Route>();
+    let contact_modal_visible = use_context::<ImportContactModalVisible>();
+
     rsx! {
         div { class: "flex flex-col flex-1 h-screen bg-zinc-950 text-zinc-100 font-sans antialiased",
             nav { class: "border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm",
@@ -124,6 +179,10 @@ fn Main() -> Element {
 
                 }
             }
+        }
+
+        if contact_modal_visible.0() {
+            ImportContactModal {}
         }
     }
 }

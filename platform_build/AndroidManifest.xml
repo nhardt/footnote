@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <application
+        android:hasCode="true"
+        android:supportsRtl="true"
+        android:icon="@mipmap/ic_launcher"
+        android:extractNativeLibs="true"
+        android:allowNativeHeapPointerTagging="false"
+        android:label="@string/app_name"
+        android:theme="@style/AppTheme"
+        android:networkSecurityConfig="@xml/network_security_config"
+    >
+        <activity
+            android:configChanges="orientation|screenLayout|screenSize|keyboardHidden"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:label="@string/app_name"
+            android:name="dev.dioxus.main.MainActivity"
+        >
+            <meta-data
+                android:name="android.app.lib_name"
+                android:value="dioxusmain"
+            />
+            <meta-data
+                android:name="android.app.func_name"
+                android:value="ANativeActivity_onCreate"
+            />
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data
+                    android:mimeType="application/vnd.footnote.contact+json"
+                />
+            </intent-filter>
+
+
+            <intent-filter android:label="Footnote Contact">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data
+                    android:mimeType="application/vnd.footnote.contact+json"
+                />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+
+            <intent-filter android:label="Footnote File">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:host="*" />
+                <data android:pathSuffix=".fnc" />
+                <data android:pathPattern="*.fnc" />
+            </intent-filter>
+
+        </activity>
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true"
+        >
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"
+            />
+        </provider>
+    </application>
+</manifest>

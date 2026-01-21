@@ -63,3 +63,8 @@ known to work:
 1. cargo binstall dioxus-cli
 1. rustup instructions from dioxus website
 1. dx bundle -r --target windows
+
+### Android
+
+At this moment, Dioxus does not support adding file_paths.xml to the build. It
+can be added before the build by running ./platform_build/dx_prebuild.sh.

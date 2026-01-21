@@ -93,6 +93,12 @@ jobs:
       - name: Set Short SHA
         run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
+      - name: Setup Android resources
+        if: matrix.platform == 'android'
+        run: |
+          mkdir -p ./target/dx/footnote/release/android/app/app/src/main/res/xml
+          cp platform_build/file_paths.xml ./target/dx/footnote/release/android/app/app/src/main/res/xml/
+
       - name: Bundle
         env:
           NO_STRIP: ${{ matrix.no_strip || 'false' }}
