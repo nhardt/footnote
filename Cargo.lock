@@ -2101,6 +2101,7 @@ dependencies = [
  "indexmap",
  "iroh",
  "jni",
+ "libc",
  "n0-error",
  "n0-future",
  "ndk-context",
