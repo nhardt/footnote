@@ -63,17 +63,11 @@ pub fn share_contact_file(file_path: &std::path::Path) -> Result<(), Box<dyn std
     unsafe {
         let path_str = file_path.to_str().ok_or("Invalid path")?;
         let ns_path = NSString::from_str(path_str);
-
-        // 1. The File Item (for AirDrop, Files app, Email)
         let url = NSURL::fileURLWithPath(&ns_path);
-
-        // 2. The Text Item (for Copy to Clipboard, Messages)
-        // You can use the file content or just a descriptive string
         let content_text =
             std::fs::read_to_string(file_path).unwrap_or_else(|_| path_str.to_string());
         let ns_text = NSString::from_str(&content_text);
 
-        // 3. Cast both to AnyObject and put in the NSArray
         let item_file = Retained::cast_unchecked::<AnyObject>(url);
         let item_text = Retained::cast_unchecked::<AnyObject>(ns_text);
 
@@ -85,7 +79,6 @@ pub fn share_contact_file(file_path: &std::path::Path) -> Result<(), Box<dyn std
             None,
         );
 
-        // ... (rest of the presentation logic remains the same)
         let app = UIApplication::sharedApplication(mtm);
         let window = app.keyWindow().ok_or("No key window found")?;
         let root_vc = window
@@ -103,6 +96,10 @@ pub fn share_contact_file(file_path: &std::path::Path) -> Result<(), Box<dyn std
     Ok(())
 }
 
+/// - Find the Application window
+/// - Find the openURL handler
+/// - Add our openURL handler
+/// - Call the original openURL handler
 pub fn inject_open_url_handler() {
     tracing::debug!("inject_open_url_handler");
     let mtm = MainThreadMarker::new().expect("Must be on main thread");
@@ -129,18 +126,13 @@ pub fn inject_open_url_handler() {
                         &NSDictionary<NSString, AnyObject>,
                     ) -> Bool,
             );
-            // 1. Add our Rust function under the NEW selector name
             let added = objc2::ffi::class_addMethod(cls_ptr, swizzled_sel, imp, types.as_ptr());
 
             if added.as_bool() {
-                // 2. Get the Method objects for the original and our new one
                 let original_method = objc2::ffi::class_getInstanceMethod(cls_ptr, original_sel);
                 let swizzled_method = objc2::ffi::class_getInstanceMethod(cls_ptr, swizzled_sel);
 
                 if !original_method.is_null() && !swizzled_method.is_null() {
-                    // 3. Swap them!
-                    // Now calling 'application:openURL:options:' triggers our Rust code
-                    // And calling 'rust_openURL:options:' triggers the original Tao code
                     objc2::ffi::method_exchangeImplementations(
                         original_method as *mut _,
                         swizzled_method as *mut _,
