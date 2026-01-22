@@ -1,3 +1,4 @@
+use crate::platform::send_incoming_file;
 use jni::objects::JValue;
 use jni::{objects::JObject, JNIEnv, JavaVM};
 use std::path::PathBuf;
@@ -7,20 +8,6 @@ use std::sync::OnceLock;
 
 // We store the JVM globally so any thread can "attach" to it later
 static JVM: OnceLock<JavaVM> = OnceLock::new();
-pub static URI_SENDER: OnceLock<Sender<String>> = OnceLock::new();
-pub static URI_RECEIVER: OnceLock<Mutex<Receiver<String>>> = OnceLock::new();
-
-pub fn get_uri_channel() -> (&'static Sender<String>, &'static Mutex<Receiver<String>>) {
-    let s = URI_SENDER.get_or_init(|| {
-        let (s, r) = channel();
-        let _ = URI_RECEIVER.set(Mutex::new(r));
-        s
-    });
-    let r = URI_RECEIVER
-        .get()
-        .expect("Receiver should be initialized with Sender");
-    (s, r)
-}
 
 #[no_mangle]
 pub extern "C" fn Java_dev_dioxus_main_MainActivity_notifyOnNewIntent(
@@ -30,8 +17,7 @@ pub extern "C" fn Java_dev_dioxus_main_MainActivity_notifyOnNewIntent(
 ) {
     if let Ok(uri) = env.get_string(&data) {
         let uri_str: String = uri.into();
-        let (sender, _) = get_uri_channel();
-        let _ = sender.send(uri_str);
+        send_incoming_file(uri_str);
     }
 }
 

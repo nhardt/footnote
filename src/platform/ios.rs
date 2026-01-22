@@ -1,3 +1,4 @@
+use crate::platform::send_incoming_file;
 use objc2::ffi::*;
 use objc2::rc::Retained;
 use objc2::runtime::ProtocolObject;
@@ -19,6 +20,7 @@ pub const SHARE_SHEET_SUPPORTED: bool = true;
 pub fn get_app_dir() -> anyhow::Result<PathBuf> {
     dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))
 }
+
 pub fn share_contact_file(file_path: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
     let mtm = MainThreadMarker::new().ok_or("UIKit calls must be made from the main thread")?;
 
@@ -70,37 +72,38 @@ pub fn inject_open_url_handler() {
     let app = UIApplication::sharedApplication(mtm);
 
     if let Some(delegate) = unsafe { app.delegate() } {
-        // Cast to AnyObject to get access to .class()
         let obj = unsafe { &*(Retained::as_ptr(&delegate) as *const AnyObject) };
-        let cls = obj.class();
-        let sel = sel!(application:openURL:options:);
         let cls_ref: &AnyClass = obj.class();
         let cls_ptr = cls_ref as *const AnyClass as *mut AnyClass;
 
-        if cls.responds_to(sel) {
-            tracing::warn!("Delegate already implements openURL.");
-        } else {
-            unsafe {
-                // Obj-C Type Encodings:
-                // B is Bool, @ is object, : is selector
-                // The signature is: Bool (self, _cmd, app, url, options)
-                let types = CStr::from_bytes_with_nul(b"B@:@@@\0").unwrap();
+        let original_sel = sel!(application:openURL:options:);
+        let swizzled_sel = sel!(rust_openURL:options:); // Our "backup" name
 
-                // cast a Rust extern "C" fn to Obj-C Imp
-                let imp: objc2::runtime::Imp = std::mem::transmute(
-                    open_url_callback as unsafe extern "C" fn(_, _, _, _, _) -> _,
-                );
+        unsafe {
+            let types = CStr::from_bytes_with_nul(b"B@:@@@\0").unwrap();
+            let imp: objc2::runtime::Imp =
+                std::mem::transmute(open_url_callback as unsafe extern "C" fn(_, _, _, _, _) -> _);
 
-                let success = objc2::ffi::class_addMethod(cls_ptr, sel, imp, types.as_ptr());
+            // 1. Add our Rust function under the NEW selector name
+            let added = objc2::ffi::class_addMethod(cls_ptr, swizzled_sel, imp, types.as_ptr());
 
-                if success.as_bool() {
-                    tracing::info!(
-                        "Successfully injected application:openURL:options: into {:?}",
-                        cls.name() // Use {:?} because cls.name() returns &CStr
+            if added.as_bool() {
+                // 2. Get the Method objects for the original and our new one
+                let original_method = objc2::ffi::class_getInstanceMethod(cls_ptr, original_sel);
+                let swizzled_method = objc2::ffi::class_getInstanceMethod(cls_ptr, swizzled_sel);
+
+                if !original_method.is_null() && !swizzled_method.is_null() {
+                    // 3. Swap them!
+                    // Now calling 'application:openURL:options:' triggers our Rust code
+                    // And calling 'rust_openURL:options:' triggers the original Tao code
+                    objc2::ffi::method_exchangeImplementations(
+                        original_method as *mut _,
+                        swizzled_method as *mut _,
                     );
-                } else {
-                    tracing::error!("Failed to inject method.");
+                    tracing::info!("Successfully swizzled openURL into {:?}", cls_ref.name());
                 }
+            } else {
+                tracing::error!("Could not add swizzled method (perhaps it already exists?)");
             }
         }
     }
@@ -109,14 +112,18 @@ pub fn inject_open_url_handler() {
 extern "C" fn open_url_callback(
     this: &AnyObject,
     _sel: Sel,
-    _app: *mut AnyObject,
+    app: *mut AnyObject,
     url: &NSURL,
-    _options: &NSDictionary<NSString, AnyObject>,
+    options: &NSDictionary<NSString, AnyObject>,
 ) -> Bool {
-    let path = url.path();
-    tracing::info!("Successfully intercepted file open! Path: {:?}", path);
+    if let Some(path_str) = url.path() {
+        let path: String = path_str.to_string();
+        send_incoming_file(path);
+    }
 
-    // TODO: Send this path to your Dioxus state via a channel or global
-
-    Bool::YES
+    // Call the original Tao implementation
+    let swizzled_sel = sel!(rust_openURL:options:);
+    unsafe {
+        msg_send![this, performSelector: swizzled_sel, withObject: app, withObject: url, withObject: options]
+    }
 }
