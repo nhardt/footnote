@@ -73,6 +73,9 @@ fn App() -> Element {
             return;
         };
 
+        #[cfg(target_os = "ios")]
+        platform::inject_open_url_handler();
+
         spawn(async move {
             // Handle launch intent (Android)
             #[cfg(target_os = "android")]

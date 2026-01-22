@@ -98,23 +98,31 @@ pub fn share_contact_file(file_path: &std::path::Path) -> Result<(), Box<dyn std
 }
 
 pub fn inject_open_url_handler() {
-    println!("inject_open_url_handler");
+    tracing::debug!("inject_open_url_handler");
     let mtm = MainThreadMarker::new().expect("Must be on main thread");
     let app = UIApplication::sharedApplication(mtm);
 
     if let Some(delegate) = unsafe { app.delegate() } {
+        tracing::debug!("got app delegate");
         let obj = unsafe { &*(Retained::as_ptr(&delegate) as *const AnyObject) };
         let cls_ref: &AnyClass = obj.class();
         let cls_ptr = cls_ref as *const AnyClass as *mut AnyClass;
 
         let original_sel = sel!(application:openURL:options:);
-        let swizzled_sel = sel!(rust_openURL:options:); // Our "backup" name
+        let swizzled_sel = sel!(rust_application:openURL:options:);
 
         unsafe {
             let types = CStr::from_bytes_with_nul(b"B@:@@@\0").unwrap();
-            let imp: objc2::runtime::Imp =
-                std::mem::transmute(open_url_callback as unsafe extern "C" fn(_, _, _, _, _) -> _);
-
+            let imp: objc2::runtime::Imp = std::mem::transmute(
+                open_url_callback
+                    as unsafe extern "C-unwind" fn(
+                        &AnyObject,
+                        Sel,
+                        *mut AnyObject,
+                        &NSURL,
+                        &NSDictionary<NSString, AnyObject>,
+                    ) -> Bool,
+            );
             // 1. Add our Rust function under the NEW selector name
             let added = objc2::ffi::class_addMethod(cls_ptr, swizzled_sel, imp, types.as_ptr());
 
@@ -140,7 +148,7 @@ pub fn inject_open_url_handler() {
     }
 }
 
-extern "C" fn open_url_callback(
+unsafe extern "C-unwind" fn open_url_callback(
     this: &AnyObject,
     _sel: Sel,
     app: *mut AnyObject,
@@ -148,13 +156,9 @@ extern "C" fn open_url_callback(
     options: &NSDictionary<NSString, AnyObject>,
 ) -> Bool {
     if let Some(path_str) = url.path() {
-        let path: String = path_str.to_string();
-        send_incoming_file(path);
+        tracing::info!("iOS callback received path: {}", path_str);
+        send_incoming_file(path_str.to_string());
     }
 
-    // Call the original Tao implementation
-    let swizzled_sel = sel!(rust_openURL:options:);
-    unsafe {
-        msg_send![this, performSelector: swizzled_sel, withObject: app, withObject: url, withObject: options]
-    }
+    unsafe { msg_send![this, rust_application: app, openURL: url, options: options] }
 }
