@@ -44,8 +44,6 @@
 		<string>iPhoneOS</string>
 		<string>iPadOS</string>
 	</array>
-	<key>UILaunchStoryboardName</key>
-	<string>LaunchScreen</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
@@ -83,6 +81,8 @@
             <array>
                 <string>public.data</string>
                 <string>public.content</string>
+                <string>public.text</string>
+                <string>public.json</string>
             </array>
             <key>UTTypeDescription</key>
             <string>Footnote Wiki Contact Data</string>
