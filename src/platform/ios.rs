@@ -45,7 +45,10 @@ pub fn send_incoming_file(uri_or_path: String) {
 
 pub fn get_app_dir() -> anyhow::Result<PathBuf> {
     tracing::info!("getting home dir");
-    dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))
+    let home = std::env::var("HOME").map_err(|_| anyhow::anyhow!("HOME not set"))?;
+    let documents = PathBuf::from(home).join("Documents");
+    std::fs::create_dir_all(&documents)?;
+    Ok(documents)
 }
 
 pub fn share_contact_file(file_path: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
