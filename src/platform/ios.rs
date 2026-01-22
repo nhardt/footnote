@@ -1,4 +1,3 @@
-use crate::platform::send_incoming_file;
 use objc2::ffi::*;
 use objc2::rc::Retained;
 use objc2::runtime::ProtocolObject;
@@ -14,10 +13,38 @@ use std::ffi::CStr;
 use std::path::Path;
 use std::path::PathBuf;
 use std::ptr;
+use std::sync::Mutex;
+use std::sync::OnceLock;
+use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
 pub const SHARE_SHEET_SUPPORTED: bool = true;
+static FILE_SENDER: OnceLock<UnboundedSender<String>> = OnceLock::new();
+static RECEIVER_STORAGE: OnceLock<std::sync::Mutex<Option<UnboundedReceiver<String>>>> =
+    OnceLock::new();
+
+fn init_channel() {
+    println!("init_channel");
+    RECEIVER_STORAGE.get_or_init(|| {
+        let (tx, rx) = mpsc::unbounded_channel();
+        FILE_SENDER.set(tx).expect("sender already set");
+        std::sync::Mutex::new(Some(rx))
+    });
+}
+
+pub fn take_file_receiver() -> Option<UnboundedReceiver<String>> {
+    init_channel();
+    RECEIVER_STORAGE.get()?.lock().ok()?.take()
+}
+
+pub fn send_incoming_file(uri_or_path: String) {
+    init_channel();
+    if let Some(tx) = FILE_SENDER.get() {
+        let _ = tx.send(uri_or_path);
+    }
+}
 
 pub fn get_app_dir() -> anyhow::Result<PathBuf> {
+    tracing::info!("getting home dir");
     dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))
 }
 
@@ -68,6 +95,7 @@ pub fn share_contact_file(file_path: &std::path::Path) -> Result<(), Box<dyn std
 }
 
 pub fn inject_open_url_handler() {
+    println!("inject_open_url_handler");
     let mtm = MainThreadMarker::new().expect("Must be on main thread");
     let app = UIApplication::sharedApplication(mtm);
 

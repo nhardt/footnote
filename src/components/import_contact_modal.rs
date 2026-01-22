@@ -26,7 +26,7 @@ pub fn ImportContactModal() -> Element {
     let mut err_message = use_signal(|| String::new());
     let mut app_context = use_context::<AppContext>();
 
-    let mut imported_contact_data = use_context::<ImportedContactString>();
+    let imported_contact_data = use_context::<ImportedContactString>();
     use_effect(move || {
         let data = imported_contact_data.0.read();
         if !data.is_empty() {

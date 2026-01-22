@@ -14,7 +14,6 @@ use crate::components::import_contact_modal::{
 use crate::components::sync_service_toggle::SyncServiceToggle;
 use crate::context::AppContext;
 use crate::model::vault::{Vault, VaultState};
-use crate::platform::{send_incoming_file, take_file_receiver};
 use crate::util::manifest::create_manifest_local;
 use tracing::Level;
 use util::filesystem::ensure_default_vault;
@@ -24,13 +23,14 @@ use views::profile_view::Profile;
 
 #[cfg(target_os = "android")]
 use {
-    crate::platform::get_uri_channel,
-    crate::platform::handle_incoming_share,
-    crate::platform::read_uri_from_string,
+    crate::platform::{send_incoming_file, take_file_receiver},
     std::sync::mpsc::{channel, Receiver, Sender},
     std::sync::Mutex,
     std::sync::OnceLock,
 };
+
+#[cfg(target_os = "ios")]
+use crate::platform::{send_incoming_file, take_file_receiver};
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 enum Route {
@@ -66,6 +66,7 @@ fn App() -> Element {
     use_context_provider(|| ImportContactModalVisible(Signal::new(false)));
     use_context_provider(|| ImportedContactString(Signal::new(String::new())));
 
+    #[cfg(any(target_os = "android", target_os = "ios"))]
     use_hook(|| {
         let Some(mut rx) = take_file_receiver() else {
             tracing::warn!("File receiver already taken!");

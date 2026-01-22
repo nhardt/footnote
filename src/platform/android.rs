@@ -1,13 +1,36 @@
-use crate::platform::send_incoming_file;
 use jni::objects::JValue;
 use jni::{objects::JObject, JNIEnv, JavaVM};
 use std::path::PathBuf;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Mutex;
 use std::sync::OnceLock;
+use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
 // We store the JVM globally so any thread can "attach" to it later
 static JVM: OnceLock<JavaVM> = OnceLock::new();
+static FILE_SENDER: OnceLock<UnboundedSender<String>> = OnceLock::new();
+static RECEIVER_STORAGE: OnceLock<std::sync::Mutex<Option<UnboundedReceiver<String>>>> =
+    OnceLock::new();
+
+fn init_channel() {
+    RECEIVER_STORAGE.get_or_init(|| {
+        let (tx, rx) = mpsc::unbounded_channel();
+        FILE_SENDER.set(tx).expect("sender already set");
+        std::sync::Mutex::new(Some(rx))
+    });
+}
+
+pub fn take_file_receiver() -> Option<UnboundedReceiver<String>> {
+    init_channel();
+    RECEIVER_STORAGE.get()?.lock().ok()?.take()
+}
+
+pub fn send_incoming_file(uri_or_path: String) {
+    init_channel();
+    if let Some(tx) = FILE_SENDER.get() {
+        let _ = tx.send(uri_or_path);
+    }
+}
 
 #[no_mangle]
 pub extern "C" fn Java_dev_dioxus_main_MainActivity_notifyOnNewIntent(
