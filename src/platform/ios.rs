@@ -44,10 +44,16 @@ pub fn send_incoming_file(uri_or_path: String) {
 }
 
 pub fn get_app_dir() -> anyhow::Result<PathBuf> {
-    tracing::info!("getting home dir");
-    let home = std::env::var("HOME").map_err(|_| anyhow::anyhow!("HOME not set"))?;
-    let documents = PathBuf::from(home).join("Documents");
-    std::fs::create_dir_all(&documents)?;
+    let home_ns = objc2_foundation::NSHomeDirectory();
+    let home_str = home_ns.to_string();
+
+    if home_str.is_empty() {
+        return Err(anyhow::anyhow!("NSHomeDirectory returned empty string"));
+    }
+
+    let home_path = PathBuf::from(home_str);
+    let documents = home_path.join("Documents");
+
     Ok(documents)
 }
 
