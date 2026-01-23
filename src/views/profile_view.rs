@@ -676,7 +676,7 @@ fn ExportModal(onclose: EventHandler) -> Element {
         };
 
         let temp_dir = std::env::temp_dir();
-        let file_path = temp_dir.join(format!("{}.{}.fnc", username, timestamp));
+        let file_path = temp_dir.join(format!("{}.{}.fncontact", username, timestamp));
 
         match std::fs::write(&file_path, json_content) {
             Ok(_) => {

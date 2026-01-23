@@ -4,22 +4,32 @@ use std::path::PathBuf;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::Mutex;
 use std::sync::OnceLock;
+use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
 // We store the JVM globally so any thread can "attach" to it later
 static JVM: OnceLock<JavaVM> = OnceLock::new();
-pub static URI_SENDER: OnceLock<Sender<String>> = OnceLock::new();
-pub static URI_RECEIVER: OnceLock<Mutex<Receiver<String>>> = OnceLock::new();
+static FILE_SENDER: OnceLock<UnboundedSender<String>> = OnceLock::new();
+static RECEIVER_STORAGE: OnceLock<std::sync::Mutex<Option<UnboundedReceiver<String>>>> =
+    OnceLock::new();
 
-pub fn get_uri_channel() -> (&'static Sender<String>, &'static Mutex<Receiver<String>>) {
-    let s = URI_SENDER.get_or_init(|| {
-        let (s, r) = channel();
-        let _ = URI_RECEIVER.set(Mutex::new(r));
-        s
+fn init_channel() {
+    RECEIVER_STORAGE.get_or_init(|| {
+        let (tx, rx) = mpsc::unbounded_channel();
+        FILE_SENDER.set(tx).expect("sender already set");
+        std::sync::Mutex::new(Some(rx))
     });
-    let r = URI_RECEIVER
-        .get()
-        .expect("Receiver should be initialized with Sender");
-    (s, r)
+}
+
+pub fn take_file_receiver() -> Option<UnboundedReceiver<String>> {
+    init_channel();
+    RECEIVER_STORAGE.get()?.lock().ok()?.take()
+}
+
+pub fn send_incoming_file(uri_or_path: String) {
+    init_channel();
+    if let Some(tx) = FILE_SENDER.get() {
+        let _ = tx.send(uri_or_path);
+    }
 }
 
 #[no_mangle]
@@ -30,8 +40,7 @@ pub extern "C" fn Java_dev_dioxus_main_MainActivity_notifyOnNewIntent(
 ) {
     if let Ok(uri) = env.get_string(&data) {
         let uri_str: String = uri.into();
-        let (sender, _) = get_uri_channel();
-        let _ = sender.send(uri_str);
+        send_incoming_file(uri_str);
     }
 }
 

@@ -60,8 +60,8 @@
                 <data android:scheme="content" />
                 <data android:scheme="file" />
                 <data android:host="*" />
-                <data android:pathSuffix=".fnc" />
-                <data android:pathPattern="*.fnc" />
+                <data android:pathSuffix=".fncontact" />
+                <data android:pathPattern="*.fncontact" />
             </intent-filter>
 
         </activity>

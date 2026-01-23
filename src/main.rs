@@ -23,13 +23,14 @@ use views::profile_view::Profile;
 
 #[cfg(target_os = "android")]
 use {
-    crate::platform::get_uri_channel,
-    crate::platform::handle_incoming_share,
-    crate::platform::read_uri_from_string,
+    crate::platform::{send_incoming_file, take_file_receiver},
     std::sync::mpsc::{channel, Receiver, Sender},
     std::sync::Mutex,
     std::sync::OnceLock,
 };
+
+#[cfg(target_os = "ios")]
+use crate::platform::{send_incoming_file, take_file_receiver};
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 enum Route {
@@ -65,39 +66,39 @@ fn App() -> Element {
     use_context_provider(|| ImportContactModalVisible(Signal::new(false)));
     use_context_provider(|| ImportedContactString(Signal::new(String::new())));
 
-    #[cfg(target_os = "android")]
+    #[cfg(any(target_os = "android", target_os = "ios"))]
     use_hook(|| {
-        tracing::info!("setting up hook to handle share");
+        let Some(mut rx) = take_file_receiver() else {
+            tracing::warn!("File receiver already taken!");
+            return;
+        };
+
+        #[cfg(target_os = "ios")]
+        platform::inject_open_url_handler();
+
         spawn(async move {
-            match handle_incoming_share() {
-                Ok(Some(data)) => {
-                    tracing::info!("Received contact! {}", data);
+            // Handle launch intent (Android)
+            #[cfg(target_os = "android")]
+            {
+                if let Ok(Some(data)) = handle_incoming_share() {
                     consume_context::<ImportedContactString>().set(data);
                     consume_context::<ImportContactModalVisible>().set(true);
                 }
-                Ok(None) => tracing::info!("No share intent detected"),
-                Err(e) => tracing::error!("failed to handle intent: {}", e),
             }
-            let (_, rx_mutex): (&Sender<String>, &Mutex<Receiver<String>>) = get_uri_channel();
-            loop {
-                if let Ok(rx) = rx_mutex.lock() {
-                    if let Ok(incoming_uri) = rx.try_recv() {
-                        let incoming_uri: String = incoming_uri;
-                        tracing::info!("Kotlin notified us of a new file: {}", incoming_uri);
 
-                        match read_uri_from_string(incoming_uri) {
-                            Some(content) => {
-                                tracing::info!("Received content! {}", content);
-                                consume_context::<ImportedContactString>().set(content);
-                                consume_context::<ImportContactModalVisible>().set(true);
-                            }
-                            None => tracing::warn!(
-                                "Failed to read content from the URI provided by Kotlin"
-                            ),
-                        }
-                    }
+            while let Some(incoming_uri) = rx.recv().await {
+                tracing::info!("Received file: {}", incoming_uri);
+
+                #[cfg(target_os = "android")]
+                let content = read_uri_from_string(incoming_uri);
+
+                #[cfg(target_os = "ios")]
+                let content = std::fs::read_to_string(&incoming_uri).ok();
+
+                if let Some(data) = content {
+                    consume_context::<ImportedContactString>().set(data);
+                    consume_context::<ImportContactModalVisible>().set(true);
                 }
-                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
             }
         });
     });

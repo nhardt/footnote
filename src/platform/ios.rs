@@ -1,10 +1,162 @@
+use objc2::ffi::*;
+use objc2::rc::Retained;
+use objc2::runtime::ProtocolObject;
+use objc2::runtime::{AnyClass, Bool, Sel};
+use objc2::runtime::{AnyObject, NSObject};
+use objc2::{msg_send, sel};
+use objc2::{MainThreadMarker, MainThreadOnly};
+use objc2_foundation::{NSArray, NSDictionary, NSString, NSURL};
+use objc2_ui_kit::UIApplicationDelegate;
+use objc2_ui_kit::{UIActivityViewController, UIApplication, UIViewController};
+use std::ffi::c_void;
+use std::ffi::CStr;
+use std::path::Path;
 use std::path::PathBuf;
+use std::ptr;
+use std::sync::Mutex;
+use std::sync::OnceLock;
+use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
-pub fn get_app_dir() -> anyhow::Result<PathBuf> {
-    dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))
+pub const SHARE_SHEET_SUPPORTED: bool = true;
+static FILE_SENDER: OnceLock<UnboundedSender<String>> = OnceLock::new();
+static RECEIVER_STORAGE: OnceLock<std::sync::Mutex<Option<UnboundedReceiver<String>>>> =
+    OnceLock::new();
+
+fn init_channel() {
+    println!("init_channel");
+    RECEIVER_STORAGE.get_or_init(|| {
+        let (tx, rx) = mpsc::unbounded_channel();
+        FILE_SENDER.set(tx).expect("sender already set");
+        std::sync::Mutex::new(Some(rx))
+    });
 }
 
-pub const SHARE_SHEET_SUPPORTED: bool = false;
-pub fn share_contact_file(_file_path: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
-    Err("Share functionality not available on this platform".into())
+pub fn take_file_receiver() -> Option<UnboundedReceiver<String>> {
+    init_channel();
+    RECEIVER_STORAGE.get()?.lock().ok()?.take()
+}
+
+pub fn send_incoming_file(uri_or_path: String) {
+    init_channel();
+    if let Some(tx) = FILE_SENDER.get() {
+        let _ = tx.send(uri_or_path);
+    }
+}
+
+pub fn get_app_dir() -> anyhow::Result<PathBuf> {
+    let home_ns = objc2_foundation::NSHomeDirectory();
+    let home_str = home_ns.to_string();
+
+    if home_str.is_empty() {
+        return Err(anyhow::anyhow!("NSHomeDirectory returned empty string"));
+    }
+
+    let home_path = PathBuf::from(home_str);
+    let documents = home_path.join("Documents");
+
+    Ok(documents)
+}
+
+pub fn share_contact_file(file_path: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
+    let mtm = MainThreadMarker::new().ok_or("UIKit calls must be made from the main thread")?;
+
+    unsafe {
+        let path_str = file_path.to_str().ok_or("Invalid path")?;
+        let ns_path = NSString::from_str(path_str);
+        let url = NSURL::fileURLWithPath(&ns_path);
+        let content_text =
+            std::fs::read_to_string(file_path).unwrap_or_else(|_| path_str.to_string());
+        let ns_text = NSString::from_str(&content_text);
+
+        let item_file = Retained::cast_unchecked::<AnyObject>(url);
+        let item_text = Retained::cast_unchecked::<AnyObject>(ns_text);
+
+        let items = NSArray::from_retained_slice(&[item_file, item_text]);
+
+        let controller = UIActivityViewController::initWithActivityItems_applicationActivities(
+            UIActivityViewController::alloc(mtm),
+            &items,
+            None,
+        );
+
+        let app = UIApplication::sharedApplication(mtm);
+        let window = app.keyWindow().ok_or("No key window found")?;
+        let root_vc = window
+            .rootViewController()
+            .ok_or("No root view controller")?;
+
+        if let Some(popover) = controller.popoverPresentationController() {
+            let view = root_vc.view().expect("View Controller must have a view");
+            popover.setSourceView(Some(&view));
+            popover.setSourceRect(view.bounds());
+        }
+
+        root_vc.presentViewController_animated_completion(&controller, true, None);
+    }
+    Ok(())
+}
+
+/// - Find the Application window
+/// - Find the openURL handler
+/// - Add our openURL handler
+/// - Call the original openURL handler
+pub fn inject_open_url_handler() {
+    tracing::debug!("inject_open_url_handler");
+    let mtm = MainThreadMarker::new().expect("Must be on main thread");
+    let app = UIApplication::sharedApplication(mtm);
+
+    if let Some(delegate) = unsafe { app.delegate() } {
+        tracing::debug!("got app delegate");
+        let obj = unsafe { &*(Retained::as_ptr(&delegate) as *const AnyObject) };
+        let cls_ref: &AnyClass = obj.class();
+        let cls_ptr = cls_ref as *const AnyClass as *mut AnyClass;
+
+        let original_sel = sel!(application:openURL:options:);
+        let swizzled_sel = sel!(rust_application:openURL:options:);
+
+        unsafe {
+            let types = CStr::from_bytes_with_nul(b"B@:@@@\0").unwrap();
+            let imp: objc2::runtime::Imp = std::mem::transmute(
+                open_url_callback
+                    as unsafe extern "C-unwind" fn(
+                        &AnyObject,
+                        Sel,
+                        *mut AnyObject,
+                        &NSURL,
+                        &NSDictionary<NSString, AnyObject>,
+                    ) -> Bool,
+            );
+            let added = objc2::ffi::class_addMethod(cls_ptr, swizzled_sel, imp, types.as_ptr());
+
+            if added.as_bool() {
+                let original_method = objc2::ffi::class_getInstanceMethod(cls_ptr, original_sel);
+                let swizzled_method = objc2::ffi::class_getInstanceMethod(cls_ptr, swizzled_sel);
+
+                if !original_method.is_null() && !swizzled_method.is_null() {
+                    objc2::ffi::method_exchangeImplementations(
+                        original_method as *mut _,
+                        swizzled_method as *mut _,
+                    );
+                    tracing::info!("Successfully swizzled openURL into {:?}", cls_ref.name());
+                }
+            } else {
+                tracing::error!("Could not add swizzled method (perhaps it already exists?)");
+            }
+        }
+    }
+}
+
+unsafe extern "C-unwind" fn open_url_callback(
+    this: &AnyObject,
+    _sel: Sel,
+    app: *mut AnyObject,
+    url: &NSURL,
+    options: &NSDictionary<NSString, AnyObject>,
+) -> Bool {
+    if let Some(path_str) = url.path() {
+        tracing::info!("iOS callback received path: {}", path_str);
+        send_incoming_file(path_str.to_string());
+    }
+
+    unsafe { msg_send![this, rust_application: app, openURL: url, options: options] }
 }
