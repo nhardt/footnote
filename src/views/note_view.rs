@@ -281,7 +281,6 @@ pub fn NoteView(file_path: String) -> Element {
                     textarea {
                         id: "note-body",
                         class: "w-full h-full px-4 py-3 bg-zinc-900/30 border border-zinc-800 rounded-lg text-sm font-mono text-zinc-100 resize-none focus:border-zinc-700 focus:ring-1 focus:ring-zinc-700",
-                        placeholder: "Once upon a time...",
                         onblur: sync_body_to_footnotes,
                         initial_value: "{body}",
                         readonly: read_only
