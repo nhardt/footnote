@@ -258,7 +258,7 @@ pub fn NoteView(file_path: String) -> Element {
                             button {
                                 class: "flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
                                 onclick: move |_| show_new_note_modal.set(true),
-                                "New Note"
+                                "Create"
                             }
                             if show_new_note_modal() {
                                 NewNoteModal {
