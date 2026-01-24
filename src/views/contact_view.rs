@@ -26,13 +26,8 @@ pub fn ContactBrowser() -> Element {
     let mut menu_visible = use_signal(|| false);
 
     rsx! {
-        AppHeader {
-            on_menu_click: move |_| menu_visible.set(true),
-
-            h1 {
-                class: "flex-1 text-center text-sm font-medium text-zinc-300",
-                "Contacts"
-            }
+        AppHeader { on_menu_click: move |_| menu_visible.set(true),
+            h1 { class: "flex-1 text-center text-sm font-medium text-zinc-300", "Contacts" }
             div { class: "w-8" }
         }
 
@@ -47,15 +42,12 @@ pub fn ContactBrowser() -> Element {
                 onclick: move |_| {
                     consume_context::<ImportContactModalVisible>().set(true);
                     menu_visible.set(false);
-                }
+                },
             }
         }
 
-        main {
-            class: "flex-1 overflow-y-auto",
-            div {
-                class: "max-w-3xl mx-auto px-4 py-6 sm:px-6",
-
+        main { class: "flex-1 overflow-y-auto",
+            div { class: "max-w-3xl mx-auto px-4 py-6 sm:px-6",
                 div { class: "space-y-2",
                     for contact in contact_list {
                         ContactRow { contact }
@@ -83,7 +75,11 @@ fn ContactRow(contact: Contact) -> Element {
                     div { class: "flex items-center gap-4",
                         span { class: "text-sm text-zinc-500", "{contact.devices.len()} devices" }
                         svg {
-                            class: if expanded() { "w-5 h-5 text-zinc-500 transform rotate-90 transition-transform" } else { "w-5 h-5 text-zinc-500 transition-transform" },
+                            class: if expanded() {
+                                "w-5 h-5 text-zinc-500 transform rotate-90 transition-transform"
+                            } else {
+                                "w-5 h-5 text-zinc-500 transition-transform"
+                            },
                             fill: "none",
                             stroke: "currentColor",
                             view_box: "0 0 24 24",
@@ -154,14 +150,10 @@ fn DeviceItem(device: Device) -> Element {
             }
 
             if let Some(status) = last_outbound_success() {
-                div { class: "text-xs text-zinc-400",
-                    "Last outbound: {status.files_transferred} files"
-                }
+                div { class: "text-xs text-zinc-400", "Last outbound: {status.files_transferred} files" }
             }
             if let Some(status) = last_inbound_success() {
-                div { class: "text-xs text-zinc-400",
-                    "Last inbound: {status.files_transferred} files"
-                }
+                div { class: "text-xs text-zinc-400", "Last inbound: {status.files_transferred} files" }
             }
         }
     }
