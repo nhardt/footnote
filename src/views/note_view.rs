@@ -288,20 +288,20 @@ pub fn NoteView(file_path: String) -> Element {
             class: "flex-1 overflow-y-auto",
 
             div {
-                class: "min-h-screen max-w-5xl mx-auto px-4 py-6 sm:px-6",
+                class: "h-[80vh] min-h-[50vh] max-w-5xl mx-auto px-4 pt-6 sm:px-6",
                 textarea {
                     id: "note-body",
-                    class: "w-full min-h-[70vh] px-4 py-3 bg-zinc-900/30 border border-zinc-800 rounded-lg text-sm font-mono text-zinc-100 resize-none focus:border-zinc-700 focus:ring-1 focus:ring-zinc-700 focus:outline-none",
-                    placeholder: "Once upon a time...",
+                    class: "w-full h-full px-4 py-3 bg-zinc-900/30 border border-zinc-800 rounded-lg text-sm font-mono text-zinc-100 resize-none focus:border-zinc-700 focus:ring-1 focus:ring-zinc-700 focus:outline-none",
                     onblur: sync_body_to_footnotes,
                     oninput: move |_| save_status.set(SaveStatus::Unsaved),
                     initial_value: "{body}",
-                    readonly: read_only
+                    readonly: read_only,
+                    style: "min-height: 7.5rem;"
                 }
             }
 
             div {
-                class: "max-w-5xl mx-auto px-4 py-6 sm:px-6",
+                class: "max-w-5xl pt-4 mx-auto px-4 pb-6 sm:px-6",
                 Footnotes {
                     footnotes: footnotes,
                     onlink: save_link_to_footnote,
