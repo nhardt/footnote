@@ -38,10 +38,7 @@ pub fn NewNoteModal(oncancel: EventHandler<()>) -> Element {
             .join(path_str)
             .to_string_lossy()
             .to_string();
-        let encoded = urlencoding::encode(&full_path);
-        nav.push(Route::NoteView {
-            file_path: encoded.into_owned(),
-        });
+        nav.push(format!("/notes/{}", full_path));
     };
 
     let create_now_note = move |_| async move {
@@ -61,8 +58,10 @@ pub fn NewNoteModal(oncancel: EventHandler<()>) -> Element {
             return;
         }
 
-        let encoded = urlencoding::encode(&full_path.to_string_lossy().to_string()).into_owned();
-        nav.push(Route::NoteView { file_path: encoded });
+        nav.push(format!(
+            "/notes/{}",
+            full_path.to_string_lossy().to_string()
+        ));
     };
 
     rsx! {

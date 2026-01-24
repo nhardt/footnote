@@ -11,7 +11,7 @@ pub struct Note {
     pub frontmatter: Frontmatter,
     pub content: String,
     pub footnotes: IndexMap<String, String>,
-    loaded_from: Option<PathBuf>,
+    pub loaded_from: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

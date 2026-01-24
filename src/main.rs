@@ -40,8 +40,8 @@ enum Route {
     #[route("/")]
     NoteDefault {},
 
-    #[route("/notes/:file_path")]
-    NoteView { file_path: String },
+    #[route("/notes/:..file_path_segments")]
+    NoteView { file_path_segments: Vec<String> },
 
     #[route("/contacts")]
     ContactBrowser {},
@@ -151,18 +151,16 @@ fn NoteDefault() -> Element {
     let nav = navigator();
     let app_context = use_context::<AppContext>();
     use_effect(move || {
-        nav.push(Route::NoteView {
-            file_path: urlencoding::encode(
-                &app_context
-                    .vault
-                    .read()
-                    .base_path()
-                    .join("home.md")
-                    .to_string_lossy()
-                    .to_string(),
-            )
-            .to_string(),
-        });
+        nav.push(format!(
+            "/notes/{}",
+            &app_context
+                .vault
+                .read()
+                .base_path()
+                .join("home.md")
+                .to_string_lossy()
+                .to_string(),
+        ));
     });
     rsx! {
         div { class: "flex items-center justify-center h-screen",
