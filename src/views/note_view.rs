@@ -66,50 +66,50 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
     let read_only = use_memo(move || relative_path.read().starts_with("footnotes"));
 
     let sync_body_to_footnotes = move |_| async move {
-        //     let mut footnotes_signal = footnotes.clone();
-        //     let mut footnotes_vec = footnotes.read().clone();
+        let mut footnotes_signal = footnotes.clone();
+        let mut footnotes_vec = footnotes.read().clone();
 
-        //     let mut note_body_eval =
-        //         document::eval("dioxus.send(document.getElementById('note-body').value)");
-        //     let Ok(note_body) = note_body_eval.recv::<String>().await else {
-        //         return;
-        //     };
+        let mut note_body_eval =
+            document::eval("dioxus.send(document.getElementById('note-body').value)");
+        let Ok(note_body) = note_body_eval.recv::<String>().await else {
+            return;
+        };
 
-        //     let re = Regex::new(r"\[(\d+)\]").unwrap();
-        //     let mut link_names: Vec<String> = Vec::new();
-        //     for cap in re.captures_iter(note_body.as_bytes()) {
-        //         let full_match = cap.get(0).unwrap();
-        //         let link_name = std::str::from_utf8(&cap[1]).unwrap();
-        //         let end_pos = full_match.end();
-        //         if end_pos < note_body.len() && note_body.as_bytes()[end_pos] == b'(' {
-        //             continue;
-        //         }
-        //         link_names.push(link_name.to_string());
-        //     }
+        let re = Regex::new(r"\[(\d+)\]").unwrap();
+        let mut link_names: Vec<String> = Vec::new();
+        for cap in re.captures_iter(note_body.as_bytes()) {
+            let full_match = cap.get(0).unwrap();
+            let link_name = std::str::from_utf8(&cap[1]).unwrap();
+            let end_pos = full_match.end();
+            if end_pos < note_body.len() && note_body.as_bytes()[end_pos] == b'(' {
+                continue;
+            }
+            link_names.push(link_name.to_string());
+        }
 
-        //     footnotes_vec.retain(|name, _| link_names.contains(&name));
-        //     for name in link_names {
-        //         footnotes_vec
-        //             .entry((&name).to_string())
-        //             .or_insert(String::new());
-        //     }
+        footnotes_vec.retain(|name, _| link_names.contains(&name));
+        for name in link_names {
+            footnotes_vec
+                .entry((&name).to_string())
+                .or_insert(String::new());
+        }
 
-        //     tracing::info!("sync'd {} footnotes", footnotes_vec.len());
-        //     footnotes_signal.set(footnotes_vec);
+        tracing::info!("sync'd {} footnotes", footnotes_vec.len());
+        footnotes_signal.set(footnotes_vec);
     };
 
     let save_link_to_footnote = move |(footnote_number, footnote_text)| async move {
-        //     let mut footnotes_signal = footnotes.clone();
-        //     let mut footnotes_vec = footnotes.read().clone();
+        let mut footnotes_signal = footnotes.clone();
+        let mut footnotes_vec = footnotes.read().clone();
 
-        //     tracing::info!(
-        //         "saving {} -> {} to footnotes",
-        //         footnote_number,
-        //         footnote_text
-        //     );
-        //     footnotes_vec.insert(footnote_number, footnote_text);
-        //     footnotes_signal.set(footnotes_vec);
-        //     save_status.set(SaveStatus::Unsaved);
+        tracing::info!(
+            "saving {} -> {} to footnotes",
+            footnote_number,
+            footnote_text
+        );
+        footnotes_vec.insert(footnote_number, footnote_text);
+        footnotes_signal.set(footnotes_vec);
+        save_status.set(SaveStatus::Unsaved);
     };
 
     let save_note = move || async move {
@@ -162,33 +162,33 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
     };
 
     let navigate_to_footnote = move |footnote_text: String| async move {
-        //     tracing::info!("navigate_to_uuid: {}", footnote_text);
+        tracing::info!("navigate_to_uuid: {}", footnote_text);
 
-        //     if let Some(uuid_part) = footnote_text.split("footnote://").nth(1) {
-        //         if let Ok(uuid) = Uuid::parse_str(&uuid_part) {
-        //             if let Some(entry) = app_context.manifest.read().get(&uuid) {
-        //                 tracing::info!(
-        //                     "found entry for uuid, requesting nav to: {}",
-        //                     entry.path.to_string_lossy()
-        //                 );
-        //                 nav.push(format!(
-        //                     "/notes/{}",
-        //                     &app_context
-        //                         .vault
-        //                         .read()
-        //                         .base_path()
-        //                         .join(&entry.path)
-        //                         .to_string_lossy()
-        //                         .to_string()
-        //                 ));
-        //             }
-        //         }
-        //     } else if footnote_text.starts_with("http://") || footnote_text.starts_with("https://") {
-        //         tracing::info!("opening external link in system browser: {}", footnote_text);
-        //         if let Err(e) = open::that(&footnote_text) {
-        //             tracing::error!("failed to open link: {}", e);
-        //         }
-        //     }
+        if let Some(uuid_part) = footnote_text.split("footnote://").nth(1) {
+            if let Ok(uuid) = Uuid::parse_str(&uuid_part) {
+                if let Some(entry) = app_context.manifest.read().get(&uuid) {
+                    tracing::info!(
+                        "found entry for uuid, requesting nav to: {}",
+                        entry.path.to_string_lossy()
+                    );
+                    nav.push(format!(
+                        "/notes/{}",
+                        &app_context
+                            .vault
+                            .read()
+                            .base_path()
+                            .join(&entry.path)
+                            .to_string_lossy()
+                            .to_string()
+                    ));
+                }
+            }
+        } else if footnote_text.starts_with("http://") || footnote_text.starts_with("https://") {
+            tracing::info!("opening external link in system browser: {}", footnote_text);
+            if let Err(e) = open::that(&footnote_text) {
+                tracing::error!("failed to open link: {}", e);
+            }
+        }
     };
 
     let (status_icon, status_class) = match save_status() {
@@ -217,6 +217,23 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
             visible: menu_visible(),
             on_close: move |_| menu_visible.set(false),
 
+
+            MenuButton {
+                label: "← Back",
+                onclick: move |_| {
+                    nav.go_back();
+                    menu_visible.set(false);
+                }
+            }
+
+            MenuButton {
+                label: "→ Forward",
+                onclick: move |_| {
+                    nav.go_forward();
+                    menu_visible.set(false);
+                }
+            }
+
             MenuButton {
                 label: "New Note",
                 onclick: move |_| {
@@ -237,23 +254,7 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
             }
 
             MenuButton {
-                label: "← Back",
-                onclick: move |_| {
-                    nav.go_back();
-                    menu_visible.set(false);
-                }
-            }
-
-            MenuButton {
-                label: "→ Forward",
-                onclick: move |_| {
-                    nav.go_forward();
-                    menu_visible.set(false);
-                }
-            }
-
-            MenuButton {
-                label: "Share with...",
+                label: "Share...",
                 onclick: move |_| {
                     show_share_modal.set(true);
                     menu_visible.set(false);

@@ -49,6 +49,15 @@ pub fn AppMenu(visible: bool, on_close: EventHandler, children: Element) -> Elem
 
             nav {
                 class: "flex-1 overflow-y-auto p-2",
+
+                MenuButton {
+                    label: "Home",
+                    onclick: move |_| {
+                        nav.push(Route::NoteDefault {});
+                        on_close.call(());
+                    }
+                }
+
                 {children}
             }
 
