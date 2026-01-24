@@ -49,6 +49,11 @@ pub fn AppMenu(visible: bool, on_close: EventHandler, children: Element) -> Elem
 
             nav {
                 class: "flex-1 overflow-y-auto p-2",
+                {children}
+            }
+
+            div {
+                class: "p-2 border-t border-zinc-800",
 
                 MenuButton {
                     label: "Notes",
@@ -70,18 +75,6 @@ pub fn AppMenu(visible: bool, on_close: EventHandler, children: Element) -> Elem
                     label: "Contacts",
                     onclick: move |_| {
                         nav.push(Route::ContactBrowser {});
-                        on_close.call(());
-                    }
-                }
-
-                {children}
-            }
-
-            div {
-                class: "p-2 border-t border-zinc-800",
-                MenuButton {
-                    label: "Settings",
-                    onclick: move |_| {
                         on_close.call(());
                     }
                 }
