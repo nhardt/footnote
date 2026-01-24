@@ -19,6 +19,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev lld
+
+      - name: Install Tailwind CSS CLI
+        run: npm install -D tailwindcss
+
+      - name: Generate Tailwind CSS
+        run: npx tailwindcss -i ./assets/main.css -o ./assets/tailwind.css --minify
+
       - name: Build
         run: cargo build --verbose
       - name: Run tests
