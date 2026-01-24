@@ -35,63 +35,97 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
     let mut show_share_modal = use_signal(|| false);
     let mut save_status = use_signal(|| SaveStatus::Saved);
 
-    let file_name = use_memo(move || {
-        PathBuf::from(relative_path.read().as_str())
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("untitled")
-            .to_string()
-    });
+    // ui round trippers. set them manually when loaded_note changes
+    let mut share_with = use_signal(move || String::new());
+    let mut body = use_signal(move || String::new());
+    let mut footnotes = use_signal(move || IndexMap::new());
 
-    let sync_body_to_footnotes = move |_| async move {
-        let mut footnotes_signal = footnotes.clone();
-        let mut footnotes_vec = footnotes.read().clone();
-
-        let mut note_body_eval =
-            document::eval("dioxus.send(document.getElementById('note-body').value)");
-        let Ok(note_body) = note_body_eval.recv::<String>().await else {
-            return;
+    let loaded_note_path = use_memo(move || {
+        let full_path = file_path_segments().join("/");
+        let Ok(note) = Note::from_path(PathBuf::from(&full_path), true) else {
+            // TODO: not sure what the error case represents
+            return full_path;
         };
 
-        let re = Regex::new(r"\[(\d+)\]").unwrap();
-        let mut link_names: Vec<String> = Vec::new();
-        for cap in re.captures_iter(note_body.as_bytes()) {
-            let full_match = cap.get(0).unwrap();
-            let link_name = std::str::from_utf8(&cap[1]).unwrap();
-            let end_pos = full_match.end();
-            if end_pos < note_body.len() && note_body.as_bytes()[end_pos] == b'(' {
-                continue;
-            }
-            link_names.push(link_name.to_string());
-        }
+        share_with.set(note.frontmatter.share_with.join(" "));
+        body.set(note.content);
+        footnotes.set(note.footnotes);
 
-        footnotes_vec.retain(|name, _| link_names.contains(&name));
-        for name in link_names {
-            footnotes_vec
-                .entry((&name).to_string())
-                .or_insert(String::new());
-        }
+        full_path
+    });
 
-        tracing::info!("sync'd {} footnotes", footnotes_vec.len());
-        footnotes_signal.set(footnotes_vec);
+    // derived from loaded notes
+    let relative_path = use_memo(move || {
+        let loaded_from_path = PathBuf::from(file_path_segments().join("/"));
+        loaded_from_path
+            .strip_prefix(app_context.vault.read().base_path())
+            .unwrap_or(&loaded_from_path)
+            .to_string_lossy()
+            .to_string()
+    });
+    let read_only = use_memo(move || relative_path.read().starts_with("footnotes"));
+
+    let sync_body_to_footnotes = move |_| async move {
+        //     let mut footnotes_signal = footnotes.clone();
+        //     let mut footnotes_vec = footnotes.read().clone();
+
+        //     let mut note_body_eval =
+        //         document::eval("dioxus.send(document.getElementById('note-body').value)");
+        //     let Ok(note_body) = note_body_eval.recv::<String>().await else {
+        //         return;
+        //     };
+
+        //     let re = Regex::new(r"\[(\d+)\]").unwrap();
+        //     let mut link_names: Vec<String> = Vec::new();
+        //     for cap in re.captures_iter(note_body.as_bytes()) {
+        //         let full_match = cap.get(0).unwrap();
+        //         let link_name = std::str::from_utf8(&cap[1]).unwrap();
+        //         let end_pos = full_match.end();
+        //         if end_pos < note_body.len() && note_body.as_bytes()[end_pos] == b'(' {
+        //             continue;
+        //         }
+        //         link_names.push(link_name.to_string());
+        //     }
+
+        //     footnotes_vec.retain(|name, _| link_names.contains(&name));
+        //     for name in link_names {
+        //         footnotes_vec
+        //             .entry((&name).to_string())
+        //             .or_insert(String::new());
+        //     }
+
+        //     tracing::info!("sync'd {} footnotes", footnotes_vec.len());
+        //     footnotes_signal.set(footnotes_vec);
     };
 
     let save_link_to_footnote = move |(footnote_number, footnote_text)| async move {
-        let mut footnotes_signal = footnotes.clone();
-        let mut footnotes_vec = footnotes.read().clone();
+        //     let mut footnotes_signal = footnotes.clone();
+        //     let mut footnotes_vec = footnotes.read().clone();
 
-        tracing::info!(
-            "saving {} -> {} to footnotes",
-            footnote_number,
-            footnote_text
-        );
-        footnotes_vec.insert(footnote_number, footnote_text);
-        footnotes_signal.set(footnotes_vec);
-        save_status.set(SaveStatus::Unsaved);
+        //     tracing::info!(
+        //         "saving {} -> {} to footnotes",
+        //         footnote_number,
+        //         footnote_text
+        //     );
+        //     footnotes_vec.insert(footnote_number, footnote_text);
+        //     footnotes_signal.set(footnotes_vec);
+        //     save_status.set(SaveStatus::Unsaved);
     };
 
     let save_note = move || async move {
         save_status.set(SaveStatus::Syncing);
+
+        let full_path = file_path_segments().join("/");
+        let mut note_copy = match Note::from_path(PathBuf::from(&full_path), true) {
+            Ok(n) => n,
+            Err(_) => Note::from_string("", true).unwrap(),
+        };
+
+        note_copy.frontmatter.share_with = share_with
+            .read()
+            .split_whitespace()
+            .map(|s| s.to_string())
+            .collect();
 
         let mut footnotes_vec = footnotes.read().clone();
         footnotes_vec.retain(|_key, value| !value.trim().is_empty());
@@ -102,15 +136,6 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
             .read()
             .base_path()
             .join(&*new_relative_path);
-
-        let share_with_str = share_with.read();
-        let share_with_vec = share_with_str
-            .split_whitespace()
-            .map(|s| s.to_string())
-            .collect();
-
-        let mut note_copy = note.read().clone();
-        note_copy.frontmatter.share_with = share_with_vec;
 
         let mut note_body_eval =
             document::eval("dioxus.send(document.getElementById('note-body').value)");
@@ -127,7 +152,6 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
                     return;
                 }
 
-                note.set(note_copy);
                 save_status.set(SaveStatus::Saved);
             }
             Err(e) => {
@@ -138,52 +162,38 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
     };
 
     let navigate_to_footnote = move |footnote_text: String| async move {
-        tracing::info!("navigate_to_uuid: {}", footnote_text);
+        //     tracing::info!("navigate_to_uuid: {}", footnote_text);
 
-        if let Some(uuid_part) = footnote_text.split("footnote://").nth(1) {
-            if let Ok(uuid) = Uuid::parse_str(&uuid_part) {
-                if let Some(entry) = app_context.manifest.read().get(&uuid) {
-                    tracing::info!(
-                        "found entry for uuid, requesting nav to: {}",
-                        entry.path.to_string_lossy()
-                    );
-                    nav.push(Route::NoteView {
-                        file_path: urlencoding::encode(
-                            &app_context
-                                .vault
-                                .read()
-                                .base_path()
-                                .join(&entry.path)
-                                .to_string_lossy()
-                                .to_string(),
-                        )
-                        .to_string(),
-                    });
-                }
-            }
-        } else if footnote_text.starts_with("http://") || footnote_text.starts_with("https://") {
-            tracing::info!("opening external link in system browser: {}", footnote_text);
-            if let Err(e) = open::that(&footnote_text) {
-                tracing::error!("failed to open link: {}", e);
-            }
-        }
+        //     if let Some(uuid_part) = footnote_text.split("footnote://").nth(1) {
+        //         if let Ok(uuid) = Uuid::parse_str(&uuid_part) {
+        //             if let Some(entry) = app_context.manifest.read().get(&uuid) {
+        //                 tracing::info!(
+        //                     "found entry for uuid, requesting nav to: {}",
+        //                     entry.path.to_string_lossy()
+        //                 );
+        //                 nav.push(format!(
+        //                     "/notes/{}",
+        //                     &app_context
+        //                         .vault
+        //                         .read()
+        //                         .base_path()
+        //                         .join(&entry.path)
+        //                         .to_string_lossy()
+        //                         .to_string()
+        //                 ));
+        //             }
+        //         }
+        //     } else if footnote_text.starts_with("http://") || footnote_text.starts_with("https://") {
+        //         tracing::info!("opening external link in system browser: {}", footnote_text);
+        //         if let Err(e) = open::that(&footnote_text) {
+        //             tracing::error!("failed to open link: {}", e);
+        //         }
+        //     }
     };
-
-    // Auto-save after 2 seconds of inactivity
-    use_effect(move || {
-        if save_status() == SaveStatus::Unsaved {
-            spawn(async move {
-                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-                if save_status() == SaveStatus::Unsaved {
-                    save_note().await;
-                }
-            });
-        }
-    });
 
     let (status_icon, status_class) = match save_status() {
         SaveStatus::Saved => ("✓", "text-green-500"),
-        SaveStatus::Unsaved => ("•", "text-yellow-500"),
+        SaveStatus::Unsaved => ("Save", "text-yellow-500"),
         SaveStatus::Syncing => ("↻", "text-blue-500 animate-spin"),
     };
 
@@ -195,8 +205,9 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
                 class: "flex-1 text-center text-sm font-medium text-zinc-300 truncate px-4",
                 "{relative_path()}"
             }
-            div {
+            button {
                 class: "w-8 text-center text-lg {status_class}",
+                onclick: move |_| save_note(),
                 "{status_icon}"
             }
             SyncServiceToggle {}
@@ -286,7 +297,7 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
 
         if show_new_note_modal() {
             NewNoteModal {
-                oncancel: move |_| show_new_note_modal.set(false)
+                ondone: move |_| show_new_note_modal.set(false)
             }
         }
 
