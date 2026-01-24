@@ -90,6 +90,12 @@ jobs:
       - name: Install Dioxus CLI
         run: cargo binstall dioxus-cli --force -y
 
+      - name: Install Tailwind CSS CLI
+        run: npm install -D tailwindcss
+
+      - name: Generate Tailwind CSS
+        run: npx tailwindcss -i ./assets/main.css -o ./assets/tailwind.css --minify
+
       - name: Set Short SHA
         run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
