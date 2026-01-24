@@ -1,3 +1,4 @@
+use crate::model::note::Note;
 use crate::{
     components::{
         app_header::AppHeader,
@@ -11,6 +12,7 @@ use crate::{
     Route,
 };
 use dioxus::prelude::*;
+use indexmap::IndexMap;
 use regex::bytes::Regex;
 use std::path::PathBuf;
 use uuid::Uuid;
@@ -23,37 +25,9 @@ enum SaveStatus {
 }
 
 #[component]
-pub fn NoteView(file_path: String) -> Element {
+pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
     let nav = navigator();
     let app_context = use_context::<AppContext>();
-    let loaded_from = urlencoding::decode(&file_path).unwrap().to_string();
-    tracing::info!("loading {}", loaded_from);
-
-    let loaded_from_clone = loaded_from.clone();
-    let mut relative_path = use_signal(move || {
-        let loaded_from_path = PathBuf::from(loaded_from_clone);
-        loaded_from_path
-            .strip_prefix(app_context.vault.read().base_path())
-            .unwrap_or(&loaded_from_path)
-            .to_string_lossy()
-            .to_string()
-    });
-
-    let mut note = use_signal(move || {
-        use crate::model::note::Note;
-        let full_path = PathBuf::from(loaded_from);
-        match Note::from_path(full_path, true) {
-            Ok(n) => n,
-            Err(_) => {
-                Note::from_string("Failed to load", true).expect("Expected to make blank note")
-            }
-        }
-    });
-
-    let read_only = use_signal(move || relative_path.read().starts_with("footnotes"));
-    let mut share_with = use_signal(move || note.read().frontmatter.share_with.join(" "));
-    let body = use_signal(move || note.read().content.clone());
-    let footnotes = use_signal(move || note.read().footnotes.clone());
 
     let mut menu_visible = use_signal(|| false);
     let mut show_new_note_modal = use_signal(|| false);
@@ -219,7 +193,7 @@ pub fn NoteView(file_path: String) -> Element {
 
             h1 {
                 class: "flex-1 text-center text-sm font-medium text-zinc-300 truncate px-4",
-                "{file_name()}"
+                "{relative_path()}"
             }
             div {
                 class: "w-8 text-center text-lg {status_class}",
@@ -231,8 +205,6 @@ pub fn NoteView(file_path: String) -> Element {
         AppMenu {
             visible: menu_visible(),
             on_close: move |_| menu_visible.set(false),
-
-            MenuDivider {}
 
             MenuButton {
                 label: "New Note",
@@ -539,19 +511,16 @@ fn BrowserRowFile(node: TreeNode, onselect: EventHandler) -> Element {
 
     let onclick = move |_| {
         if let Some(relative_path) = &path_clone {
-            let full_path = app_context
-                .vault
-                .read()
-                .base_path()
-                .join(relative_path)
-                .to_string_lossy()
-                .to_string();
-            let encoded = urlencoding::encode(&full_path);
-
-            nav.push(Route::NoteView {
-                file_path: encoded.into_owned(),
-            });
-
+            nav.push(format!(
+                "/notes/{}",
+                app_context
+                    .vault
+                    .read()
+                    .base_path()
+                    .join(relative_path)
+                    .to_string_lossy()
+                    .to_string()
+            ));
             onselect(());
         }
     };
