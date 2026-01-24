@@ -416,9 +416,10 @@ fn DeviceRow(device: Device, read_only: bool) -> Element {
         div { class: "flex items-start justify-between",
             div { class: "flex-1 min-w-0",
                 div { class: "flex items-center gap-3 mb-2",
-                    h3 { class: "text-sm font-semibold", "{device.name}" }
+                    h3 { class: "text-sm font-semibold", "{device.name} "
+                        span { class: "text-xs font-mono text-zinc-500 mb-2", "{truncated_id}" }
+                    }
                 }
-                p { class: "text-xs font-mono text-zinc-500 mb-2", "{truncated_id}" }
 
                 if let Some(status) = outbound_device_status() {
                     div { class: "text-xs text-zinc-400",
