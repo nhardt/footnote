@@ -23,7 +23,9 @@ use views::profile_view::Profile;
 
 #[cfg(target_os = "android")]
 use {
-    crate::platform::{send_incoming_file, take_file_receiver},
+    crate::platform::{
+        handle_incoming_share, read_uri_from_string, send_incoming_file, take_file_receiver,
+    },
     std::sync::mpsc::{channel, Receiver, Sender},
     std::sync::Mutex,
     std::sync::OnceLock,
