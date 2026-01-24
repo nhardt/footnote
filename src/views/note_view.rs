@@ -4,6 +4,7 @@ use crate::{
         app_menu::{AppMenu, MenuButton, MenuDivider},
         footnotes::Footnotes,
         new_note_modal::NewNoteModal,
+        sync_service_toggle::SyncServiceToggle,
     },
     context::AppContext,
     util::tree_node::{build_tree_from_manifest, TreeNode},
@@ -224,6 +225,7 @@ pub fn NoteView(file_path: String) -> Element {
                 class: "w-8 text-center text-lg {status_class}",
                 "{status_icon}"
             }
+            SyncServiceToggle {}
         }
 
         AppMenu {

@@ -72,7 +72,7 @@ pub fn SyncServiceToggle() -> Element {
         button {
             class: "text-sm font-mono text-zinc-400",
             onclick: toggle_listener,
-            if listening() { "Syncing" } else { "Isolated" }
+            if listening() { "Sync: On" } else { "Sync: Off" }
         }
     }
 }
