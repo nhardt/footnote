@@ -1,3 +1,5 @@
+pub mod app_header;
+pub mod app_menu;
 pub mod confirm_dialog;
 pub mod file_search;
 pub mod footnote_editor;
