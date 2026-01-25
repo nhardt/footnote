@@ -33,35 +33,38 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
     let mut show_new_note_modal = use_signal(|| false);
     let mut show_open_modal = use_signal(|| false);
     let mut show_share_modal = use_signal(|| false);
+    let mut show_save_as_modal = use_signal(|| false);
     let mut save_status = use_signal(|| SaveStatus::Saved);
 
     // ui round trippers. set them manually when loaded_note changes
     let mut share_with = use_signal(move || String::new());
     let mut body = use_signal(move || String::new());
     let mut footnotes = use_signal(move || IndexMap::new());
+    let mut loaded_note_full_path = use_signal(move || String::new());
 
-    let loaded_note_path = use_memo(move || {
+    use_effect(move || {
         let full_path = file_path_segments().join("/");
+        tracing::info!("loaded note full path changed to: {}", full_path);
+
         let Ok(note) = Note::from_path(PathBuf::from(&full_path), true) else {
+            tracing::info!("note at {}  failed to load", full_path);
             // TODO: not sure what the error case represents
-            return full_path;
+            return;
         };
 
         share_with.set(note.frontmatter.share_with.join(" "));
         body.set(note.content);
         footnotes.set(note.footnotes);
-
-        full_path
+        loaded_note_full_path.set(full_path);
     });
 
-    // derived from loaded notes
+    // derived from file_path_segments directly
     let relative_path = use_memo(move || {
         let loaded_from_path = PathBuf::from(file_path_segments().join("/"));
-        loaded_from_path
-            .strip_prefix(app_context.vault.read().base_path())
-            .unwrap_or(&loaded_from_path)
-            .to_string_lossy()
-            .to_string()
+        app_context
+            .vault
+            .read()
+            .absolute_path_to_relative_string(loaded_from_path)
     });
     let read_only = use_memo(move || relative_path.read().starts_with("footnotes"));
 
@@ -112,7 +115,7 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
         save_status.set(SaveStatus::Unsaved);
     };
 
-    let save_note = move || async move {
+    let save_note = move |relative_path: Option<String>| async move {
         save_status.set(SaveStatus::Syncing);
 
         let full_path = file_path_segments().join("/");
@@ -130,23 +133,24 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
         let mut footnotes_vec = footnotes.read().clone();
         footnotes_vec.retain(|_key, value| !value.trim().is_empty());
 
-        let new_relative_path = PathBuf::from(relative_path.read().to_string());
-        let new_full_path = app_context
-            .vault
-            .read()
-            .base_path()
-            .join(&*new_relative_path);
+        let full_path = match relative_path {
+            Some(p) => app_context
+                .vault
+                .read()
+                .relative_string_to_absolute_path(&p),
+            None => PathBuf::from(loaded_note_full_path()),
+        };
 
         let mut note_body_eval =
             document::eval("dioxus.send(document.getElementById('note-body').value)");
 
         match note_body_eval.recv::<String>().await {
             Ok(note_body) => {
-                tracing::info!("saving note to {}", new_full_path.to_string_lossy());
+                tracing::info!("saving note to {}", full_path.to_string_lossy());
                 note_copy.content = note_body;
                 note_copy.footnotes = footnotes_vec;
 
-                if let Err(e) = note_copy.to_file(&new_full_path) {
+                if let Err(e) = note_copy.to_file(&full_path) {
                     tracing::error!("Failed to save note: {e}");
                     save_status.set(SaveStatus::Unsaved);
                     return;
@@ -207,7 +211,7 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
             }
             button {
                 class: "w-8 text-center text-lg {status_class}",
-                onclick: move |_| save_note(),
+                onclick: move |_| save_note(None),
                 "{status_icon}"
             }
             SyncServiceToggle {}
@@ -262,9 +266,9 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
             }
 
             MenuButton {
-                label: "Move/Rename...",
+                label: "Save as...",
                 onclick: move |_| {
-                    tracing::info!("Move/rename not yet implemented");
+                    show_save_as_modal.set(true);
                     menu_visible.set(false);
                 }
             }
@@ -317,6 +321,24 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
                     share_with.set(new_shares);
                     show_share_modal.set(false);
                     save_status.set(SaveStatus::Unsaved);
+                }
+            }
+        }
+
+        if show_save_as_modal() {
+            SaveAsModal {
+                relative_path: relative_path.read(),
+                oncancel: move |_| show_share_modal.set(false),
+                onsave: move |new_relative_path: String| {
+                    spawn(async move {
+                        save_note(Some(new_relative_path.clone())).await;
+                        show_save_as_modal.set(false);
+                        save_status.set(SaveStatus::Saved);
+                        nav.replace(format!(
+                            "/notes/{}",
+                            app_context.vault.read().relative_string_to_absolute_string(&new_relative_path)
+                        ));
+                    });
                 }
             }
         }
@@ -409,6 +431,49 @@ fn ShareWithModal(
                     button {
                         class: "px-4 py-2 bg-zinc-100 text-zinc-900 rounded-md text-sm font-medium hover:bg-white",
                         onclick: move |_| onsave.call(share_input()),
+                        "Save"
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[component]
+fn SaveAsModal(
+    relative_path: String,
+    oncancel: EventHandler,
+    onsave: EventHandler<String>,
+) -> Element {
+    let mut path_input = use_signal(|| relative_path);
+
+    rsx! {
+        div {
+            class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
+            onclick: move |_| oncancel.call(()),
+
+            div {
+                class: "w-full max-w-md border border-zinc-700 rounded-lg bg-zinc-900 shadow-2xl p-6",
+                onclick: move |evt| evt.stop_propagation(),
+
+                h3 { class: "text-lg font-semibold mb-4", "Save as..." }
+
+                input {
+                    class: "w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-sm focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 mb-4",
+                    r#type: "text",
+                    value: "{path_input}",
+                    oninput: move |e| path_input.set(e.value())
+                }
+
+                div { class: "flex gap-2 justify-end",
+                    button {
+                        class: "px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100",
+                        onclick: move |_| oncancel.call(()),
+                        "Cancel"
+                    }
+                    button {
+                        class: "px-4 py-2 bg-zinc-100 text-zinc-900 rounded-md text-sm font-medium hover:bg-white",
+                        onclick: move |_| onsave.call(path_input()),
                         "Save"
                     }
                 }
