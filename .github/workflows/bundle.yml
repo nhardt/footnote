@@ -17,6 +17,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt install -y libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev
+
+      - name: Install Tailwind CSS CLI
+        run: npm install -D tailwindcss
+
+      - name: Generate Tailwind CSS
+        run: npx tailwindcss -i ./assets/main.css -o ./assets/tailwind.css --minify
+
       - name: Unit Test
         run: cargo test --verbose
 
@@ -89,12 +96,6 @@ jobs:
 
       - name: Install Dioxus CLI
         run: cargo binstall dioxus-cli --force -y
-
-      - name: Install Tailwind CSS CLI
-        run: npm install -D tailwindcss
-
-      - name: Generate Tailwind CSS
-        run: npx tailwindcss -i ./assets/main.css -o ./assets/tailwind.css --minify
 
       - name: Set Short SHA
         run: echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
