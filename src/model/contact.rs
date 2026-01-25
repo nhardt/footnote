@@ -13,6 +13,8 @@ pub struct Contact {
     pub nickname: String,
     pub username: String,
     pub id_public_key: String,
+    /// iroh endpoint id of device leader
+    pub device_leader: String,
     pub devices: Vec<Device>,
     pub updated_at: LamportTimestamp,
     #[serde(default)]
@@ -23,6 +25,7 @@ pub struct Contact {
 pub struct SignableContact<'a> {
     username: &'a str,
     id_public_key: &'a str,
+    device_leader: &'a str,
     devices: &'a [Device],
     updated_at: LamportTimestamp,
 }
@@ -65,6 +68,7 @@ impl Contact {
             nickname: "".to_string(),
             username: username.to_string(),
             id_public_key: id_public_key.to_string(),
+            device_leader: primary_device.iroh_endpoint_id.to_string(),
             devices: [primary_device].to_vec(),
             updated_at: LamportTimestamp::new(None),
             signature: "".to_string(),
@@ -79,6 +83,7 @@ impl Contact {
         let signable = SignableContact {
             username: &self.username,
             id_public_key: &self.id_public_key,
+            device_leader: &self.device_leader,
             devices: &self.devices,
             updated_at: self.updated_at,
         };
@@ -94,6 +99,7 @@ impl Contact {
         let signable = SignableContact {
             username: &self.username,
             id_public_key: &self.id_public_key,
+            device_leader: &self.device_leader,
             devices: &self.devices,
             updated_at: self.updated_at,
         };
@@ -151,6 +157,7 @@ mod tests {
             username: "alice".to_string(),
             nickname: "".to_string(),
             id_public_key: hex::encode(verifying_key.to_bytes()),
+            device_leader: "abc123".to_string(),
             devices: vec![Device::new("laptop".to_string(), "abc123".to_string())],
             updated_at: LamportTimestamp(1000),
             signature: String::new(),
@@ -169,6 +176,7 @@ mod tests {
             username: "alice".to_string(),
             nickname: "Alice W.".to_string(),
             id_public_key: hex::encode(verifying_key.to_bytes()),
+            device_leader: "abc123".to_string(),
             devices: vec![Device::new("laptop".to_string(), "abc123".to_string())],
             updated_at: LamportTimestamp(1000),
             signature: String::new(),
@@ -190,6 +198,7 @@ mod tests {
             username: "alice".to_string(),
             nickname: "".to_string(),
             id_public_key: hex::encode(verifying_key.to_bytes()),
+            device_leader: "".to_string(),
             devices: vec![],
             updated_at: LamportTimestamp(1000),
             signature: String::new(),
@@ -215,6 +224,7 @@ mod tests {
             username: "alice".to_string(),
             nickname: "".to_string(),
             id_public_key: master_key.clone(),
+            device_leader: "abc123".to_string(),
             devices: vec![Device::new("laptop".to_string(), "abc123".to_string())],
             updated_at: LamportTimestamp::new(None),
             signature: String::new(),
@@ -225,6 +235,7 @@ mod tests {
             username: "alice".to_string(),
             nickname: "".to_string(),
             id_public_key: master_key.clone(),
+            device_leader: "abc123".to_string(),
             devices: vec![
                 Device::new("laptop".to_string(), "abc123".to_string()),
                 Device::new("phone".to_string(), "def456".to_string()),
@@ -251,6 +262,7 @@ mod tests {
             username: "alice".to_string(),
             nickname: "Alice W.".to_string(),
             id_public_key: hex::encode(verifying_key.to_bytes()),
+            device_leader: "abc123".to_string(),
             devices: vec![Device::new("laptop".to_string(), "abc123".to_string())],
             updated_at: LamportTimestamp(1000),
             signature: String::new(),
