@@ -7,8 +7,11 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
+const FORMAT_VERSION: u32 = 1;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Contact {
+    pub format_version: u32,
     #[serde(skip_serializing_if = "String::is_empty", default)]
     pub nickname: String,
     pub username: String,
@@ -23,6 +26,7 @@ pub struct Contact {
 
 #[derive(Serialize)]
 pub struct SignableContact<'a> {
+    format_version: u32,
     username: &'a str,
     id_public_key: &'a str,
     device_leader: &'a str,
@@ -65,6 +69,7 @@ impl Contact {
         id_signing_key: &SigningKey,
     ) -> Result<Contact> {
         let mut c = Contact {
+            format_version: FORMAT_VERSION,
             nickname: "".to_string(),
             username: username.to_string(),
             id_public_key: id_public_key.to_string(),
@@ -81,6 +86,7 @@ impl Contact {
         self.updated_at = LamportTimestamp::new(Some(self.updated_at));
 
         let signable = SignableContact {
+            format_version: self.format_version,
             username: &self.username,
             id_public_key: &self.id_public_key,
             device_leader: &self.device_leader,
@@ -97,6 +103,7 @@ impl Contact {
         let verifying_key = crypto::verifying_key_from_hex(&self.id_public_key)?;
 
         let signable = SignableContact {
+            format_version: self.format_version,
             username: &self.username,
             id_public_key: &self.id_public_key,
             device_leader: &self.device_leader,
@@ -154,6 +161,7 @@ mod tests {
         let verifying_key = signing_key.verifying_key();
 
         let mut contact = Contact {
+            format_version: FORMAT_VERSION,
             username: "alice".to_string(),
             nickname: "".to_string(),
             id_public_key: hex::encode(verifying_key.to_bytes()),
@@ -173,6 +181,7 @@ mod tests {
         let verifying_key = signing_key.verifying_key();
 
         let mut contact = Contact {
+            format_version: FORMAT_VERSION,
             username: "alice".to_string(),
             nickname: "Alice W.".to_string(),
             id_public_key: hex::encode(verifying_key.to_bytes()),
@@ -195,6 +204,7 @@ mod tests {
         let verifying_key = signing_key.verifying_key();
 
         let mut contact = Contact {
+            format_version: FORMAT_VERSION,
             username: "alice".to_string(),
             nickname: "".to_string(),
             id_public_key: hex::encode(verifying_key.to_bytes()),
@@ -221,6 +231,7 @@ mod tests {
         let master_key = hex::encode(verifying_key.to_bytes());
 
         let mut contact_v1 = Contact {
+            format_version: FORMAT_VERSION,
             username: "alice".to_string(),
             nickname: "".to_string(),
             id_public_key: master_key.clone(),
@@ -232,6 +243,7 @@ mod tests {
         contact_v1.sign(&signing_key).unwrap();
 
         let mut contact_v2 = Contact {
+            format_version: FORMAT_VERSION,
             username: "alice".to_string(),
             nickname: "".to_string(),
             id_public_key: master_key.clone(),
@@ -259,6 +271,7 @@ mod tests {
         let verifying_key = signing_key.verifying_key();
 
         let mut contact = Contact {
+            format_version: FORMAT_VERSION,
             username: "alice".to_string(),
             nickname: "Alice W.".to_string(),
             id_public_key: hex::encode(verifying_key.to_bytes()),
@@ -289,6 +302,7 @@ mod tests {
 
         // Initial record: A is leader, signed by A
         let mut contact_v1 = Contact {
+            format_version: FORMAT_VERSION,
             username: "alice".to_string(),
             nickname: "".to_string(),
             id_public_key: master_key_a.clone(),
@@ -305,6 +319,7 @@ mod tests {
 
         // Transfer record: D is new leader, still signed by A
         let mut transfer_record = Contact {
+            format_version: FORMAT_VERSION,
             username: "alice".to_string(),
             nickname: "".to_string(),
             id_public_key: master_key_a.clone(),
@@ -320,6 +335,7 @@ mod tests {
 
         // Takeover record: D is leader, signed by D's new key
         let mut takeover_record = Contact {
+            format_version: FORMAT_VERSION,
             username: "alice".to_string(),
             nickname: "".to_string(),
             id_public_key: master_key_d.clone(),
@@ -348,6 +364,7 @@ mod tests {
 
         // Initial record: A is leader
         let mut contact_v1 = Contact {
+            format_version: FORMAT_VERSION,
             username: "alice".to_string(),
             nickname: "".to_string(),
             id_public_key: master_key_a.clone(),
@@ -363,6 +380,7 @@ mod tests {
 
         // Attacker tries to skip transfer record and claim leadership with new key
         let mut malicious_takeover = Contact {
+            format_version: FORMAT_VERSION,
             username: "alice".to_string(),
             nickname: "".to_string(),
             id_public_key: master_key_d.clone(),
@@ -388,6 +406,7 @@ mod tests {
 
         // Initial: device A is leader
         let mut contact_v1 = Contact {
+            format_version: FORMAT_VERSION,
             username: "alice".to_string(),
             nickname: "".to_string(),
             id_public_key: master_key.clone(),
@@ -403,6 +422,7 @@ mod tests {
 
         // Just changing which device is leader, same signing key
         let mut contact_v2 = Contact {
+            format_version: FORMAT_VERSION,
             username: "alice".to_string(),
             nickname: "".to_string(),
             id_public_key: master_key.clone(),
@@ -424,6 +444,7 @@ mod tests {
         let master_key = hex::encode(verifying_key.to_bytes());
 
         let mut contact = Contact {
+            format_version: FORMAT_VERSION,
             username: "alice".to_string(),
             nickname: "".to_string(),
             id_public_key: master_key.clone(),
