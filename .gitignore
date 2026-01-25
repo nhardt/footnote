@@ -1,6 +1,7 @@
 /target
 data
 .keys
+assets/tailwind.css
 external
 node_modules/
 third-party/

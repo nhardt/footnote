@@ -1,57 +1,72 @@
+use crate::model::note::Note;
 use crate::{
-    components::{footnotes::Footnotes, new_note_modal::NewNoteModal},
-    context::AppContext,
-    elements::primary_button::PrimaryButton,
-    model::note::Note,
-    util::{
-        manifest::{create_manifest_local, Manifest},
-        tree_node::{build_tree_from_manifest, TreeNode},
+    components::{
+        app_header::AppHeader,
+        app_menu::{AppMenu, MenuButton, MenuDivider},
+        footnotes::Footnotes,
+        new_note_modal::NewNoteModal,
+        sync_service_toggle::SyncServiceToggle,
     },
+    context::AppContext,
+    util::tree_node::{build_tree_from_manifest, TreeNode},
     Route,
 };
-use dioxus::{document::EvalError, html::i, prelude::*};
+use dioxus::prelude::*;
+use indexmap::IndexMap;
 use regex::bytes::Regex;
-use serde_yaml::from_str;
-use std::{
-    collections::{HashMap, HashSet},
-    path::{Path, PathBuf},
-};
+use std::path::PathBuf;
 use uuid::Uuid;
 
+#[derive(Clone, Copy, PartialEq)]
+enum SaveStatus {
+    Saved,
+    Unsaved,
+    Syncing,
+}
+
 #[component]
-pub fn NoteView(file_path: String) -> Element {
+pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
     let nav = navigator();
     let app_context = use_context::<AppContext>();
-    let loaded_from = urlencoding::decode(&file_path).unwrap().to_string();
-    tracing::info!("loading {}", loaded_from);
 
-    let loaded_from_clone = loaded_from.clone();
-    let mut relative_path = use_signal(move || {
-        let loaded_from_path = PathBuf::from(loaded_from_clone);
-        loaded_from_path
-            .strip_prefix(app_context.vault.read().base_path())
-            .unwrap_or(&loaded_from_path)
-            .to_string_lossy()
-            .to_string()
-    });
+    let mut menu_visible = use_signal(|| false);
+    let mut show_new_note_modal = use_signal(|| false);
+    let mut show_open_modal = use_signal(|| false);
+    let mut show_share_modal = use_signal(|| false);
+    let mut show_save_as_modal = use_signal(|| false);
+    let mut save_status = use_signal(|| SaveStatus::Saved);
 
-    let mut note = use_signal(move || {
-        let full_path = PathBuf::from(loaded_from);
-        let note_from_path = match Note::from_path(full_path, true) {
-            Ok(n) => n,
-            Err(_) => {
-                Note::from_string("Failed to load", true).expect("Expected to make blank note")
-            }
+    // ui round trippers. set them manually when loaded_note changes
+    let mut share_with = use_signal(move || String::new());
+    let mut body = use_signal(move || String::new());
+    let mut footnotes = use_signal(move || IndexMap::new());
+    let mut loaded_note_full_path = use_signal(move || String::new());
+
+    use_effect(move || {
+        let full_path = file_path_segments().join("/");
+        tracing::info!("loaded note full path changed to: {}", full_path);
+
+        let Ok(note) = Note::from_path(PathBuf::from(&full_path), true) else {
+            tracing::info!("note at {}  failed to load", full_path);
+            // TODO: not sure what the error case represents
+            return;
         };
-        note_from_path
+
+        share_with.set(note.frontmatter.share_with.join(" "));
+        body.set(note.content);
+        footnotes.set(note.footnotes);
+        loaded_note_full_path.set(full_path);
     });
 
-    let read_only = use_signal(move || relative_path.read().starts_with("footnotes"));
-
-    let mut share_with = use_signal(move || note.read().frontmatter.share_with.join(" "));
-    let body = use_signal(move || note.read().content.clone());
-    let footnotes = use_signal(move || note.read().footnotes.clone());
-    let mut err_label = use_signal(|| String::new());
+    // derived from file_path_segments directly
+    let relative_path = use_memo(move || {
+        let loaded_from_path = PathBuf::from(file_path_segments().join("/"));
+        app_context
+            .vault
+            .read()
+            .absolute_path_to_relative_string(loaded_from_path)
+    });
+    let read_only = use_memo(move || relative_path.read().starts_with("footnotes"));
 
     let sync_body_to_footnotes = move |_| async move {
         let mut footnotes_signal = footnotes.clone();
@@ -75,22 +90,14 @@ pub fn NoteView(file_path: String) -> Element {
             link_names.push(link_name.to_string());
         }
 
-        for (_, [link_name]) in re.captures_iter(note_body.as_bytes()).map(|c| c.extract()) {
-            let link_name = std::str::from_utf8(link_name).unwrap();
-            link_names.push(link_name.to_string());
-        }
-
         footnotes_vec.retain(|name, _| link_names.contains(&name));
         for name in link_names {
             footnotes_vec
                 .entry((&name).to_string())
                 .or_insert(String::new());
         }
-        tracing::info!("sync'd {} footnotes", footnotes_vec.len());
 
-        footnotes_vec
-            .iter()
-            .for_each(|i| tracing::info!("{} -> {}", i.0, i.1));
+        tracing::info!("sync'd {} footnotes", footnotes_vec.len());
         footnotes_signal.set(footnotes_vec);
     };
 
@@ -104,192 +111,187 @@ pub fn NoteView(file_path: String) -> Element {
             footnote_text
         );
         footnotes_vec.insert(footnote_number, footnote_text);
-        footnotes_vec
-            .iter()
-            .for_each(|i| tracing::info!("{} -> {}", i.0, i.1));
         footnotes_signal.set(footnotes_vec);
+        save_status.set(SaveStatus::Unsaved);
     };
 
-    let save_note = move |_| async move {
-        let mut footnotes_vec = footnotes.read().clone();
-        // do not insert or save foonotes with empty values
-        footnotes_vec.retain(|_key, value| !value.trim().is_empty());
-        let new_relative_path = PathBuf::from(relative_path.read().to_string());
-        let new_full_path = app_context
-            .vault
-            .read()
-            .base_path()
-            .join(&*new_relative_path);
+    let save_note = move |relative_path: Option<String>| async move {
+        save_status.set(SaveStatus::Syncing);
 
-        let share_with_str = share_with.read();
-        let share_with = share_with_str
+        let full_path = file_path_segments().join("/");
+        let mut note_copy = match Note::from_path(PathBuf::from(&full_path), true) {
+            Ok(n) => n,
+            Err(_) => Note::from_string("", true).unwrap(),
+        };
+
+        note_copy.frontmatter.share_with = share_with
+            .read()
             .split_whitespace()
             .map(|s| s.to_string())
             .collect();
 
-        let mut note_copy = note.read().clone();
-        note_copy.frontmatter.share_with = share_with;
+        let mut footnotes_vec = footnotes.read().clone();
+        footnotes_vec.retain(|_key, value| !value.trim().is_empty());
+
+        let full_path = match relative_path {
+            Some(p) => app_context
+                .vault
+                .read()
+                .relative_string_to_absolute_path(&p),
+            None => PathBuf::from(loaded_note_full_path()),
+        };
 
         let mut note_body_eval =
             document::eval("dioxus.send(document.getElementById('note-body').value)");
 
         match note_body_eval.recv::<String>().await {
             Ok(note_body) => {
-                tracing::info!("saving note to {}", new_full_path.to_string_lossy());
-
+                tracing::info!("saving note to {}", full_path.to_string_lossy());
                 note_copy.content = note_body;
                 note_copy.footnotes = footnotes_vec;
 
-                if let Err(e) = note_copy.to_file(&new_full_path) {
-                    err_label.set(format!("Failed to save note: {e}"));
+                if let Err(e) = note_copy.to_file(&full_path) {
+                    tracing::error!("Failed to save note: {e}");
+                    save_status.set(SaveStatus::Unsaved);
                     return;
                 }
 
-                note.set(note_copy);
+                save_status.set(SaveStatus::Saved);
             }
             Err(e) => {
-                err_label.set(format!("JavaScript Eval Error: {e:?}"));
+                tracing::error!("JavaScript Eval Error: {e:?}");
+                save_status.set(SaveStatus::Unsaved);
             }
         }
     };
 
     let navigate_to_footnote = move |footnote_text: String| async move {
         tracing::info!("navigate_to_uuid: {}", footnote_text);
-        let app_context = use_context::<AppContext>();
 
         if let Some(uuid_part) = footnote_text.split("footnote://").nth(1) {
-            tracing::info!("found uuid, requesting nav to: {}", uuid_part);
-
             if let Ok(uuid) = Uuid::parse_str(&uuid_part) {
                 if let Some(entry) = app_context.manifest.read().get(&uuid) {
                     tracing::info!(
                         "found entry for uuid, requesting nav to: {}",
                         entry.path.to_string_lossy()
                     );
-                    nav.push(Route::NoteView {
-                        file_path: urlencoding::encode(
-                            &app_context
-                                .vault
-                                .read()
-                                .base_path()
-                                .join(&entry.path)
-                                .to_string_lossy()
-                                .to_string(),
-                        )
-                        .to_string(),
-                    });
+                    nav.push(format!(
+                        "/notes/{}",
+                        &app_context
+                            .vault
+                            .read()
+                            .base_path()
+                            .join(&entry.path)
+                            .to_string_lossy()
+                            .to_string()
+                    ));
                 }
-            } else {
-                tracing::info!("could not convert uuid str {} to uuid", uuid_part);
             }
         } else if footnote_text.starts_with("http://") || footnote_text.starts_with("https://") {
             tracing::info!("opening external link in system browser: {}", footnote_text);
             if let Err(e) = open::that(&footnote_text) {
                 tracing::error!("failed to open link: {}", e);
             }
-        } else {
-            tracing::info!("unsupported link to {}", footnote_text);
         }
     };
 
-    let mut show_new_note_modal = use_signal(|| false);
-    let mut select_note_visible = use_signal(|| false);
-
-    let select_note = move |_| {
-        let mut app_context = use_context::<AppContext>();
-        if let Ok(_) = app_context.reload_manifest() {
-            select_note_visible.set(true);
-        } else {
-            tracing::info!("could not read filsystem");
-        }
-    };
-    let select_note_modal_oncancel = move |_| {
-        select_note_visible.set(false);
-    };
-    let select_note_modal_onselect = move |_| {
-        select_note_visible.set(false);
+    let (status_icon, status_class) = match save_status() {
+        SaveStatus::Saved => ("✓", "text-green-500"),
+        SaveStatus::Unsaved => ("Save", "text-yellow-500"),
+        SaveStatus::Syncing => ("↻", "text-blue-500 animate-spin"),
     };
 
     rsx! {
-        div { class: "h-full flex flex-col flex-1",
-            div { class: "border-b border-zinc-800 bg-zinc-900/30 px-6 py-4",
-                div { class: "border-b border-zinc-800 bg-zinc-900/30 px-6 py-4",
-                    div { class: "max-w-5xl mx-auto",
-                        div { class: "grid grid-cols-[auto_1fr] gap-x-3 gap-y-3 items-center mb-4",
-                            label { class: "text-sm font-medium text-zinc-400", "File" }
-                            input {
-                                class: "px-3 py-1.5 bg-zinc-900 border border-zinc-700 rounded-md text-sm font-mono focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
-                                r#type: "text",
-                                value: "{relative_path}",
-                                oninput: move |e| relative_path.set(e.value()),
-                            }
+        AppHeader {
+            on_menu_click: move |_| menu_visible.set(true),
 
-                            label { class: "text-sm font-medium text-zinc-400", "Shared with" }
-                            input {
-                                class: "px-3 py-1.5 bg-zinc-900 border border-zinc-700 rounded-md text-sm font-mono focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
-                                r#type: "text",
-                                value: "{share_with}",
-                                oninput: move |e| share_with.set(e.value())
-                            }
-                        }
-
-                        div { class: "flex gap-3 w-full",
-                            button {
-                                class: "px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
-                                onclick: move |_| nav.go_back(),
-                                "←"
-                            }
-                            button {
-                                class: "px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
-                                onclick: move |_| nav.go_forward(),
-                                "→"
-                            }
-                            button {
-                                class: "flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
-                                onclick: select_note,
-                                "Open"
-                            }
-                            if select_note_visible() {
-                                NoteSelectModal {
-                                    oncancel: select_note_modal_oncancel,
-                                    onselect: select_note_modal_onselect
-                                }
-                            }
-                            button {
-                                class: "flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
-                                onclick: move |_| show_new_note_modal.set(true),
-                                "New Note"
-                            }
-                            if show_new_note_modal() {
-                                NewNoteModal {
-                                    oncancel: move |_| show_new_note_modal.set(false)
-                                }
-                            }
-                            if !read_only() {
-                                button {
-                                    class: "flex-1 px-4 py-2 bg-zinc-100 hover:bg-white hover:shadow-lg text-zinc-900 rounded-md text-sm font-medium transition-all",
-                                    onclick: save_note,
-                                    "Save"
-                                }
-                            }
-                        }
-                    }
-                }
+            h1 {
+                class: "flex-1 text-center text-sm font-medium text-zinc-300 truncate px-4",
+                "{relative_path()}"
             }
-            div { class: "h-full flex-1 overflow-hidden",
-                div { class: "h-full max-w-5xl mx-auto px-6 py-6",
-                    textarea {
-                        id: "note-body",
-                        class: "w-full h-full px-4 py-3 bg-zinc-900/30 border border-zinc-800 rounded-lg text-sm font-mono text-zinc-100 resize-none focus:border-zinc-700 focus:ring-1 focus:ring-zinc-700",
-                        placeholder: "Once upon a time...",
-                        onblur: sync_body_to_footnotes,
-                        initial_value: "{body}",
-                        readonly: read_only
-                    }
+            button {
+                class: "w-8 text-center text-lg {status_class}",
+                onclick: move |_| save_note(None),
+                "{status_icon}"
+            }
+            SyncServiceToggle {}
+        }
+
+        AppMenu {
+            visible: menu_visible(),
+            on_close: move |_| menu_visible.set(false),
+
+
+            MenuButton {
+                label: "← Back",
+                onclick: move |_| {
+                    nav.go_back();
+                    menu_visible.set(false);
                 }
             }
 
-            div { class: "max-w-5xl mx-auto px-6 py-6",
+            MenuButton {
+                label: "→ Forward",
+                onclick: move |_| {
+                    nav.go_forward();
+                    menu_visible.set(false);
+                }
+            }
+
+            MenuButton {
+                label: "New Note",
+                onclick: move |_| {
+                    show_new_note_modal.set(true);
+                    menu_visible.set(false);
+                }
+            }
+
+            MenuButton {
+                label: "Open...",
+                onclick: move |_| {
+                    let mut app_context = use_context::<AppContext>();
+                    if app_context.reload_manifest().is_ok() {
+                        show_open_modal.set(true);
+                    }
+                    menu_visible.set(false);
+                }
+            }
+
+            MenuButton {
+                label: "Share...",
+                onclick: move |_| {
+                    show_share_modal.set(true);
+                    menu_visible.set(false);
+                }
+            }
+
+            MenuButton {
+                label: "Save as...",
+                onclick: move |_| {
+                    show_save_as_modal.set(true);
+                    menu_visible.set(false);
+                }
+            }
+        }
+
+        div {
+            class: "flex-1 overflow-y-auto",
+
+            div {
+                class: "h-[80vh] min-h-[50vh] max-w-5xl mx-auto px-4 pt-6 sm:px-6",
+                textarea {
+                    id: "note-body",
+                    class: "w-full h-full px-4 py-3 bg-zinc-900/30 border border-zinc-800 rounded-lg text-sm font-mono text-zinc-100 resize-none focus:border-zinc-700 focus:ring-1 focus:ring-zinc-700 focus:outline-none",
+                    onblur: sync_body_to_footnotes,
+                    oninput: move |_| save_status.set(SaveStatus::Unsaved),
+                    initial_value: "{body}",
+                    readonly: read_only,
+                    style: "min-height: 7.5rem;"
+                }
+            }
+
+            div {
+                class: "max-w-5xl pt-4 mx-auto px-4 pb-6 sm:px-6",
                 Footnotes {
                     footnotes: footnotes,
                     onlink: save_link_to_footnote,
@@ -297,11 +299,54 @@ pub fn NoteView(file_path: String) -> Element {
                 }
             }
         }
+
+        if show_new_note_modal() {
+            NewNoteModal {
+                ondone: move |_| show_new_note_modal.set(false)
+            }
+        }
+
+        if show_open_modal() {
+            NoteSelectModal {
+                oncancel: move |_| show_open_modal.set(false),
+                onselect: move |_| show_open_modal.set(false)
+            }
+        }
+
+        if show_share_modal() {
+            ShareWithModal {
+                current_shares: share_with(),
+                oncancel: move |_| show_share_modal.set(false),
+                onsave: move |new_shares: String| {
+                    share_with.set(new_shares);
+                    show_share_modal.set(false);
+                    save_status.set(SaveStatus::Unsaved);
+                }
+            }
+        }
+
+        if show_save_as_modal() {
+            SaveAsModal {
+                relative_path: relative_path.read(),
+                oncancel: move |_| show_share_modal.set(false),
+                onsave: move |new_relative_path: String| {
+                    spawn(async move {
+                        save_note(Some(new_relative_path.clone())).await;
+                        show_save_as_modal.set(false);
+                        save_status.set(SaveStatus::Saved);
+                        nav.replace(format!(
+                            "/notes/{}",
+                            app_context.vault.read().relative_string_to_absolute_string(&new_relative_path)
+                        ));
+                    });
+                }
+            }
+        }
     }
 }
 
 #[component]
-fn NoteSelectModal(onselect: EventHandler, oncancel: EventHandler<MouseEvent>) -> Element {
+fn NoteSelectModal(onselect: EventHandler, oncancel: EventHandler) -> Element {
     let app_context = use_context::<AppContext>();
     let tree = use_memo(move || build_tree_from_manifest(&app_context.manifest.read()));
 
@@ -317,37 +362,26 @@ fn NoteSelectModal(onselect: EventHandler, oncancel: EventHandler<MouseEvent>) -
     });
 
     rsx! {
-        div { class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-start p-8 z-50",
+        div {
+            class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
+            onclick: move |_| oncancel.call(()),
 
-            // Browser container
             div {
-                class: "w-[80dvw] h-[90vh] border border-zinc-700 rounded-lg bg-zinc-900 shadow-2xl flex flex-col",
+                class: "w-full max-w-2xl h-[80vh] border border-zinc-700 rounded-lg bg-zinc-900 shadow-2xl flex flex-col",
                 onclick: move |evt| evt.stop_propagation(),
 
-                // Header
-                div { class: "sticky top-0 py-3 px-4 border-b bg-zinc-900 border-zinc-800",
-                    div { class: "flex justify-between items-center",
-                        h3 { class: "text-sm font-semibold", "Browse Files" }
-                        button {
-                            class: "p-1 rounded transition-colors text-zinc-500 hover:text-zinc-300",
-                            onclick: oncancel,
-                            svg {
-                                class: "w-4 h-4",
-                                fill: "none",
-                                stroke: "currentColor",
-                                view_box: "0 0 24 24",
-                                path {
-                                    d: "M6 18L18 6M6 6l12 12",
-                                    stroke_linecap: "round",
-                                    stroke_linejoin: "round",
-                                    stroke_width: "2",
-                                }
-                            }
-                        }
+                div {
+                    class: "sticky top-0 py-3 px-4 border-b bg-zinc-900 border-zinc-800 flex justify-between items-center",
+                    h3 { class: "text-sm font-semibold", "Browse Files" }
+                    button {
+                        class: "p-1 rounded transition-colors text-zinc-500 hover:text-zinc-300",
+                        onclick: move |_| oncancel.call(()),
+                        "✕"
                     }
                 }
 
-                div { class: "flex-1 overflow-y-auto p-2",
+                div {
+                    class: "flex-1 overflow-y-auto p-2",
                     for (name, child) in root_children {
                         TreeNodeView {
                             name: name,
@@ -356,9 +390,92 @@ fn NoteSelectModal(onselect: EventHandler, oncancel: EventHandler<MouseEvent>) -
                         }
                     }
                 }
+            }
+        }
+    }
+}
 
-                div { class: "p-4 border-t border-zinc-800 justify-right",
-                    PrimaryButton { onclick: oncancel, "Cancel" }
+#[component]
+fn ShareWithModal(
+    current_shares: String,
+    oncancel: EventHandler,
+    onsave: EventHandler<String>,
+) -> Element {
+    let mut share_input = use_signal(|| current_shares);
+
+    rsx! {
+        div {
+            class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
+            onclick: move |_| oncancel.call(()),
+
+            div {
+                class: "w-full max-w-md border border-zinc-700 rounded-lg bg-zinc-900 shadow-2xl p-6",
+                onclick: move |evt| evt.stop_propagation(),
+
+                h3 { class: "text-lg font-semibold mb-4", "Share with contacts" }
+
+                input {
+                    class: "w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-sm focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 mb-4",
+                    r#type: "text",
+                    placeholder: "contact1 contact2",
+                    value: "{share_input}",
+                    oninput: move |e| share_input.set(e.value())
+                }
+
+                div { class: "flex gap-2 justify-end",
+                    button {
+                        class: "px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100",
+                        onclick: move |_| oncancel.call(()),
+                        "Cancel"
+                    }
+                    button {
+                        class: "px-4 py-2 bg-zinc-100 text-zinc-900 rounded-md text-sm font-medium hover:bg-white",
+                        onclick: move |_| onsave.call(share_input()),
+                        "Save"
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[component]
+fn SaveAsModal(
+    relative_path: String,
+    oncancel: EventHandler,
+    onsave: EventHandler<String>,
+) -> Element {
+    let mut path_input = use_signal(|| relative_path);
+
+    rsx! {
+        div {
+            class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
+            onclick: move |_| oncancel.call(()),
+
+            div {
+                class: "w-full max-w-md border border-zinc-700 rounded-lg bg-zinc-900 shadow-2xl p-6",
+                onclick: move |evt| evt.stop_propagation(),
+
+                h3 { class: "text-lg font-semibold mb-4", "Save as..." }
+
+                input {
+                    class: "w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-sm focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 mb-4",
+                    r#type: "text",
+                    value: "{path_input}",
+                    oninput: move |e| path_input.set(e.value())
+                }
+
+                div { class: "flex gap-2 justify-end",
+                    button {
+                        class: "px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100",
+                        onclick: move |_| oncancel.call(()),
+                        "Cancel"
+                    }
+                    button {
+                        class: "px-4 py-2 bg-zinc-100 text-zinc-900 rounded-md text-sm font-medium hover:bg-white",
+                        onclick: move |_| onsave.call(path_input()),
+                        "Save"
+                    }
                 }
             }
         }
@@ -374,11 +491,10 @@ fn TreeNodeView(name: String, node: TreeNode, onselect: EventHandler) -> Element
         sorted_children.sort_by(|a, b| {
             let a_is_folder = !a.children.is_empty();
             let b_is_folder = !b.children.is_empty();
-
             match (a_is_folder, b_is_folder) {
-                (true, false) => std::cmp::Ordering::Less, // folders first
+                (true, false) => std::cmp::Ordering::Less,
                 (false, true) => std::cmp::Ordering::Greater,
-                _ => a.name.cmp(&b.name), // then alphabetical within type
+                _ => a.name.cmp(&b.name),
             }
         });
 
@@ -412,8 +528,9 @@ fn BrowserRowFolder(name: String, open: bool, children: Element) -> Element {
 
     rsx! {
         if open_signal() {
-            button { class: "flex gap-2 items-center py-1.5 px-2 w-full text-sm text-left rounded transition-colors hover:bg-zinc-800",
-                onclick:toggle_open,
+            button {
+                class: "flex gap-2 items-center py-1.5 px-2 w-full text-sm text-left rounded transition-colors hover:bg-zinc-800",
+                onclick: toggle_open,
                 svg {
                     class: "flex-shrink-0 w-4 h-4 text-zinc-500",
                     fill: "none",
@@ -434,14 +551,11 @@ fn BrowserRowFolder(name: String, open: bool, children: Element) -> Element {
                 }
                 span { class: "font-medium", "{name}" }
             }
-            div { class: "ml-6",
-                {children}
-            }
-        }
-        else
-        {
-            button { class: "flex gap-2 items-center py-1.5 px-2 w-full text-sm text-left rounded transition-colors hover:bg-zinc-800",
-                onclick:toggle_open,
+            div { class: "ml-6", {children} }
+        } else {
+            button {
+                class: "flex gap-2 items-center py-1.5 px-2 w-full text-sm text-left rounded transition-colors hover:bg-zinc-800",
+                onclick: toggle_open,
                 svg {
                     class: "flex-shrink-0 w-4 h-4 text-zinc-500",
                     fill: "none",
@@ -474,26 +588,23 @@ fn BrowserRowFile(node: TreeNode, onselect: EventHandler) -> Element {
 
     let onclick = move |_| {
         if let Some(relative_path) = &path_clone {
-            tracing::info!("nav to {}", relative_path.to_string_lossy());
-            let full_path = app_context
-                .vault
-                .read()
-                .base_path()
-                .join(relative_path)
-                .to_string_lossy()
-                .to_string();
-            tracing::info!("full path {}", full_path);
-            let encoded = urlencoding::encode(&full_path);
-
-            nav.push(Route::NoteView {
-                file_path: encoded.into_owned(),
-            });
-
+            nav.push(format!(
+                "/notes/{}",
+                app_context
+                    .vault
+                    .read()
+                    .base_path()
+                    .join(relative_path)
+                    .to_string_lossy()
+                    .to_string()
+            ));
             onselect(());
         }
     };
+
     rsx! {
-        button { class: "flex gap-2 items-center py-1.5 px-2 w-full text-sm text-left rounded transition-colors hover:bg-zinc-800",
+        button {
+            class: "flex gap-2 items-center py-1.5 px-2 w-full text-sm text-left rounded transition-colors hover:bg-zinc-800",
             onclick: onclick,
             div { class: "flex-shrink-0 w-4 h-4" }
             svg {

@@ -4,7 +4,7 @@ use dioxus::prelude::*;
 use std::path::PathBuf;
 
 #[component]
-pub fn NewNoteModal(oncancel: EventHandler<()>) -> Element {
+pub fn NewNoteModal(ondone: EventHandler<()>) -> Element {
     let nav = navigator();
     let app_context = use_context::<AppContext>();
     let mut note_path = use_signal(|| String::new());
@@ -38,10 +38,8 @@ pub fn NewNoteModal(oncancel: EventHandler<()>) -> Element {
             .join(path_str)
             .to_string_lossy()
             .to_string();
-        let encoded = urlencoding::encode(&full_path);
-        nav.push(Route::NoteView {
-            file_path: encoded.into_owned(),
-        });
+        nav.push(format!("/notes/{}", full_path));
+        ondone.call(());
     };
 
     let create_now_note = move |_| async move {
@@ -61,14 +59,17 @@ pub fn NewNoteModal(oncancel: EventHandler<()>) -> Element {
             return;
         }
 
-        let encoded = urlencoding::encode(&full_path.to_string_lossy().to_string()).into_owned();
-        nav.push(Route::NoteView { file_path: encoded });
+        nav.push(format!(
+            "/notes/{}",
+            full_path.to_string_lossy().to_string()
+        ));
+        ondone.call(());
     };
 
     rsx! {
         div {
             class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
-            onclick: move |_| oncancel.call(()),
+            onclick: move |_| ondone.call(()),
 
             div {
                 class: "bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl max-w-md w-full",
@@ -147,7 +148,7 @@ pub fn NewNoteModal(oncancel: EventHandler<()>) -> Element {
                 div { class: "p-6 border-t border-zinc-800",
                     button {
                         class: "w-full px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
-                        onclick: move |_| oncancel.call(()),
+                        onclick: move |_| ondone.call(()),
                         "Cancel"
                     }
                 }

@@ -208,6 +208,25 @@ impl Vault {
         self.path.clone()
     }
 
+    pub fn absolute_path_to_relative_string(&self, full_path: PathBuf) -> String {
+        full_path
+            .strip_prefix(self.base_path())
+            .unwrap_or(&full_path)
+            .to_string_lossy()
+            .to_string()
+    }
+
+    pub fn relative_string_to_absolute_path(&self, relative_path: &str) -> PathBuf {
+        self.base_path().join(relative_path)
+    }
+
+    pub fn relative_string_to_absolute_string(&self, relative_path: &str) -> String {
+        self.base_path()
+            .join(relative_path)
+            .to_string_lossy()
+            .to_string()
+    }
+
     pub async fn build_endpoint(&self, alpn: &[u8]) -> Result<Endpoint> {
         let Ok((secret_key, _)) = self.device_secret_key() else {
             anyhow::bail!("could not get secret key");
