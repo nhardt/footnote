@@ -34,13 +34,12 @@ struct DeviceJoinResponse {
 pub struct JoinService;
 
 impl JoinService {
-    /// put this primary device into join listen mode. an iroh url and join code will be
+    /// put this device into join listen mode. an iroh url and join code will be
     /// returned that the joiner is expected to connect to and present.
     pub async fn listen(vault: &Vault, cancel: CancellationToken) -> Result<Receiver<JoinEvent>> {
-        if !vault.is_primary_device()? {
+        if vault.is_primary_device()? {
             anyhow::bail!(
-                "This device is not marked as primary. Only the primary device can create join URLs.\n\
-                Run this command on your primary device."
+                "This device is already in a device group. Listen for an invite from the new device."
             );
         }
 

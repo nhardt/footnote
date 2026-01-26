@@ -19,7 +19,6 @@ pub fn Profile() -> Element {
     let mut menu_visible = use_signal(|| false);
     let mut show_edit_username_modal = use_signal(|| false);
     let mut show_export_modal = use_signal(|| false);
-    let mut show_add_device_modal = use_signal(|| false);
 
     rsx! {
         AppHeader {
@@ -37,16 +36,6 @@ pub fn Profile() -> Element {
             on_close: move |_| menu_visible.set(false),
 
             MenuDivider {}
-
-            if matches!(*vault_state.read(), VaultState::Primary) {
-                MenuButton {
-                    label: "Add Device",
-                    onclick: move |_| {
-                        show_add_device_modal.set(true);
-                        menu_visible.set(false);
-                    }
-                }
-            }
 
             if matches!(*vault_state.read(), VaultState::Primary | VaultState::SecondaryJoined) {
                 MenuButton {
@@ -127,8 +116,13 @@ pub fn Profile() -> Element {
                     },
 
                     VaultState::Primary => rsx! {
-                        UserComponent { read_only: true }
+                        UserComponent { read_only: false }
                         DeviceListComponent { read_only: false }
+                        div { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 p-8",
+                            p { class: "text-zinc-300 mb-8",
+                                "Scan a QR code to add a device"
+                            }
+                        }
                     }
                 }
             }
@@ -143,12 +137,6 @@ pub fn Profile() -> Element {
         if show_export_modal() {
             ExportModal {
                 onclose: move |_| show_export_modal.set(false)
-            }
-        }
-
-        if show_add_device_modal() {
-            JoinListenModal {
-                onclose: move |_| show_add_device_modal.set(false)
             }
         }
     }
@@ -470,42 +458,27 @@ fn DeviceRow(device: Device, read_only: bool) -> Element {
 
 #[component]
 fn JoinComponent() -> Element {
-    let mut show_modal = use_signal(|| false);
-    rsx! {
-        div { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 overflow-hidden mt-4",
-            div { class: "p-6 bg-zinc-900/20",
-                button {
-                    class: "flex items-center gap-3 text-sm font-medium text-zinc-300 hover:text-zinc-100 transition-colors group",
-                    onclick: move |_| show_modal.set(true),
-                    div { class: "p-1.5 rounded-full bg-zinc-800 group-hover:bg-zinc-700 border border-zinc-700 group-hover:border-zinc-600 transition-all",
-                        svg {
-                            class: "w-4 h-4",
-                            fill: "currentColor",
-                            view_box: "0 0 20 20",
-                            path { d: "M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" }
-                        }
-                    }
-                    span { "Join a listening device" }
-                }
-            }
-            if show_modal() {
-                JoinModal {
-                    onclose: move |_| show_modal.set(false)
-                }
-            }
-        }
-    }
-}
-
-#[component]
-fn JoinListenModal(onclose: EventHandler) -> Element {
+    use qrcode_generator::QrCodeEcc;
+    let mut is_listening = use_signal(|| false);
     let mut join_url = use_signal(|| String::new());
     let cancel_token = use_signal(|| CancellationToken::new());
     let mut err_message = use_signal(|| String::new());
 
+    let img_data = use_memo(move || {
+        let svg_data =
+            qrcode_generator::to_svg_to_string(join_url(), QrCodeEcc::Medium, 300, None::<&str>)
+                .unwrap();
+        let safe_svg_data = svg_data.replace(' ', "%20").replace('#', "%23");
+        format!("data:image/svg+xml;utf8,{}", safe_svg_data)
+    });
+
     let app_context = use_context::<AppContext>();
     let mut mut_app_context = app_context.clone();
-    use_effect(move || {
+
+    let start_listening = move |_| {
+        is_listening.set(true);
+        err_message.set(String::new());
+
         let vault = app_context.vault.read().clone();
         spawn(async move {
             match JoinService::listen(&vault, cancel_token()).await {
@@ -517,7 +490,7 @@ fn JoinListenModal(onclose: EventHandler) -> Element {
                                 if let Err(e) = mut_app_context.reload() {
                                     tracing::warn!("failed to reload app: {}", e);
                                 }
-                                onclose.call(())
+                                return;
                             }
                             JoinEvent::Error(e) => err_message.set(format!("{}", e)),
                         }
@@ -526,108 +499,78 @@ fn JoinListenModal(onclose: EventHandler) -> Element {
                 Err(e) => err_message.set(format!("{}", e)),
             }
         });
-    });
-
-    use_drop(move || cancel_token().cancel());
-
-    rsx! {
-        div {
-            class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
-            div {
-                class: "bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl max-w-md w-full",
-                onclick: move |evt| evt.stop_propagation(),
-                div { class: "p-6 border-b border-zinc-800",
-                    h3 { class: "text-lg font-semibold font-mono", "Join Device" }
-                    p { class: "text-sm text-zinc-500 mt-1",
-                        "Share this URL with your secondary device"
-                    }
-                }
-                div { class: "p-6",
-                    div { class: "bg-zinc-950 border border-zinc-800 rounded-lg p-4 mb-6",
-                        p { class: "select-all break-all font-mono text-sm text-zinc-400",
-                            "{join_url}"
-                        }
-                    }
-                    if !err_message().is_empty() {
-                        div { class: "mb-4 text-sm text-red-400", "{err_message}" }
-                    }
-                    div { class: "flex justify-end",
-                        button {
-                            class: "px-4 py-2 bg-zinc-100 hover:bg-white text-zinc-900 rounded-md text-sm font-medium transition-all",
-                            onclick: move |_| onclose.call(()),
-                            "Close"
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-#[component]
-fn JoinModal(onclose: EventHandler) -> Element {
-    let cancel_token = use_signal(|| CancellationToken::new());
-    let mut err_message = use_signal(|| String::new());
-    let mut join_url = use_signal(|| String::new());
-
-    use_drop(move || cancel_token().cancel());
-
-    let app_context = use_context::<AppContext>();
-    let mut mut_app_context = use_context::<AppContext>();
-    let join_action = move || {
-        let vault = app_context.vault.read().clone();
-        spawn(async move {
-            match JoinService::join(&vault, &join_url()).await {
-                Ok(_) => {
-                    if let Err(e) = mut_app_context.reload() {
-                        tracing::warn!("failed to reload app: {}", e);
-                    }
-                    onclose.call(());
-                }
-                Err(e) => {
-                    err_message.set(format!("Join failed: {}", e));
-                }
-            }
-        });
     };
 
+    let cancel_listening = move |_| {
+        cancel_token().cancel();
+        is_listening.set(false);
+        join_url.set(String::new());
+        err_message.set(String::new());
+    };
+
+    use_drop(move || {
+        if is_listening() {
+            cancel_token().cancel();
+        }
+    });
+
     rsx! {
-        div {
-            class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
-            div {
-                class: "bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl max-w-md w-full",
-                onclick: move |evt| evt.stop_propagation(),
-                div { class: "p-6 border-b border-zinc-800",
-                    h3 { class: "text-lg font-semibold font-mono", "Join Listening Device" }
-                    p { class: "text-sm text-zinc-500 mt-1",
-                        "Enter the join URL from your primary device"
-                    }
-                }
-                div { class: "p-6",
-                    div { class: "mb-6",
-                        label { class: "block text-sm font-medium text-zinc-300 mb-2",
-                            "Join URL"
+        section { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 overflow-hidden",
+            div { class: "p-6",
+                h2 { class: "text-lg font-semibold font-mono mb-2", "Join a Device Group" }
+
+                if !is_listening() {
+                    div {
+                        p { class: "text-sm text-zinc-500 mb-4",
+                            "Connect this device to your primary device"
                         }
-                        input {
-                            class: "w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-md text-sm font-mono focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600",
-                            placeholder: "iroh://...",
-                            r#type: "text",
-                            oninput: move |e| join_url.set(e.value())
-                        }
-                    }
-                    if !err_message().is_empty() {
-                        div { class: "mb-4 text-sm text-red-400", "{err_message}" }
-                    }
-                    div { class: "flex gap-3",
                         button {
-                            class: "flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
-                            onclick: move |_| onclose.call(()),
+                            class: "px-6 py-3 bg-zinc-100 hover:bg-white text-zinc-900 rounded-lg font-medium transition-all",
+                            onclick: start_listening,
+                            "Listen for Primary Device"
+                        }
+                    }
+                } else {
+                    div {
+                        p { class: "text-sm text-zinc-500 mb-6",
+                            "Scan this QR code on your primary device to complete pairing"
+                        }
+
+                        div { class: "flex flex-col items-center mb-6",
+                            div { class: "bg-white p-4 rounded-lg mb-4",
+                                div { class: "w-48 h-48 bg-zinc-200 flex items-center justify-center text-zinc-500 text-xs",
+                                    img {
+                                        width: 300,
+                                        height: 300,
+                                        class: "transition-opacity duration-300",
+                                        style: "image-rendering: pixelated;",
+                                        src: "{img_data}"
+                                    }
+                                }
+                            }
+
+                            div { class: "w-full",
+                                label { class: "block text-xs font-medium text-zinc-400 mb-2",
+                                    "Join URL"
+                                }
+                                div { class: "bg-zinc-950 border border-zinc-800 rounded-lg p-3",
+                                    p { class: "select-all break-all font-mono text-xs text-zinc-400",
+                                        "{join_url}"
+                                    }
+                                }
+                            }
+                        }
+
+                        if !err_message().is_empty() {
+                            div { class: "mb-4 p-3 bg-red-900/20 border border-red-800 rounded-lg text-sm text-red-400",
+                                "{err_message}"
+                            }
+                        }
+
+                        button {
+                            class: "px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
+                            onclick: cancel_listening,
                             "Cancel"
-                        }
-                        button {
-                            class: "flex-1 px-4 py-2 bg-zinc-100 hover:bg-white text-zinc-900 rounded-md text-sm font-medium transition-all",
-                            onclick: move |_| join_action(),
-                            "Join"
                         }
                     }
                 }
