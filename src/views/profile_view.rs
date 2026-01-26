@@ -3,12 +3,14 @@ use crate::{
         app_header::AppHeader,
         app_menu::{AppMenu, MenuButton, MenuDivider},
         confirm_dialog::ConfirmDialog,
+        include_device_modal::{IncludeDeviceModalVisible, ListeningDeviceUrl},
     },
     context::AppContext,
     model::{device::Device, vault::VaultState},
     service::join_service::{JoinEvent, JoinService},
 };
 use dioxus::prelude::*;
+use qrcode_generator::QrCodeEcc;
 use tokio_util::sync::CancellationToken;
 
 #[component]
@@ -36,6 +38,16 @@ pub fn Profile() -> Element {
             on_close: move |_| menu_visible.set(false),
 
             MenuDivider {}
+
+            if matches!(*vault_state.read(), VaultState::Primary) {
+                MenuButton {
+                    label: "Add Device",
+                    onclick: move |_| {
+                        consume_context::<ListeningDeviceUrl>().set("".to_string());
+                        consume_context::<IncludeDeviceModalVisible>().set(true);
+                    }
+                }
+            }
 
             if matches!(*vault_state.read(), VaultState::Primary | VaultState::SecondaryJoined) {
                 MenuButton {
@@ -100,14 +112,9 @@ pub fn Profile() -> Element {
                             }
                             div { class: "flex flex-col sm:flex-row gap-4",
                                 TransitionToPrimaryButton{}
-                                TransitionToSecondaryButton{}
+                                JoinDeviceGroupButton{}
                             }
                         }
-                    },
-
-                    VaultState::SecondaryUnjoined => rsx! {
-                        LocalDeviceComponent { read_only: false }
-                        JoinComponent{}
                     },
 
                     VaultState::SecondaryJoined => rsx! {
@@ -116,13 +123,8 @@ pub fn Profile() -> Element {
                     },
 
                     VaultState::Primary => rsx! {
-                        UserComponent { read_only: false }
+                        UserComponent { read_only: true }
                         DeviceListComponent { read_only: false }
-                        div { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 p-8",
-                            p { class: "text-zinc-300 mb-8",
-                                "Scan a QR code to add a device"
-                            }
-                        }
                     }
                 }
             }
@@ -230,74 +232,18 @@ fn TransitionToPrimaryButton() -> Element {
 }
 
 #[component]
-fn TransitionToSecondaryButton() -> Element {
-    let mut app_context = use_context::<AppContext>();
-
-    let onclick = move |_| {
-        if app_context
-            .vault
-            .read()
-            .transition_to_secondary("secondary")
-            .is_ok()
-        {
-            if let Err(e) = app_context.reload() {
-                tracing::warn!("failed to reload app: {}", e);
-            }
-        }
-    };
+fn JoinDeviceGroupButton() -> Element {
+    let mut show_join_interface = use_signal(|| false);
 
     rsx! {
-        button {
-            class: "flex-1 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 text-zinc-100 rounded-lg font-medium transition-all",
-            onclick: onclick,
-            "Yes, I have a device with Footnote already"
-        }
-    }
-}
-
-#[component]
-fn LocalDeviceComponent(read_only: bool) -> Element {
-    let app_context = use_context::<AppContext>();
-    let mut device_name = use_signal(move || {
-        let (_, device_name) = app_context
-            .vault
-            .read()
-            .device_public_key()
-            .expect("device should exist");
-        device_name
-    });
-
-    let mut err_message = use_signal(|| String::new());
-    let save_device_name = move |_| {
-        let name_update = device_name.read();
-        if let Err(e) = app_context.vault.read().device_key_update(&name_update) {
-            err_message.set(format!("err updating device name: {}", e));
-        }
-    };
-
-    rsx! {
-        div { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 p-6 mb-4",
-            div { class: "flex flex-col sm:flex-row sm:items-center gap-4",
-                label { class: "text-sm font-medium text-zinc-300 sm:w-32", "This Device" }
-                if read_only {
-                    span { class: "flex-1 px-3 py-2 text-sm font-mono text-zinc-300", "{device_name}" }
-                } else {
-                    input {
-                        class: "flex-1 px-3 py-1.5 bg-zinc-900 border border-zinc-700 rounded-md text-sm font-mono focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
-                        r#type: "text",
-                        value: "{device_name}",
-                        oninput: move |e| device_name.set(e.value()),
-                    }
-                    button {
-                        class: "px-4 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
-                        onclick: save_device_name,
-                        "Update"
-                    }
-                }
+        if !show_join_interface() {
+            button {
+                class: "flex-1 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 text-zinc-100 rounded-lg font-medium transition-all",
+                onclick: move |_| show_join_interface.set(true),
+                "Join Device Group"
             }
-            if !err_message().is_empty() {
-                div { class: "mt-2 text-sm text-red-400 font-mono", "{err_message}" }
-            }
+        } else {
+            JoinComponent { oncancel: move |_| show_join_interface.set(false) }
         }
     }
 }
@@ -328,10 +274,7 @@ fn DeviceListComponent(read_only: bool) -> Element {
     rsx! {
         section { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 overflow-hidden",
             div { class: "p-6 border-b border-zinc-800",
-                h2 { class: "text-lg font-semibold font-mono", "Devices" }
-                p { class: "text-sm text-zinc-500 mt-1",
-                    "Your connected devices in this vault"
-                }
+                h2 { class: "text-lg font-semibold font-mono", "My Devices" }
             }
             div { class: "divide-y divide-zinc-800",
                 for device in devices.iter() {
@@ -457,12 +400,14 @@ fn DeviceRow(device: Device, read_only: bool) -> Element {
 }
 
 #[component]
-fn JoinComponent() -> Element {
-    use qrcode_generator::QrCodeEcc;
+fn JoinComponent(oncancel: EventHandler) -> Element {
     let mut is_listening = use_signal(|| false);
     let mut join_url = use_signal(|| String::new());
     let cancel_token = use_signal(|| CancellationToken::new());
     let mut err_message = use_signal(|| String::new());
+
+    let app_context = use_context::<AppContext>();
+    let mut mut_app_context = app_context.clone();
 
     let img_data = use_memo(move || {
         let svg_data =
@@ -471,9 +416,6 @@ fn JoinComponent() -> Element {
         let safe_svg_data = svg_data.replace(' ', "%20").replace('#', "%23");
         format!("data:image/svg+xml;utf8,{}", safe_svg_data)
     });
-
-    let app_context = use_context::<AppContext>();
-    let mut mut_app_context = app_context.clone();
 
     let start_listening = move |_| {
         is_listening.set(true);
@@ -485,10 +427,16 @@ fn JoinComponent() -> Element {
                 Ok(mut rx) => {
                     while let Some(event) = rx.recv().await {
                         match event {
-                            JoinEvent::Listening { join_url: url } => join_url.set(url),
+                            JoinEvent::Listening { join_url: url } => {
+                                tracing::info!("received join url for disply {}", join_url);
+                                join_url.set(url)
+                            }
                             JoinEvent::Success => {
+                                tracing::info!("join success");
                                 if let Err(e) = mut_app_context.reload() {
                                     tracing::warn!("failed to reload app: {}", e);
+                                } else {
+                                    tracing::info!("reloaded app");
                                 }
                                 return;
                             }
@@ -503,9 +451,7 @@ fn JoinComponent() -> Element {
 
     let cancel_listening = move |_| {
         cancel_token().cancel();
-        is_listening.set(false);
-        join_url.set(String::new());
-        err_message.set(String::new());
+        oncancel.call(());
     };
 
     use_drop(move || {
@@ -515,62 +461,158 @@ fn JoinComponent() -> Element {
     });
 
     rsx! {
-        section { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 overflow-hidden",
-            div { class: "p-6",
-                h2 { class: "text-lg font-semibold font-mono mb-2", "Join a Device Group" }
+        div {
+            class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
+            onclick: move |_| oncancel.call(()),
 
-                if !is_listening() {
-                    div {
-                        p { class: "text-sm text-zinc-500 mb-4",
-                            "Connect this device to your primary device"
+            div {
+                class: "bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl max-w-md w-full",
+                onclick: move |evt| evt.stop_propagation(),
+
+                div { class: "p-6 border-b border-zinc-800",
+
+                    if !is_listening() {
+                        div {
+                            p { class: "text-sm text-zinc-500 mb-4",
+                                "Connect this device to your primary device"
+                            }
+                            div { class: "flex gap-3",
+                                button {
+                                    class: "px-6 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-lg font-medium transition-all",
+                                    onclick: move |_| oncancel.call(()),
+                                    "Cancel"
+                                }
+                                button {
+                                    class: "px-6 py-3 bg-zinc-100 hover:bg-white text-zinc-900 rounded-lg font-medium transition-all",
+                                    onclick: start_listening,
+                                    "Listen for Primary Device"
+                                }
+                            }
                         }
-                        button {
-                            class: "px-6 py-3 bg-zinc-100 hover:bg-white text-zinc-900 rounded-lg font-medium transition-all",
-                            onclick: start_listening,
-                            "Listen for Primary Device"
+                    } else {
+                        div {
+                            p { class: "text-sm text-zinc-500 mb-6",
+                                "Scan this QR code on your primary device to complete pairing"
+                            }
+
+                            div { class: "flex flex-col items-center mb-6",
+                                div { class: "bg-white p-4 rounded-lg mb-4",
+                                    div { class: "w-48 h-48 bg-zinc-200 flex items-center justify-center text-zinc-500 text-xs",
+                                        img {
+                                            width: 300,
+                                            height: 300,
+                                            class: "transition-opacity duration-300",
+                                            style: "image-rendering: pixelated;",
+                                            src: "{img_data}"
+                                        }
+                                    }
+                                }
+
+                                div { class: "w-full",
+                                    label { class: "block text-xs font-medium text-zinc-400 mb-2",
+                                        "Join URL"
+                                    }
+                                    div { class: "bg-zinc-950 border border-zinc-800 rounded-lg p-3",
+                                        p { class: "select-all break-all font-mono text-xs text-zinc-400",
+                                            "{join_url}"
+                                        }
+                                    }
+                                }
+                            }
+
+                            if !err_message().is_empty() {
+                                div { class: "mb-4 p-3 bg-red-900/20 border border-red-800 rounded-lg text-sm text-red-400",
+                                    "{err_message}"
+                                }
+                            }
+
+                            button {
+                                class: "px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
+                                onclick: cancel_listening,
+                                "Cancel"
+                            }
                         }
                     }
-                } else {
-                    div {
-                        p { class: "text-sm text-zinc-500 mb-6",
-                            "Scan this QR code on your primary device to complete pairing"
+                }
+            }
+        }
+    }
+}
+
+#[component]
+fn JoinListenModal(onclose: EventHandler) -> Element {
+    let mut join_url = use_signal(|| String::new());
+    let cancel_token = use_signal(|| CancellationToken::new());
+    let mut err_message = use_signal(|| String::new());
+
+    let app_context = use_context::<AppContext>();
+    let mut mut_app_context = app_context.clone();
+    use_effect(move || {
+        let vault = app_context.vault.read().clone();
+        spawn(async move {
+            match JoinService::listen(&vault, cancel_token()).await {
+                Ok(mut rx) => {
+                    while let Some(event) = rx.recv().await {
+                        match event {
+                            JoinEvent::Listening { join_url: url } => join_url.set(url),
+                            JoinEvent::Success => {
+                                if let Err(e) = mut_app_context.reload() {
+                                    tracing::warn!("failed to reload app: {}", e);
+                                }
+                                onclose.call(())
+                            }
+                            JoinEvent::Error(e) => err_message.set(format!("{}", e)),
+                        }
+                    }
+                }
+                Err(e) => err_message.set(format!("{}", e)),
+            }
+        });
+    });
+
+    use_drop(move || cancel_token().cancel());
+
+    rsx! {
+        div {
+            class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
+            div {
+                class: "bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl max-w-md w-full",
+                onclick: move |evt| evt.stop_propagation(),
+                div { class: "p-6 border-b border-zinc-800",
+                    h3 { class: "text-lg font-semibold font-mono", "Add Device" }
+                    p { class: "text-sm text-zinc-500 mt-1",
+                        "Share this with your secondary device"
+                    }
+                }
+                div { class: "p-6",
+                    div { class: "flex flex-col items-center mb-6",
+                        div { class: "bg-white p-4 rounded-lg mb-4",
+                            // TODO: Add QR code component here
+                            div { class: "w-48 h-48 bg-zinc-200 flex items-center justify-center text-zinc-500 text-xs",
+                                "QR Code"
+                            }
                         }
 
-                        div { class: "flex flex-col items-center mb-6",
-                            div { class: "bg-white p-4 rounded-lg mb-4",
-                                div { class: "w-48 h-48 bg-zinc-200 flex items-center justify-center text-zinc-500 text-xs",
-                                    img {
-                                        width: 300,
-                                        height: 300,
-                                        class: "transition-opacity duration-300",
-                                        style: "image-rendering: pixelated;",
-                                        src: "{img_data}"
-                                    }
-                                }
+                        div { class: "w-full",
+                            label { class: "block text-xs font-medium text-zinc-400 mb-2",
+                                "Join URL"
                             }
-
-                            div { class: "w-full",
-                                label { class: "block text-xs font-medium text-zinc-400 mb-2",
-                                    "Join URL"
-                                }
-                                div { class: "bg-zinc-950 border border-zinc-800 rounded-lg p-3",
-                                    p { class: "select-all break-all font-mono text-xs text-zinc-400",
-                                        "{join_url}"
-                                    }
+                            div { class: "bg-zinc-950 border border-zinc-800 rounded-lg p-3",
+                                p { class: "select-all break-all font-mono text-xs text-zinc-400",
+                                    "{join_url}"
                                 }
                             }
                         }
+                    }
 
-                        if !err_message().is_empty() {
-                            div { class: "mb-4 p-3 bg-red-900/20 border border-red-800 rounded-lg text-sm text-red-400",
-                                "{err_message}"
-                            }
-                        }
-
+                    if !err_message().is_empty() {
+                        div { class: "mb-4 text-sm text-red-400", "{err_message}" }
+                    }
+                    div { class: "flex justify-end",
                         button {
-                            class: "px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
-                            onclick: cancel_listening,
-                            "Cancel"
+                            class: "px-4 py-2 bg-zinc-100 hover:bg-white text-zinc-900 rounded-md text-sm font-medium transition-all",
+                            onclick: move |_| onclose.call(()),
+                            "Close"
                         }
                     }
                 }

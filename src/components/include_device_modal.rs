@@ -22,6 +22,7 @@ impl ListeningDeviceUrl {
 #[component]
 pub fn IncludeDeviceModal() -> Element {
     let mut join_url = use_signal(|| String::new());
+    let mut device_name = use_signal(|| String::new());
     let mut err_message = use_signal(|| String::new());
     let mut is_connecting = use_signal(|| false);
     let mut app_context = use_context::<AppContext>();
@@ -36,8 +37,15 @@ pub fn IncludeDeviceModal() -> Element {
 
     let connect_to_device = move |_| {
         let url = join_url.read().clone();
+        let name = device_name.read().clone();
+
         if url.is_empty() {
             err_message.set("Please enter a join URL".to_string());
+            return;
+        }
+
+        if name.is_empty() {
+            err_message.set("Please enter a device name".to_string());
             return;
         }
 
@@ -46,7 +54,7 @@ pub fn IncludeDeviceModal() -> Element {
 
         let vault = app_context.vault.read().clone();
         spawn(async move {
-            match JoinService::join(&vault, &url).await {
+            match JoinService::join(&vault, &url, &name).await {
                 Ok(_) => {
                     if let Err(e) = app_context.reload() {
                         tracing::warn!("failed to reload app: {}", e);
@@ -72,10 +80,26 @@ pub fn IncludeDeviceModal() -> Element {
                 onclick: move |evt| evt.stop_propagation(),
                 div { class: "p-6 border-b border-zinc-500",
                     h3 { class: "text-lg font-semibold font-mono",
-                        "Import Device to Group"
+                        "Add Device to Group"
+                    }
+                    p { class: "text-sm text-zinc-500 mt-1",
+                        "Connect a new device to your group"
                     }
                 }
                 div { class: "p-6 flex flex-col gap-4",
+                    div {
+                        label { class: "block text-sm font-medium text-zinc-300 mb-2",
+                            "Device Name"
+                        }
+                        input {
+                            class: "w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-md text-sm font-mono focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
+                            placeholder: "laptop, phone, tablet...",
+                            r#type: "text",
+                            value: "{device_name}",
+                            oninput: move |e| device_name.set(e.value()),
+                            disabled: is_connecting()
+                        }
+                    }
                     div {
                         label { class: "block text-sm font-medium text-zinc-300 mb-2",
                             "Join URL"

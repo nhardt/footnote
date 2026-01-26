@@ -24,7 +24,6 @@ pub struct Vault {
 pub enum VaultState {
     Primary,
     SecondaryJoined,
-    SecondaryUnjoined,
     StandAlone,
     Uninitialized,
 }
@@ -34,7 +33,6 @@ impl fmt::Display for VaultState {
         match self {
             VaultState::Primary => write!(f, "Primary"),
             VaultState::SecondaryJoined => write!(f, "Joined"),
-            VaultState::SecondaryUnjoined => write!(f, "Joining"),
             VaultState::StandAlone => write!(f, "Stand Alone"),
             VaultState::Uninitialized => write!(f, "Uninitialzed"),
         }
@@ -90,10 +88,6 @@ impl Vault {
             return Ok(VaultState::SecondaryJoined);
         }
 
-        if self.path.join(".footnote").join("device_key").exists() {
-            return Ok(VaultState::SecondaryUnjoined);
-        }
-
         if self.path.join(".footnote").exists() {
             return Ok(VaultState::StandAlone);
         }
@@ -124,9 +118,6 @@ impl Vault {
                 self.create_device_key(device_name)?;
                 LocalUser::create_local_user_record(&self.path, username)?;
             }
-            VaultState::SecondaryUnjoined => {
-                anyhow::bail!("Unjoined to Primary currently unsupported");
-            }
             VaultState::SecondaryJoined => {
                 anyhow::bail!("Unjoined to Primary currently unsupported");
             }
@@ -147,28 +138,6 @@ impl Vault {
         Ok(v)
     }
 
-    pub fn transition_to_secondary(&self, device_name: &str) -> Result<()> {
-        match self.state_read()? {
-            VaultState::Uninitialized => {
-                self.create_directory_structure()?;
-                self.create_device_key(device_name)?;
-            }
-            VaultState::StandAlone => {
-                self.create_directory_structure()?;
-                self.create_device_key(device_name)?;
-            }
-            VaultState::SecondaryUnjoined => {}
-            VaultState::SecondaryJoined => {}
-            VaultState::Primary => {
-                anyhow::bail!("Unjoined to Primary currently unsupported");
-            }
-        }
-
-        Ok(())
-    }
-
-    /// called on non-primary device to put vault into state where it's ready to
-    /// join
     pub fn create_standalone(path: &Path) -> Result<Self> {
         let v = Self {
             path: path.to_path_buf(),
@@ -176,7 +145,6 @@ impl Vault {
         v.create_directory_structure()?;
         Ok(v)
     }
-
     /// reset device to standalone state
     pub fn transition_to_standalone(&self) -> Result<()> {
         fs::remove_file(self.path.join(".footnote").join("device_key"))?;
