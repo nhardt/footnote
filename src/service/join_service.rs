@@ -155,7 +155,7 @@ fn parse_connection_string(conn_str: &str) -> Result<(iroh::PublicKey, String)> 
         );
     }
 
-    let without_prefix = conn_str.strip_prefix("footnote+pair").unwrap();
+    let without_prefix = conn_str.strip_prefix("footnote+pair://").unwrap();
     let parts: Vec<&str> = without_prefix.split('?').collect();
 
     if parts.len() != 2 {
