@@ -11,6 +11,8 @@ mod views;
 use crate::components::import_contact_modal::{
     ImportContactModal, ImportContactModalVisible, ImportedContactString,
 };
+use crate::components::include_device_modal::IncludeDeviceModalVisible;
+use crate::components::include_device_modal::{IncludeDeviceModal, ListeningDeviceUrl};
 use crate::components::sync_service_toggle::SyncServiceToggle;
 use crate::context::AppContext;
 use crate::model::vault::{Vault, VaultState};
@@ -68,6 +70,9 @@ fn App() -> Element {
     use_context_provider(|| ImportContactModalVisible(Signal::new(false)));
     use_context_provider(|| ImportedContactString(Signal::new(String::new())));
 
+    use_context_provider(|| IncludeDeviceModalVisible(Signal::new(false)));
+    use_context_provider(|| ListeningDeviceUrl(Signal::new(String::new())));
+
     #[cfg(any(target_os = "android", target_os = "ios"))]
     use_hook(|| {
         let Some(mut rx) = take_file_receiver() else {
@@ -93,6 +98,8 @@ fn App() -> Element {
 
                 if incoming_uri.starts_with("footnote+pair://") {
                     tracing::info!("handle join request: {}", incoming_uri);
+                    consume_context::<ListeningDeviceUrl>().set(incoming_uri);
+                    consume_context::<IncludeDeviceModalVisible>().set(true);
                 } else {
                     #[cfg(target_os = "android")]
                     let content = read_uri_from_string(incoming_uri);
@@ -133,6 +140,7 @@ fn App() -> Element {
 #[component]
 fn Main() -> Element {
     let contact_modal_visible = use_context::<ImportContactModalVisible>();
+    let device_modal_visible = use_context::<IncludeDeviceModalVisible>();
 
     rsx! {
         div {
@@ -146,6 +154,10 @@ fn Main() -> Element {
 
         if contact_modal_visible.0() {
             ImportContactModal {}
+        }
+
+        if device_modal_visible.0() {
+            IncludeDeviceModal {}
         }
     }
 }
