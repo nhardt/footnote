@@ -97,5 +97,18 @@
             </dict>
         </dict>
     </array>
+
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>wiki.footnote.app.pairing</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>footnote+pair</string>
+            </array>
+        </dict>
+    </array>
+
 </dict>
 </plist>

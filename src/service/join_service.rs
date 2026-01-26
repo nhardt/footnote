@@ -54,7 +54,7 @@ impl JoinService {
             .await?;
 
         let endpoint_id = secret_key.public();
-        let join_url = format!("iroh://{}?token={}", endpoint_id, join_token);
+        let join_url = format!("footnote+pair://{}?token={}", endpoint_id, join_token);
 
         let _ = tx.send(JoinEvent::Listening { join_url }).await;
 
@@ -149,15 +149,19 @@ impl JoinService {
 fn parse_connection_string(conn_str: &str) -> Result<(iroh::PublicKey, String)> {
     let conn_str = conn_str.trim();
 
-    if !conn_str.starts_with("iroh://") {
-        anyhow::bail!("Invalid connection string. Expected format: iroh://endpoint-id?token=xyz");
+    if !conn_str.starts_with("footnote+pair://") {
+        anyhow::bail!(
+            "Invalid connection string. Expected format: footnote+pair://endpoint-id?token=xyz"
+        );
     }
 
-    let without_prefix = conn_str.strip_prefix("iroh://").unwrap();
+    let without_prefix = conn_str.strip_prefix("footnote+pair").unwrap();
     let parts: Vec<&str> = without_prefix.split('?').collect();
 
     if parts.len() != 2 {
-        anyhow::bail!("Invalid connection string. Expected format: iroh://endpoint-id?token=xyz");
+        anyhow::bail!(
+            "Invalid connection string. Expected format: footnote+pair://endpoint-id?token=xyz"
+        );
     }
 
     let endpoint_id: iroh::PublicKey = parts[0]
