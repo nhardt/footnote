@@ -16,7 +16,7 @@ use crate::context::AppContext;
 use crate::model::vault::{Vault, VaultState};
 use crate::util::manifest::create_manifest_local;
 use tracing::Level;
-use util::filesystem::ensure_default_vault;
+use util::filesystem::hack_ensure_default_vault;
 use views::contact_view::ContactBrowser;
 use views::note_view::NoteView;
 use views::profile_view::Profile;
@@ -105,7 +105,7 @@ fn App() -> Element {
         });
     });
 
-    let vault_path = ensure_default_vault()?;
+    let vault_path = hack_ensure_default_vault()?;
     let vault = Vault::new(&vault_path)?;
     use_context_provider(|| AppContext {
         vault: Signal::new(vault.clone()),
