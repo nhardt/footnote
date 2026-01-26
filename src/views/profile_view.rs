@@ -107,7 +107,7 @@ pub fn Profile() -> Element {
                     VaultState::StandAlone => rsx! {
                         div { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 p-8",
                             p { class: "text-zinc-300 mb-8",
-                                "You're using footnote in standalone mode. Would you like to sync with other devices?"
+                                "You're using Footnote in standalone mode. Would you like to sync with other devices?"
                             }
                             div { class: "flex flex-col sm:flex-row gap-4",
                                 TransitionToPrimaryButton{}
@@ -236,7 +236,7 @@ fn TransitionToPrimaryButton() -> Element {
         button {
             class: "flex-1 px-6 py-3 bg-zinc-100 hover:bg-white text-zinc-900 rounded-lg font-medium transition-all",
             onclick: onclick,
-            "Make This Primary"
+            "Yes, this my first the device"
         }
     }
 }
@@ -262,7 +262,7 @@ fn TransitionToSecondaryButton() -> Element {
         button {
             class: "flex-1 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 text-zinc-100 rounded-lg font-medium transition-all",
             onclick: onclick,
-            "Join Existing Vault"
+            "Yes, I have a device with Footnote already"
         }
     }
 }
