@@ -8,11 +8,17 @@ mod platform;
 mod service;
 mod util;
 mod views;
+use crate::components::app_menu::AppMenuVisible;
 use crate::components::import_contact_modal::{
     ImportContactModal, ImportContactModalVisible, ImportedContactString,
 };
-use crate::components::include_device_modal::IncludeDeviceModalVisible;
-use crate::components::include_device_modal::{IncludeDeviceModal, ListeningDeviceUrl};
+use crate::components::listen_for_pair_modal::{
+    self, ListenForPairModal, ListenForPairModalVisible,
+};
+use crate::components::pair_with_listening_device_modal::{
+    ListeningDeviceUrl, PairWithListeningDeviceModal, PairWithListeningDeviceModalVisible,
+};
+use crate::components::share_my_contact_modal::{ShareMyContactModal, ShareMyContactModalVisible};
 use crate::components::sync_service_toggle::SyncServiceToggle;
 use crate::context::AppContext;
 use crate::model::vault::{Vault, VaultState};
@@ -67,11 +73,18 @@ fn main() {
 
 #[component]
 fn App() -> Element {
+    // this no longer seems like a good way to do this :crying_laughing_face:
+    use_context_provider(|| AppMenuVisible(Signal::new(false)));
+
     use_context_provider(|| ImportContactModalVisible(Signal::new(false)));
     use_context_provider(|| ImportedContactString(Signal::new(String::new())));
 
-    use_context_provider(|| IncludeDeviceModalVisible(Signal::new(false)));
+    use_context_provider(|| PairWithListeningDeviceModalVisible(Signal::new(false)));
     use_context_provider(|| ListeningDeviceUrl(Signal::new(String::new())));
+
+    use_context_provider(|| ListenForPairModalVisible(Signal::new(false)));
+
+    use_context_provider(|| ShareMyContactModalVisible(Signal::new(false)));
 
     #[cfg(any(target_os = "android", target_os = "ios"))]
     use_hook(|| {
@@ -99,7 +112,7 @@ fn App() -> Element {
                 if incoming_uri.starts_with("footnote+pair://") {
                     tracing::info!("handle join request: {}", incoming_uri);
                     consume_context::<ListeningDeviceUrl>().set(incoming_uri);
-                    consume_context::<IncludeDeviceModalVisible>().set(true);
+                    consume_context::<PairWithListeningDeviceModalVisible>().set(true);
                 } else {
                     #[cfg(target_os = "android")]
                     let content = read_uri_from_string(incoming_uri);
@@ -139,8 +152,11 @@ fn App() -> Element {
 
 #[component]
 fn Main() -> Element {
-    let contact_modal_visible = use_context::<ImportContactModalVisible>();
-    let device_modal_visible = use_context::<IncludeDeviceModalVisible>();
+    let import_contact_modal_visible = use_context::<ImportContactModalVisible>();
+    let share_my_contact_modal_visible = use_context::<ShareMyContactModalVisible>();
+    let pair_with_listening_device_modal_visible =
+        use_context::<PairWithListeningDeviceModalVisible>();
+    let listen_for_pair_modal_visible = use_context::<ListenForPairModalVisible>();
 
     rsx! {
         div {
@@ -152,13 +168,23 @@ fn Main() -> Element {
             }
         }
 
-        if contact_modal_visible.0() {
+
+        if share_my_contact_modal_visible.0() {
+            ShareMyContactModal {}
+        }
+
+        if import_contact_modal_visible.0() {
             ImportContactModal {}
         }
 
-        if device_modal_visible.0() {
-            IncludeDeviceModal {}
+        if pair_with_listening_device_modal_visible.0() {
+            PairWithListeningDeviceModal {}
         }
+
+        if listen_for_pair_modal_visible.0() {
+            ListenForPairModal {}
+        }
+
     }
 }
 

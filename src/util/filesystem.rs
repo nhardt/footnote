@@ -39,9 +39,17 @@ pub fn hack_ensure_default_vault() -> Result<PathBuf> {
     // but at some point this will not be viable.
     let mut metadata_needs_reset = false;
     if let Err(e) = vault.device_read() {
+        tracing::warn!(
+            "reading device would cause start up crash, resetting metadata: {}",
+            e
+        );
         metadata_needs_reset = true;
     };
     if let Err(e) = vault.contact_read() {
+        tracing::warn!(
+            "reading device would cause start up crash, resetting metadata: {}",
+            e
+        );
         metadata_needs_reset = true;
     };
     if metadata_needs_reset {

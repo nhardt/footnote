@@ -2,9 +2,9 @@ use crate::{context::AppContext, service::join_service::JoinService};
 use dioxus::prelude::*;
 
 #[derive(Clone, Copy, PartialEq)]
-pub struct IncludeDeviceModalVisible(pub Signal<bool>);
+pub struct PairWithListeningDeviceModalVisible(pub Signal<bool>);
 
-impl IncludeDeviceModalVisible {
+impl PairWithListeningDeviceModalVisible {
     pub fn set(&mut self, value: bool) {
         self.0.set(value);
     }
@@ -12,7 +12,6 @@ impl IncludeDeviceModalVisible {
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct ListeningDeviceUrl(pub Signal<String>);
-
 impl ListeningDeviceUrl {
     pub fn set(&mut self, value: String) {
         self.0.set(value);
@@ -20,7 +19,7 @@ impl ListeningDeviceUrl {
 }
 
 #[component]
-pub fn IncludeDeviceModal() -> Element {
+pub fn PairWithListeningDeviceModal() -> Element {
     let mut join_url = use_signal(|| String::new());
     let mut device_name = use_signal(|| String::new());
     let mut err_message = use_signal(|| String::new());
@@ -60,7 +59,7 @@ pub fn IncludeDeviceModal() -> Element {
                         tracing::warn!("failed to reload app: {}", e);
                         err_message.set(format!("Connected but failed to reload: {}", e));
                     } else {
-                        consume_context::<IncludeDeviceModalVisible>().set(false);
+                        consume_context::<PairWithListeningDeviceModalVisible>().set(false);
                     }
                 }
                 Err(e) => {
@@ -121,7 +120,7 @@ pub fn IncludeDeviceModal() -> Element {
                     div { class: "flex gap-3",
                         button {
                             class: "flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
-                            onclick: move |_| consume_context::<IncludeDeviceModalVisible>().set(false),
+                            onclick: move |_| consume_context::<PairWithListeningDeviceModalVisible>().set(false),
                             disabled: is_connecting(),
                             "Cancel"
                         }
