@@ -43,21 +43,7 @@ out and about, and process them on your desktop when you home later.
 The internet infrastucture required to facilitate data exchanges are Iroh
 signaling servers. An end user just needs a device that is on somewhere.
 
-#### Primary Device
-
-A user designates a single device as primary. This is the device where the vault
-is created. Additional devices are added via the primary. On the primary device,
-the user creates a new device. This generates a one-time key. On a secondary
-device, the user joins a vault, providing the one-time code.
-
-It's not required that the primary device is always available, but a generally
-available device would work well. A desktop, a laptop, even an old phone that
-stays plugged in could work for this contact point if you are keeping together a
-vault of text files.
-
-Sharing between users favors primary devices.
-
-#### Secondary Devices
+#### Device
 
 Each user can have multiple devices (laptop, phone, tablet, desktop). Every device:
 
@@ -66,17 +52,68 @@ Each user can have multiple devices (laptop, phone, tablet, desktop). Every devi
 - Has a human-friendly name (e.g., "laptop", "phone")
 - Can be verified as belonging to that user
 
+#### Device Group
+
+A collection of devices owned by a user. Devices in a device group intend to
+mirror each other.
+
+#### Device Group Leader
+
+Only one of the devices maintains the list of devices in the group. The leader
+is where you make changes, the leader distributes the list of members to other
+members in the group. The leader device can transfer leadership to a different
+device.
+
+#### Often-on Device
+
+The device group works best if one of the devices can be online somewhere. It's
+not required, but having somewhere to back your notes when you're out and about
+is nice.
+
+#### Group Types
+
+##### Mobile only
+
+This works fine. The device will only attempt to sync when it's online and the
+app is in use.
+
+##### Mobile/Desktop
+
+This works fine. The mobile device will only attempt to sync when it's online.
+The desktop device will be online as much as you want it to be. If it's always
+on, every mobile edit will replicated off the mobile device in short order. As
+a user, if you're working on your phone and want to start working on your desktop,
+it's easy to ensure your most recent work gets sync'd to your desktop by opening
+the app in both places.
+
+In all setups, if you have a mobile device it works best as your device leader.
+It has the most mechanisms to connect (nearby share, air drop, qr code).
+Generally, it's worst as an "often on" device as mobile devices tend to
+prioritize battery usage over everything. Still, phones are able to notify you
+of new email, new texts, etc, so it's probably possible to make this efficient
+on mobile as well.
+
+##### Mobile/Desktop/Laptop/MiniPC
+
+From here the cases are mostly the same. Mobile for device list management,
+some other device for "often on" connectivity.
+
+Sharing between users favors the often-on devices.
+
 ### Identity
 
 Identity is created on an as-needed basis. When you create a vault, it is in
-stand alone mode.You are free to create and link notes and research. When you
-want to mirror these notes on two devices, your devices get an identity and
-name, you link the devices with an iroh address and one-time join code.
+stand alone mode. You are free to create and link notes and research without
+ever making an identity. To mirror these notes on multiple devices, each devices
+get an identity and name. Devices are joined together in a device group
+manually.
 
-Later, if you want to trade notes with another person, you will create a public
-key identity and username. These are signed, along with your devices. The person
-you want to share with does the same, the records are exchanged. The records are
-verified by signing key fields into a digitial signature:
+To trade notes with another person, a public key identity and contact record
+will be created. The contact record contains all devices the device group, the
+group leader and some other metadata. Contact records can be shared between
+group leaders via a few in band and many out OOB mechanisms.
+
+The records are verified by signing key fields into a digitial signature:
 
 - Username
 - Public Key
@@ -84,10 +121,11 @@ verified by signing key fields into a digitial signature:
   - Iroh Endpoint Id
   - Name
 
-The contact records are then exchanged. When you import a contact, you assign
-them a nickname. That becomes their directory name in `footnotes/`. If you
-import Mom's contact record and use "mom" for her nickname, the directory her
-shared files will be in is footnotes/mom/.
+After contact records are exchanged, each user has a spot in their notes to
+reference their peers' notes. When the contact is imported, the importing user
+decides what to call that person. That nickname their directory name in
+`footnotes/`. If you import Mom's contact record and use "mom" for her nickname,
+the directory her shared files will be in is footnotes/mom/.
 
 #### Security Considerations
 
@@ -99,7 +137,6 @@ shared files will be in is footnotes/mom/.
 - The overall design goal is data ownership, vendor neutrality, no data mining
   for marketing, etc. The app is not anonymous, you should know your trusted
   contacts as you will be allowing them to write files to your hard drive.
-
 
 #### Attack Vector Considerations
 
