@@ -89,17 +89,21 @@ fn App() -> Element {
             }
 
             while let Some(incoming_uri) = rx.recv().await {
-                tracing::info!("Received file: {}", incoming_uri);
+                tracing::info!("Received data: {}", incoming_uri);
 
-                #[cfg(target_os = "android")]
-                let content = read_uri_from_string(incoming_uri);
+                if incoming_uri.starts_with("footnote+pair://") {
+                    tracing::info!("handle join request: {}", incoming_uri);
+                } else {
+                    #[cfg(target_os = "android")]
+                    let content = read_uri_from_string(incoming_uri);
 
-                #[cfg(target_os = "ios")]
-                let content = std::fs::read_to_string(&incoming_uri).ok();
+                    #[cfg(target_os = "ios")]
+                    let content = std::fs::read_to_string(&incoming_uri).ok();
 
-                if let Some(data) = content {
-                    consume_context::<ImportedContactString>().set(data);
-                    consume_context::<ImportContactModalVisible>().set(true);
+                    if let Some(data) = content {
+                        consume_context::<ImportedContactString>().set(data);
+                        consume_context::<ImportContactModalVisible>().set(true);
+                    }
                 }
             }
         });

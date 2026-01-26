@@ -102,6 +102,21 @@ pub fn handle_incoming_share() -> Result<Option<String>, String> {
             return Some(Ok(None));
         }
 
+        // Check if the intent contains a direct URL string (Deep Link)
+        let data_uri_obj = env
+            .call_method(&intent, "getDataString", "()Ljava/lang/String;", &[])
+            .ok()?
+            .l()
+            .ok()?;
+
+        if !data_uri_obj.is_null() {
+            let data_uri: String = env.get_string(&data_uri_obj.into()).ok()?.into();
+            if data_uri.starts_with("footnote+pair://") {
+                mark_intent_processed(env, &intent);
+                return Some(Ok(Some(data_uri)));
+            }
+        }
+
         tracing::debug!("getting the action");
         let action_obj = env
             .call_method(&intent, "getAction", "()Ljava/lang/String;", &[])
