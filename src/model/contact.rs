@@ -130,15 +130,18 @@ impl Contact {
     }
 
     pub fn is_valid_successor_of(&self, previous: &Contact) -> Result<()> {
+        //TODO: support case where successor is a leadership change
         anyhow::ensure!(
             self.id_public_key == previous.id_public_key,
             "cannot update user record, public key id mismatch"
         );
         anyhow::ensure!(
-            self.updated_at > previous.updated_at,
-            "Successor is not newer"
+            self.updated_at > previous.updated_at
+                || (self.updated_at == previous.updated_at
+                    && self.signature == previous.signature
+                    && !previous.signature.is_empty()),
+            "Successor is not newer or is same record with matching signature"
         );
-
         self.verify()?;
         Ok(())
     }

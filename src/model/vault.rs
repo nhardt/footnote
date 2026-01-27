@@ -339,6 +339,22 @@ impl Vault {
             .collect()
     }
 
+    pub fn contact_update(&self, nickname: &str, new_contact: &mut Contact) -> anyhow::Result<()> {
+        let contact_file_path = self.path.join(".footnote").join("contacts").join(nickname);
+        let current_contact = Contact::from_file(&contact_file_path)?;
+        current_contact.verify()?;
+        new_contact.verify()?;
+
+        if let Err(e) = new_contact.is_valid_successor_of(&current_contact) {
+            tracing::error!("failed successor check: {}", e);
+            anyhow::bail!("received invalid user record update");
+        }
+
+        new_contact.nickname = nickname.to_string();
+        new_contact.to_file(contact_file_path)?;
+        Ok(())
+    }
+
     pub fn contact_import(&self, nickname: &str, contact_json: &str) -> anyhow::Result<()> {
         let mut contact = Contact::from_json(contact_json)?;
         contact.verify()?; // currently called in from_json but doesn't hurt to do it here too
@@ -433,6 +449,12 @@ impl Vault {
         }
         // probably want to grab username from id_key if it exists
         Ok(None)
+    }
+
+    pub fn user_write(&self, user: &Contact) -> anyhow::Result<()> {
+        let user_record_path = self.path.join(".footnote").join("user.json");
+        user.to_file(user_record_path);
+        Ok(())
     }
 
     pub fn user_update(&self, username: &str) -> anyhow::Result<Contact> {
