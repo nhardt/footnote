@@ -51,6 +51,7 @@ pub fn ListenForPairModal() -> Element {
                                 if let Err(e) = mut_app_context.reload() {
                                     tracing::warn!("failed to reload app: {}", e);
                                 } else {
+                                    consume_context::<ListenForPairModalVisible>().set(false);
                                     tracing::info!("reloaded app");
                                 }
                                 return;
