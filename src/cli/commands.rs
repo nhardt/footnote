@@ -49,12 +49,6 @@ pub enum VaultAction {
         /// your name of this device, "desktop", "laptop"
         device_name: String,
     },
-    /// After establishing a primary vault on your main computer, secondary
-    /// devices can be added
-    CreateSecondary {
-        /// colloquial name of this device
-        device_name: String,
-    },
     /// look through vault for md files that don't have metadata or have
     /// duplicate ids
     Doctor {
@@ -66,15 +60,17 @@ pub enum VaultAction {
 
 #[derive(Subcommand)]
 pub enum ServiceAction {
-    /// Call device create on the primary device. The device will create a join code,
-    /// then being listening for the a device to join. The joining device will send
-    /// the one time. If contact can be established, a new contact record will be
-    /// minted on the primary containing the joined device.
+    /// Listen for a primary device to add this device to their group.
+    /// The primary device will scan the QR code or enter the join URL,
+    /// provide a name for this device, and send the complete user record.
     JoinListen {},
 
-    /// When device create is called on the primary, it will output a connection
-    /// string. The connection string should be passed in here.
-    Join { connect_string: String },
+    /// Add a new device to your group. Provide the join URL from the listening
+    /// device and a name for that device (e.g., "laptop", "phone").
+    Join {
+        connect_string: String,
+        device_name: String,
+    },
 
     /// Replicate is used for two devices owned by same person. One side
     /// listens, one side pushes. in general, if you are on a device and
@@ -133,12 +129,14 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
                 username,
                 device_name,
             } => vault_create_primary(username, device_name),
-            VaultAction::CreateSecondary { device_name } => vault_create_secondary(device_name),
             VaultAction::Doctor { fix } => vault_doctor(fix),
         },
         Commands::Service { action } => match action {
             ServiceAction::JoinListen {} => service_join_listen().await,
-            ServiceAction::Join { connect_string } => service_join(connect_string).await,
+            ServiceAction::Join {
+                connect_string,
+                device_name,
+            } => service_join(connect_string, device_name).await,
             ServiceAction::ReplicateListen {} => service_replicate_listen().await,
             ServiceAction::Replicate { to_device_name } => service_replicate(to_device_name).await,
             ServiceAction::ShareListen {} => service_share_listen().await,
@@ -164,17 +162,6 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
 fn vault_create_primary(username: String, device_name: String) -> anyhow::Result<()> {
     let vault_path = std::env::current_dir()?;
     Vault::create_primary(&vault_path, &username, &device_name)?;
-    let output = serde_json::json!({
-        "result": "success"
-    });
-    println!("{}", serde_json::to_string(&output)?);
-
-    Ok(())
-}
-
-fn vault_create_secondary(device_name: String) -> anyhow::Result<()> {
-    let vault_path = std::env::current_dir()?;
-    Vault::create_secondary(&vault_path, &device_name)?;
     let output = serde_json::json!({
         "result": "success"
     });
@@ -240,9 +227,9 @@ async fn service_join_listen() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn service_join(connection_string: String) -> anyhow::Result<()> {
+async fn service_join(connection_string: String, device_name: String) -> anyhow::Result<()> {
     let vault = Vault::new(&std::env::current_dir()?)?;
-    JoinService::join(&vault, &connection_string).await?;
+    JoinService::join(&vault, &connection_string, &device_name).await?;
     println!(
         "{}",
         serde_json::json!(
