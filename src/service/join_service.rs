@@ -93,7 +93,8 @@ impl JoinService {
                             send.write_all(ack).await.anyerr()?;
                             tracing::info!("closing send side");
                             send.finish().anyerr()?;
-                            conn.closed().await;
+                            send.stopped().await.anyerr()?;
+                            //conn.closed().await;
                             tracing::info!("complete!");
                             anyhow::Ok(())
                         }
@@ -149,8 +150,9 @@ impl JoinService {
         send.finish().anyerr()?;
 
         tracing::info!("waiting for ack");
-        let ack_bytes = recv.read_to_end(100).await.anyerr()?;
-        if ack_bytes != b"OK" {
+        let mut ack_buf = [0u8; 2];
+        recv.read_exact(&mut ack_buf).await.anyerr()?;
+        if &ack_buf != b"OK" {
             anyhow::bail!("Did not receive acknowledgment from device");
         }
         conn.closed().await;
