@@ -271,7 +271,7 @@ fn DeviceRow(device: Device, read_only: bool) -> Element {
 
             if !read_only {
                 button {
-                    class: "opacity-0 group-hover:opacity-100 p-2 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded-md transition-all",
+                    class: "p-2 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded-md transition-all sm:opacity-0 sm:group-hover:opacity-100",
                     onclick: move |_| delete_dialog_open.set(true),
                     svg {
                         class: "w-4 h-4",

@@ -211,8 +211,10 @@ pub fn delete_logs_for_endpoint(vault_path: &Path, endpoint: &str) -> Result<()>
     tracing::info!("removing logs for {}", endpoint);
     let _ = endpoint.parse::<iroh::PublicKey>()?;
     let device_log_path = vault_path.join(".footnote/status").join(endpoint);
-    fs::remove_dir_all(device_log_path)?;
-    tracing::info!("successfully removed logs for {}", endpoint);
-
+    if let Err(e) = fs::remove_dir_all(device_log_path) {
+        tracing::info!("failed to remove logs for {}: {}", endpoint, e);
+    } else {
+        tracing::info!("successfully removed logs for {}", endpoint);
+    };
     Ok(())
 }
