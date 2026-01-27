@@ -278,15 +278,15 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
             class: "flex-1 overflow-y-auto",
 
             div {
-                class: "h-[80vh] min-h-[50vh] max-w-5xl mx-auto px-4 pt-6 sm:px-6",
+                class: "max-w-5xl mx-auto px-4 py-6 sm:px-6 space-y-6",
                 textarea {
                     id: "note-body",
-                    class: "w-full h-full px-4 py-3 bg-zinc-900/30 border border-zinc-800 rounded-lg text-sm font-mono text-zinc-100 resize-none focus:border-zinc-700 focus:ring-1 focus:ring-zinc-700 focus:outline-none",
+                    class: "w-full px-4 py-3 bg-zinc-900/30 border border-zinc-800 rounded-lg text-sm font-mono text-zinc-100 focus:border-zinc-700 focus:ring-1 focus:ring-zinc-700 focus:outline-none",
+                    style: "min-height: max(60vh, 400px);",
                     onblur: sync_body_to_footnotes,
                     oninput: move |_| save_status.set(SaveStatus::Unsaved),
                     initial_value: "{body}",
                     readonly: read_only,
-                    style: "min-height: 7.5rem;"
                 }
             }
 
