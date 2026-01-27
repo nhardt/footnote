@@ -39,6 +39,7 @@ indexmap = "2.12.1"
 anyerr = "0.1.1"
 gethostname = "1.1.0"
 open = "5.3.3"
+qrcode-generator = "5.0.0"
 
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21"

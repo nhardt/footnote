@@ -1,3 +1,4 @@
+use crate::model::contact::Contact;
 use crate::model::vault::Vault;
 use crate::util::manifest::{create_manifest_full, diff_manifests, Manifest};
 use crate::util::network;
@@ -24,8 +25,18 @@ pub async fn receive_share(vault: &Vault, nickname: &str, connection: Connection
     // accept_bi(). Calling open_bi then waiting on the RecvStream without
     // writing anything to the connected SendStream will never succeed.
     let (mut send, mut recv) = connection.accept_bi().await?;
-    let manifest_bytes = network::receive_bytes(&mut recv).await?;
 
+    let contact_record_bytes = network::receive_bytes(&mut recv).await?;
+    if contact_record_bytes.is_empty() {
+        tracing::error!("Expected contact record for {}", nickname);
+        anyhow::bail!("expected contact record");
+    }
+
+    let mut incoming_contact: Contact = serde_json::from_slice(&contact_record_bytes)?;
+    incoming_contact.verify()?;
+    vault.contact_update(nickname, &mut incoming_contact)?;
+
+    let manifest_bytes = network::receive_bytes(&mut recv).await?;
     let remote_manifest: Manifest =
         serde_json::from_slice(&manifest_bytes).context("Failed to deserialize manifest")?;
     let local_manifest =
@@ -65,6 +76,26 @@ pub async fn receive_mirror(vault: &Vault, connection: Connection) -> Result<()>
     // accept_bi(). Calling open_bi then waiting on the RecvStream without
     // writing anything to the connected SendStream will never succeed.
     let (mut send, mut recv) = connection.accept_bi().await?;
+    let user_record_bytes = network::receive_bytes(&mut recv).await?;
+    if user_record_bytes.is_empty() {
+        anyhow::bail!("expected user record");
+    }
+
+    let incoming_user_record: Contact = serde_json::from_slice(&user_record_bytes)?;
+    incoming_user_record.verify()?;
+
+    let Some(user_record) = vault.user_read()? else {
+        //TODO: we may be able to consolidate the pairing code with this code by
+        // allowing a user record on our very first sync
+        anyhow::bail!("cannot receive sync without user record");
+    };
+
+    if let Err(e) = incoming_user_record.is_valid_successor_of(&user_record) {
+        tracing::error!("failed successor check: {}", e);
+        anyhow::bail!("received invalid user record update");
+    }
+    vault.user_write(&incoming_user_record)?;
+
     let manifest_bytes = network::receive_bytes(&mut recv).await?;
 
     let remote_manifest: Manifest =
@@ -123,11 +154,19 @@ pub async fn sync_to_target(
         .await
         .context("Failed to connect to remote device")?;
 
-    let serialised_manifest =
-        serde_json::to_vec(&manifest).context("Failed to serialize manifest")?;
     // Calling open_bi then waiting on the RecvStream without writing anything
     // to SendStream will never succeed.
     let (mut send, mut recv) = conn.open_bi().await?;
+
+    if let Ok(Some(user_record)) = vault.user_read() {
+        let user_record_bytes = serde_json::to_vec(&user_record)?;
+        network::send_bytes(&mut send, &user_record_bytes).await?;
+    } else {
+        anyhow::bail!("cannot send files without a user record");
+    }
+
+    let serialised_manifest =
+        serde_json::to_vec(&manifest).context("Failed to serialize manifest")?;
     network::send_bytes(&mut send, &serialised_manifest).await?;
 
     let mut files_transferred = 0;

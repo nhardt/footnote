@@ -153,9 +153,18 @@ unsafe extern "C-unwind" fn open_url_callback(
     url: &NSURL,
     options: &NSDictionary<NSString, AnyObject>,
 ) -> Bool {
-    if let Some(path_str) = url.path() {
-        tracing::info!("iOS callback received path: {}", path_str);
-        send_incoming_file(path_str.to_string());
+    let abs_url = url
+        .absoluteString()
+        .map(|ns| ns.to_string())
+        .unwrap_or_default();
+
+    if abs_url.starts_with("footnote+pair://") {
+        tracing::info!("iOS callback received deep link: {}", abs_url);
+        send_incoming_file(abs_url);
+    } else if let Some(path_str) = url.path() {
+        let path = path_str.to_string();
+        tracing::info!("iOS callback received file path: {}", path);
+        send_incoming_file(path);
     }
 
     unsafe { msg_send![this, rust_application: app, openURL: url, options: options] }

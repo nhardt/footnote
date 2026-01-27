@@ -6,10 +6,8 @@ use crate::{
     },
     context::AppContext,
     model::{device::Device, vault::VaultState},
-    service::join_service::{JoinEvent, JoinService},
 };
 use dioxus::prelude::*;
-use tokio_util::sync::CancellationToken;
 
 #[component]
 pub fn Profile() -> Element {
@@ -18,8 +16,6 @@ pub fn Profile() -> Element {
 
     let mut menu_visible = use_signal(|| false);
     let mut show_edit_username_modal = use_signal(|| false);
-    let mut show_export_modal = use_signal(|| false);
-    let mut show_add_device_modal = use_signal(|| false);
 
     rsx! {
         AppHeader {
@@ -36,28 +32,6 @@ pub fn Profile() -> Element {
             visible: menu_visible(),
             on_close: move |_| menu_visible.set(false),
 
-            MenuDivider {}
-
-            if matches!(*vault_state.read(), VaultState::Primary) {
-                MenuButton {
-                    label: "Add Device",
-                    onclick: move |_| {
-                        show_add_device_modal.set(true);
-                        menu_visible.set(false);
-                    }
-                }
-            }
-
-            if matches!(*vault_state.read(), VaultState::Primary | VaultState::SecondaryJoined) {
-                MenuButton {
-                    label: "Share Contact Record",
-                    onclick: move |_| {
-                        show_export_modal.set(true);
-                        menu_visible.set(false);
-                    }
-                }
-            }
-
             if matches!(*vault_state.read(), VaultState::Primary) {
                 MenuButton {
                     label: "Edit Username",
@@ -65,21 +39,6 @@ pub fn Profile() -> Element {
                         show_edit_username_modal.set(true);
                         menu_visible.set(false);
                     }
-                }
-            }
-
-            MenuDivider {}
-
-            MenuButton {
-                label: "Debug: Transition to Standalone",
-                onclick: move |_| {
-                    let mut app_context = use_context::<AppContext>();
-                    if app_context.vault.read().transition_to_standalone().is_ok() {
-                        if let Err(e) = app_context.reload() {
-                            tracing::warn!("failed to reload app: {}", e);
-                        }
-                    }
-                    menu_visible.set(false);
                 }
             }
         }
@@ -107,18 +66,9 @@ pub fn Profile() -> Element {
                     VaultState::StandAlone => rsx! {
                         div { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 p-8",
                             p { class: "text-zinc-300 mb-8",
-                                "You're using footnote in standalone mode. Would you like to sync with other devices?"
-                            }
-                            div { class: "flex flex-col sm:flex-row gap-4",
-                                TransitionToPrimaryButton{}
-                                TransitionToSecondaryButton{}
+                                "You are using Footnote in standalone mode. Select Create Device Group or Join Device Group from the side menu to mirror and share notes."
                             }
                         }
-                    },
-
-                    VaultState::SecondaryUnjoined => rsx! {
-                        LocalDeviceComponent { read_only: false }
-                        JoinComponent{}
                     },
 
                     VaultState::SecondaryJoined => rsx! {
@@ -127,7 +77,7 @@ pub fn Profile() -> Element {
                     },
 
                     VaultState::Primary => rsx! {
-                        UserComponent { read_only: true }
+                        UserComponent { read_only: false }
                         DeviceListComponent { read_only: false }
                     }
                 }
@@ -137,18 +87,6 @@ pub fn Profile() -> Element {
         if show_edit_username_modal() {
             EditUsernameModal {
                 oncancel: move |_| show_edit_username_modal.set(false),
-            }
-        }
-
-        if show_export_modal() {
-            ExportModal {
-                onclose: move |_| show_export_modal.set(false)
-            }
-        }
-
-        if show_add_device_modal() {
-            JoinListenModal {
-                onclose: move |_| show_add_device_modal.set(false)
             }
         }
     }
@@ -216,105 +154,6 @@ fn EditUsernameModal(oncancel: EventHandler) -> Element {
 }
 
 #[component]
-fn TransitionToPrimaryButton() -> Element {
-    let mut app_context = use_context::<AppContext>();
-
-    let onclick = move |_| {
-        if app_context
-            .vault
-            .read()
-            .transition_to_primary("default", "primary")
-            .is_ok()
-        {
-            if let Err(e) = app_context.reload() {
-                tracing::warn!("failed to reload app: {}", e);
-            }
-        }
-    };
-
-    rsx! {
-        button {
-            class: "flex-1 px-6 py-3 bg-zinc-100 hover:bg-white text-zinc-900 rounded-lg font-medium transition-all",
-            onclick: onclick,
-            "Make This Primary"
-        }
-    }
-}
-
-#[component]
-fn TransitionToSecondaryButton() -> Element {
-    let mut app_context = use_context::<AppContext>();
-
-    let onclick = move |_| {
-        if app_context
-            .vault
-            .read()
-            .transition_to_secondary("secondary")
-            .is_ok()
-        {
-            if let Err(e) = app_context.reload() {
-                tracing::warn!("failed to reload app: {}", e);
-            }
-        }
-    };
-
-    rsx! {
-        button {
-            class: "flex-1 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 text-zinc-100 rounded-lg font-medium transition-all",
-            onclick: onclick,
-            "Join Existing Vault"
-        }
-    }
-}
-
-#[component]
-fn LocalDeviceComponent(read_only: bool) -> Element {
-    let app_context = use_context::<AppContext>();
-    let mut device_name = use_signal(move || {
-        let (_, device_name) = app_context
-            .vault
-            .read()
-            .device_public_key()
-            .expect("device should exist");
-        device_name
-    });
-
-    let mut err_message = use_signal(|| String::new());
-    let save_device_name = move |_| {
-        let name_update = device_name.read();
-        if let Err(e) = app_context.vault.read().device_key_update(&name_update) {
-            err_message.set(format!("err updating device name: {}", e));
-        }
-    };
-
-    rsx! {
-        div { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 p-6 mb-4",
-            div { class: "flex flex-col sm:flex-row sm:items-center gap-4",
-                label { class: "text-sm font-medium text-zinc-300 sm:w-32", "This Device" }
-                if read_only {
-                    span { class: "flex-1 px-3 py-2 text-sm font-mono text-zinc-300", "{device_name}" }
-                } else {
-                    input {
-                        class: "flex-1 px-3 py-1.5 bg-zinc-900 border border-zinc-700 rounded-md text-sm font-mono focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
-                        r#type: "text",
-                        value: "{device_name}",
-                        oninput: move |e| device_name.set(e.value()),
-                    }
-                    button {
-                        class: "px-4 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
-                        onclick: save_device_name,
-                        "Update"
-                    }
-                }
-            }
-            if !err_message().is_empty() {
-                div { class: "mt-2 text-sm text-red-400 font-mono", "{err_message}" }
-            }
-        }
-    }
-}
-
-#[component]
 fn UserComponent(read_only: bool) -> Element {
     let app_context = use_context::<AppContext>();
     let username = use_signal(move || match app_context.vault.read().user_read() {
@@ -340,10 +179,7 @@ fn DeviceListComponent(read_only: bool) -> Element {
     rsx! {
         section { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 overflow-hidden",
             div { class: "p-6 border-b border-zinc-800",
-                h2 { class: "text-lg font-semibold font-mono", "Devices" }
-                p { class: "text-sm text-zinc-500 mt-1",
-                    "Your connected devices in this vault"
-                }
+                h2 { class: "text-lg font-semibold font-mono", "My Devices" }
             }
             div { class: "divide-y divide-zinc-800",
                 for device in devices.iter() {
@@ -435,7 +271,7 @@ fn DeviceRow(device: Device, read_only: bool) -> Element {
 
             if !read_only {
                 button {
-                    class: "opacity-0 group-hover:opacity-100 p-2 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded-md transition-all",
+                    class: "p-2 text-zinc-500 hover:text-red-400 hover:bg-zinc-800 rounded-md transition-all sm:opacity-0 sm:group-hover:opacity-100",
                     onclick: move |_| delete_dialog_open.set(true),
                     svg {
                         class: "w-4 h-4",
@@ -460,280 +296,6 @@ fn DeviceRow(device: Device, read_only: bool) -> Element {
                         }
                         if !delete_dialog_error().is_empty() {
                             div { class: "text-sm text-red-400", "{delete_dialog_error}" }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-#[component]
-fn JoinComponent() -> Element {
-    let mut show_modal = use_signal(|| false);
-    rsx! {
-        div { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 overflow-hidden mt-4",
-            div { class: "p-6 bg-zinc-900/20",
-                button {
-                    class: "flex items-center gap-3 text-sm font-medium text-zinc-300 hover:text-zinc-100 transition-colors group",
-                    onclick: move |_| show_modal.set(true),
-                    div { class: "p-1.5 rounded-full bg-zinc-800 group-hover:bg-zinc-700 border border-zinc-700 group-hover:border-zinc-600 transition-all",
-                        svg {
-                            class: "w-4 h-4",
-                            fill: "currentColor",
-                            view_box: "0 0 20 20",
-                            path { d: "M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" }
-                        }
-                    }
-                    span { "Join a listening device" }
-                }
-            }
-            if show_modal() {
-                JoinModal {
-                    onclose: move |_| show_modal.set(false)
-                }
-            }
-        }
-    }
-}
-
-#[component]
-fn JoinListenModal(onclose: EventHandler) -> Element {
-    let mut join_url = use_signal(|| String::new());
-    let cancel_token = use_signal(|| CancellationToken::new());
-    let mut err_message = use_signal(|| String::new());
-
-    let app_context = use_context::<AppContext>();
-    let mut mut_app_context = app_context.clone();
-    use_effect(move || {
-        let vault = app_context.vault.read().clone();
-        spawn(async move {
-            match JoinService::listen(&vault, cancel_token()).await {
-                Ok(mut rx) => {
-                    while let Some(event) = rx.recv().await {
-                        match event {
-                            JoinEvent::Listening { join_url: url } => join_url.set(url),
-                            JoinEvent::Success => {
-                                if let Err(e) = mut_app_context.reload() {
-                                    tracing::warn!("failed to reload app: {}", e);
-                                }
-                                onclose.call(())
-                            }
-                            JoinEvent::Error(e) => err_message.set(format!("{}", e)),
-                        }
-                    }
-                }
-                Err(e) => err_message.set(format!("{}", e)),
-            }
-        });
-    });
-
-    use_drop(move || cancel_token().cancel());
-
-    rsx! {
-        div {
-            class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
-            div {
-                class: "bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl max-w-md w-full",
-                onclick: move |evt| evt.stop_propagation(),
-                div { class: "p-6 border-b border-zinc-800",
-                    h3 { class: "text-lg font-semibold font-mono", "Join Device" }
-                    p { class: "text-sm text-zinc-500 mt-1",
-                        "Share this URL with your secondary device"
-                    }
-                }
-                div { class: "p-6",
-                    div { class: "bg-zinc-950 border border-zinc-800 rounded-lg p-4 mb-6",
-                        p { class: "select-all break-all font-mono text-sm text-zinc-400",
-                            "{join_url}"
-                        }
-                    }
-                    if !err_message().is_empty() {
-                        div { class: "mb-4 text-sm text-red-400", "{err_message}" }
-                    }
-                    div { class: "flex justify-end",
-                        button {
-                            class: "px-4 py-2 bg-zinc-100 hover:bg-white text-zinc-900 rounded-md text-sm font-medium transition-all",
-                            onclick: move |_| onclose.call(()),
-                            "Close"
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-#[component]
-fn JoinModal(onclose: EventHandler) -> Element {
-    let cancel_token = use_signal(|| CancellationToken::new());
-    let mut err_message = use_signal(|| String::new());
-    let mut join_url = use_signal(|| String::new());
-
-    use_drop(move || cancel_token().cancel());
-
-    let app_context = use_context::<AppContext>();
-    let mut mut_app_context = use_context::<AppContext>();
-    let join_action = move || {
-        let vault = app_context.vault.read().clone();
-        spawn(async move {
-            match JoinService::join(&vault, &join_url()).await {
-                Ok(_) => {
-                    if let Err(e) = mut_app_context.reload() {
-                        tracing::warn!("failed to reload app: {}", e);
-                    }
-                    onclose.call(());
-                }
-                Err(e) => {
-                    err_message.set(format!("Join failed: {}", e));
-                }
-            }
-        });
-    };
-
-    rsx! {
-        div {
-            class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
-            div {
-                class: "bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl max-w-md w-full",
-                onclick: move |evt| evt.stop_propagation(),
-                div { class: "p-6 border-b border-zinc-800",
-                    h3 { class: "text-lg font-semibold font-mono", "Join Listening Device" }
-                    p { class: "text-sm text-zinc-500 mt-1",
-                        "Enter the join URL from your primary device"
-                    }
-                }
-                div { class: "p-6",
-                    div { class: "mb-6",
-                        label { class: "block text-sm font-medium text-zinc-300 mb-2",
-                            "Join URL"
-                        }
-                        input {
-                            class: "w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-md text-sm font-mono focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600",
-                            placeholder: "iroh://...",
-                            r#type: "text",
-                            oninput: move |e| join_url.set(e.value())
-                        }
-                    }
-                    if !err_message().is_empty() {
-                        div { class: "mb-4 text-sm text-red-400", "{err_message}" }
-                    }
-                    div { class: "flex gap-3",
-                        button {
-                            class: "flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
-                            onclick: move |_| onclose.call(()),
-                            "Cancel"
-                        }
-                        button {
-                            class: "flex-1 px-4 py-2 bg-zinc-100 hover:bg-white text-zinc-900 rounded-md text-sm font-medium transition-all",
-                            onclick: move |_| join_action(),
-                            "Join"
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-#[component]
-fn ExportModal(onclose: EventHandler) -> Element {
-    let app_context = use_context::<AppContext>();
-    let mut error_message = use_signal(|| None::<String>);
-
-    let user_record_json = use_signal(move || match app_context.vault.read().user_read() {
-        Ok(Some(user)) => user
-            .to_json_pretty()
-            .unwrap_or_else(|e| format!("Failed to serialize: {}", e)),
-        Ok(None) => "User record not found".to_string(),
-        Err(e) => format!("Contact record unable to load: {}", e),
-    });
-
-    let handle_share = move |_| {
-        use crate::platform;
-        error_message.set(None);
-
-        let Some((username, timestamp, Some(json_content))) = app_context
-            .vault
-            .read()
-            .user_read()
-            .ok()
-            .flatten()
-            .map(|u| (u.username.clone(), u.updated_at, u.to_json_pretty().ok()))
-        else {
-            error_message.set(Some("failed to get user record".into()));
-            return;
-        };
-
-        let temp_dir = std::env::temp_dir();
-        let file_path = temp_dir.join(format!("{}.{}.fncontact", username, timestamp));
-
-        match std::fs::write(&file_path, json_content) {
-            Ok(_) => {
-                if let Err(e) = platform::share_contact_file(&file_path) {
-                    error_message.set(Some(format!("Share failed: {}", e)));
-                }
-            }
-            Err(e) => {
-                error_message.set(Some(format!("Failed to create file: {}", e)));
-            }
-        }
-    };
-
-    rsx! {
-        div {
-            class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
-            div {
-                class: "bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl w-full max-w-2xl h-[80vh] flex flex-col",
-                onclick: move |evt| evt.stop_propagation(),
-                div { class: "p-6 border-b border-zinc-800",
-                    h3 { class: "text-lg font-semibold font-mono", "Export Contact Record" }
-                    p { class: "text-sm text-zinc-500 mt-1",
-                        if cfg!(target_os = "android") {
-                            "Share or copy this with your trusted contacts"
-                        } else {
-                            "Copy and share this with your trusted contacts"
-                        }
-                    }
-                }
-                div { class: "p-6 flex-1 min-h-0 flex flex-col",
-                    textarea {
-                        class: "flex-1 w-full select-all px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-lg text-xs font-mono text-zinc-300 resize-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 mb-4",
-                        readonly: "true",
-                        "{user_record_json}"
-                    }
-
-                    if let Some(error) = error_message() {
-                        div { class: "mb-4 p-3 bg-red-900/20 border border-red-800 rounded-lg text-sm text-red-400",
-                            "{error}"
-                        }
-                    }
-
-                    {
-                        use crate::platform;
-                        if platform::SHARE_SHEET_SUPPORTED {
-                            rsx! {
-                                div { class: "flex gap-3",
-                                    button {
-                                        class: "flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-md text-sm font-medium transition-all",
-                                        onclick: handle_share,
-                                        "Share"
-                                    }
-                                    button {
-                                        class: "flex-1 px-4 py-2 bg-zinc-300 hover:bg-white text-zinc-900 rounded-md text-sm font-medium transition-all",
-                                        onclick: move |_| onclose.call(()),
-                                        "Done"
-                                    }
-                                }
-                            }
-                        } else {
-                            rsx! {
-                                button {
-                                    class: "w-full px-4 py-2 bg-zinc-300 hover:bg-white text-zinc-900 rounded-md text-sm font-medium transition-all",
-                                    onclick: move |_| onclose.call(()),
-                                    "Done"
-                                }
-                            }
                         }
                     }
                 }
