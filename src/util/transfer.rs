@@ -34,7 +34,7 @@ pub async fn receive_share(vault: &Vault, nickname: &str, connection: Connection
 
     let mut incoming_contact: Contact = serde_json::from_slice(&contact_record_bytes)?;
     incoming_contact.verify()?;
-    vault.contact_update(nickname, &mut incoming_contact);
+    vault.contact_update(nickname, &mut incoming_contact)?;
 
     let manifest_bytes = network::receive_bytes(&mut recv).await?;
     let remote_manifest: Manifest =

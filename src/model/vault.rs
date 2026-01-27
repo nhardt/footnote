@@ -453,7 +453,7 @@ impl Vault {
 
     pub fn user_write(&self, user: &Contact) -> anyhow::Result<()> {
         let user_record_path = self.path.join(".footnote").join("user.json");
-        user.to_file(user_record_path);
+        user.to_file(user_record_path)?;
         Ok(())
     }
 
