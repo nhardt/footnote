@@ -11,6 +11,9 @@ The release cycle looks like:
 - do all work for X.Y.Z
 `git tag vX.Y.Z`
 `git push origin vX.Y.Z` # triggers build and release
+
+**DO NOT PUSH THE VERSION BEFORE PUSHING THE TAG**
+
 - update version in Cargo.toml to X.Y.Z+1
 `git commit -m 'version X.Y.Z+1'`
 
@@ -68,3 +71,6 @@ known to work:
 
 At this moment, Dioxus does not support adding file_paths.xml to the build. It
 can be added before the build by running ./platform_build/dx_prebuild.sh.
+
+Also unsupported is adding the codeVersion required for google play. To release
+a version for the Play Store, run ./platform_build/dx_android_release.sh

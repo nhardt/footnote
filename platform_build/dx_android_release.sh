@@ -19,7 +19,8 @@ GRADLE_FILE="./target/dx/footnote/release/android/app/app/build.gradle.kts"
 sed -i.bak "s/versionCode = .*/versionCode = $VERSION_CODE/" "$GRADLE_FILE"
 sed -i.bak "s/versionName = .*/versionName = \"$VERSION\"/" "$GRADLE_FILE"
 sed -i.bak "s/minSdk = .*/minSdk = 24/" "$GRADLE_FILE"
-sed -i.bak "s/targetSdk = .*/targetSdk = 34/" "$GRADLE_FILE"
+sed -i.bak "s/targetSdk = .*/targetSdk = 35/" "$GRADLE_FILE"
+sed -i.bak "s/compileSdk = .*/compileSdk = 35/" "$GRADLE_FILE"
 
 cd target/dx/footnote/release/android/app
 ./gradlew bundleRelease
