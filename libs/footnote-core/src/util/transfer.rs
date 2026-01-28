@@ -7,6 +7,8 @@ use anyhow::{Context, Result};
 use iroh::endpoint::Connection;
 use iroh::Endpoint;
 use std::fs;
+use std::path::Component;
+use std::path::PathBuf;
 
 /// file exchange protocol:
 /// - on push from device A to device B
@@ -43,17 +45,61 @@ pub async fn receive_share(vault: &Vault, nickname: &str, connection: Connection
     let files_to_sync = diff_manifests(&local_manifest, &remote_manifest);
 
     for file_to_sync in &files_to_sync {
-        network::send_file_request(&mut send, &file_to_sync.uuid).await?;
-        let file_contents = network::receive_file_contents(&mut recv).await?;
+        let path_components: Vec<_> = file_to_sync.path.components().collect();
+        for component in &path_components {
+            match component {
+                Component::ParentDir => {
+                    anyhow::bail!("Path traversal attempt: {:?}", file_to_sync.path);
+                }
+                Component::Prefix(_) | Component::RootDir => {
+                    anyhow::bail!("Absolute path not allowed: {:?}", file_to_sync.path);
+                }
+                Component::Normal(_) | Component::CurDir => {
+                    // expected
+                }
+            }
+        }
+
         let full_path = vault
             .path
             .join("footnotes")
             .join(nickname)
             .join(&file_to_sync.path);
-        if let Some(parent) = full_path.parent() {
+        let contact_base = vault.path.join("footnotes").join(nickname);
+        let canonical_base = contact_base
+            .canonicalize()
+            .or_else(|_| {
+                // If contact directory doesn't exist yet, create it and canonicalize
+                fs::create_dir_all(&contact_base)?;
+                contact_base.canonicalize()
+            })
+            .context("Failed to canonicalize contact base path")?;
+
+        let canonical_full = if full_path.exists() {
+            full_path.canonicalize()?
+        } else {
+            let parent = full_path
+                .parent()
+                .ok_or_else(|| anyhow::anyhow!("Path has no parent"))?;
             fs::create_dir_all(parent)?;
+            let canonical_parent = parent.canonicalize()?;
+            let filename = full_path
+                .file_name()
+                .ok_or_else(|| anyhow::anyhow!("Path has no filename"))?;
+            canonical_parent.join(filename)
+        };
+
+        if !canonical_full.starts_with(&canonical_base) {
+            anyhow::bail!(
+                "Path escapes contact directory: {:?} (contact: {})",
+                file_to_sync.path,
+                nickname
+            );
         }
-        fs::write(&full_path, file_contents)?;
+
+        network::send_file_request(&mut send, &file_to_sync.uuid).await?;
+        let file_contents = network::receive_file_contents(&mut recv).await?;
+        fs::write(&canonical_full, file_contents)?;
     }
 
     network::send_eof(&mut send).await?;
@@ -108,13 +154,48 @@ pub async fn receive_mirror(vault: &Vault, connection: Connection) -> Result<()>
     }
     let mut transfer_count = 0;
     for file_to_sync in &files_to_sync {
+        let path_components: Vec<_> = file_to_sync.path.components().collect();
+        for component in &path_components {
+            match component {
+                Component::ParentDir => {
+                    anyhow::bail!("Path traversal attempt: {:?}", file_to_sync.path);
+                }
+                Component::Prefix(_) | Component::RootDir => {
+                    anyhow::bail!("Absolute path not allowed: {:?}", file_to_sync.path);
+                }
+                Component::Normal(_) | Component::CurDir => {
+                    // expected
+                }
+            }
+        }
+
+        let canonical_base = vault
+            .path
+            .canonicalize()
+            .context("Failed to canonicalize vault path")?;
+        let full_path = vault.path.join(&file_to_sync.path);
+        let canonical_full = if full_path.exists() {
+            full_path.canonicalize()?
+        } else {
+            let parent = full_path
+                .parent()
+                .ok_or_else(|| anyhow::anyhow!("Path has no parent"))?;
+            fs::create_dir_all(parent)?;
+            let canonical_parent = parent.canonicalize()?;
+            let filename = full_path
+                .file_name()
+                .ok_or_else(|| anyhow::anyhow!("Path has no filename"))?;
+            canonical_parent.join(filename)
+        };
+
+        if !canonical_full.starts_with(&canonical_base) {
+            anyhow::bail!("Path escapes vault directory: {:?}", file_to_sync.path);
+        }
+
         network::send_file_request(&mut send, &file_to_sync.uuid).await?;
         let file_contents = network::receive_file_contents(&mut recv).await?;
-        let full_path = vault.path.join(&file_to_sync.path);
-        if let Some(parent) = full_path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::write(&full_path, file_contents)?;
+        fs::write(&canonical_full, file_contents)?;
+
         transfer_count += 1;
         transfer_record.update(transfer_count, None)?;
     }
