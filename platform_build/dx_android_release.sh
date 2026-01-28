@@ -7,7 +7,7 @@ echo "Building Android bundle with version management..."
 mkdir -p ./target/dx/footnote/release/android/app/app/src/main/res/xml
 cp ./platform_build/file_paths.xml ./target/dx/footnote/release/android/app/app/src/main/res/xml/
 
-dx build --platform android --release
+dx build --platform android --release --target aarch64-linux-android
 
 VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
 IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
