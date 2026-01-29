@@ -160,8 +160,7 @@ fn Main() -> Element {
 
     rsx! {
         div {
-            class: "flex flex-col flex-1 h-screen bg-zinc-950 text-zinc-100 font-sans antialiased",
-
+            class: "flex flex-col flex-1 min-h-screen bg-zinc-950 text-zinc-100 font-sans antialiased pt-safe pb-safe",
             main {
                 class: "flex-1 flex flex-col overflow-hidden",
                 Outlet::<Route> {}
