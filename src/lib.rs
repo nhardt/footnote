@@ -32,6 +32,11 @@ use views::profile_view::Profile;
 #[cfg(feature = "cli")]
 pub mod cli;
 
+#[no_mangle]
+pub extern "C" fn start_footnote_app() {
+    dioxus::launch(App);
+}
+
 #[cfg(target_os = "android")]
 use {
     crate::platform::{
