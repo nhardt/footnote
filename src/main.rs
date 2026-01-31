@@ -1,5 +1,5 @@
 use dioxus::prelude::*;
-use footnote::App;
+use footnote_lib::App;
 use tracing::Level;
 
 fn main() {

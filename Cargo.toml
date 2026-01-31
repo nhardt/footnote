@@ -63,3 +63,7 @@ cli = []
 name = "footnote-cli"
 path = "src/bin/cli.rs"
 required-features = ["cli"]
+
+[lib]
+name = "footnote_lib"
+crate-type = ["staticlib", "rlib"]
