@@ -1,65 +1,6 @@
 use dioxus::prelude::*;
-use std::path::PathBuf;
-mod components;
-mod context;
-mod elements;
-mod model;
-mod platform;
-mod service;
-mod util;
-mod views;
-use crate::components::app_menu::AppMenuVisible;
-use crate::components::import_contact_modal::{
-    ImportContactModal, ImportContactModalVisible, ImportedContactString,
-};
-use crate::components::listen_for_pair_modal::{
-    self, ListenForPairModal, ListenForPairModalVisible,
-};
-use crate::components::pair_with_listening_device_modal::{
-    ListeningDeviceUrl, PairWithListeningDeviceModal, PairWithListeningDeviceModalVisible,
-};
-use crate::components::share_my_contact_modal::{ShareMyContactModal, ShareMyContactModalVisible};
-use crate::components::sync_service_toggle::SyncServiceToggle;
-use crate::context::AppContext;
-use crate::model::vault::{Vault, VaultState};
-use crate::util::manifest::create_manifest_local;
+use footnote::App;
 use tracing::Level;
-use util::filesystem::hack_ensure_default_vault;
-use views::contact_view::ContactBrowser;
-use views::note_view::NoteView;
-use views::profile_view::Profile;
-
-#[cfg(target_os = "android")]
-use {
-    crate::platform::{
-        handle_incoming_share, read_uri_from_string, send_incoming_file, take_file_receiver,
-    },
-    std::sync::mpsc::{channel, Receiver, Sender},
-    std::sync::Mutex,
-    std::sync::OnceLock,
-};
-
-#[cfg(target_os = "ios")]
-use crate::platform::{send_incoming_file, take_file_receiver};
-
-#[derive(Debug, Clone, Routable, PartialEq)]
-enum Route {
-    #[layout(Main)]
-    #[route("/")]
-    NoteDefault {},
-
-    #[route("/notes/:..file_path_segments")]
-    NoteView { file_path_segments: Vec<String> },
-
-    #[route("/contacts")]
-    ContactBrowser {},
-
-    #[route("/profile")]
-    Profile {},
-}
-const FAVICON: Asset = asset!("/assets/favicon.ico");
-const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
-const MAIN_CSS: Asset = asset!("/assets/main.css");
 
 fn main() {
     dioxus::logger::init(Level::INFO).expect("failed to init logger");
@@ -70,6 +11,7 @@ fn main() {
     tracing::error!("error");
     dioxus::launch(App);
 }
+<<<<<<< HEAD
 
 #[component]
 fn App() -> Element {
@@ -212,3 +154,5 @@ fn NoteDefault() -> Element {
         }
     }
 }
+=======
+>>>>>>> 8d7927f (app: move into lib to allow ios launch)
