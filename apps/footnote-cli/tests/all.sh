@@ -3,7 +3,7 @@ set -e
 
 # Run from project root
 
-cargo install --features cli --bin footnote-cli --path .
+cargo install --force --bin footnote-cli --path .
 
 which footnote-cli
 

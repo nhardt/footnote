@@ -46,6 +46,10 @@ pub enum VaultAction {
         /// your name of this device, "desktop", "laptop"
         device_name: String,
     },
+    /// Create a standalone vault ready to join an existing device group.
+    /// After running this, use `service join-listen` to generate a join code.
+    CreateStandalone {},
+
     /// look through vault for md files that don't have metadata or have
     /// duplicate ids
     Doctor {
@@ -126,6 +130,7 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
                 username,
                 device_name,
             } => vault_create_primary(username, device_name),
+            VaultAction::CreateStandalone {} => vault_create_standalone(),
             VaultAction::Doctor { fix } => vault_doctor(fix),
         },
         Commands::Service { action } => match action {
@@ -159,6 +164,17 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
 fn vault_create_primary(username: String, device_name: String) -> anyhow::Result<()> {
     let vault_path = std::env::current_dir()?;
     Vault::create_primary(&vault_path, &username, &device_name)?;
+    let output = serde_json::json!({
+        "result": "success"
+    });
+    println!("{}", serde_json::to_string(&output)?);
+
+    Ok(())
+}
+
+fn vault_create_standalone() -> anyhow::Result<()> {
+    let vault_path = std::env::current_dir()?;
+    Vault::create_standalone(&vault_path)?;
     let output = serde_json::json!({
         "result": "success"
     });

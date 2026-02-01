@@ -7,37 +7,43 @@ mkdir -p /tmp/footnotetest
 cd /tmp/footnotetest
 
 # Create Alice primary device
-mkdir alice-primary && cd alice-primary
+mkdir alice-desktop && cd alice-desktop
 echo "Creating Alice primary device..."
 footnote-cli vault create-primary alice alice-desktop
-echo "Starting device authorization..."
-timeout 30 footnote-cli service join-listen > /tmp/device_create_output.txt 2>&1 &
+cd ..
+
+# Create Alice secondary device (standalone, ready to join)
+mkdir alice-phone && cd alice-phone
+echo "Creating Alice secondary device (standalone)..."
+footnote-cli vault create-standalone
+
+echo "Secondary device listening for join..."
+timeout 30 footnote-cli service join-listen > /tmp/join_listen_output.txt 2>&1 &
 JOIN_LISTEN_PID=$!
 cd ..
 
 # Wait for connection URL to appear
 echo "Waiting for connection URL..."
 sleep 3
-echo "Extracting connection url from "
-cat /tmp/device_create_output.txt
+echo "Extracting connection url..."
+cat /tmp/join_listen_output.txt
 
 # Extract connection URL from output
-CONNECTION_URL=$(cat /tmp/device_create_output.txt | jq -r '.join_url')
+CONNECTION_URL=$(cat /tmp/join_listen_output.txt | jq -r '.join_url')
 
-if [ -z "$CONNECTION_URL" ]; then
+if [ -z "$CONNECTION_URL" ] || [ "$CONNECTION_URL" = "null" ]; then
     echo "ERROR: Could not capture connection URL"
-    cat /tmp/device_create_output.txt
-    kill $DEVICE_PID 2>/dev/null || true
+    cat /tmp/join_listen_output.txt
+    kill $JOIN_LISTEN_PID 2>/dev/null || true
     exit 1
 fi
 
 echo "Connection URL: $CONNECTION_URL"
 
-# Create Alice secondary device and join
-mkdir alice-phone && cd alice-phone
-echo "Creating Alice secondary device..."
-footnote-cli vault create-secondary alice-phone
-footnote-cli service join "$CONNECTION_URL"
+# Primary device joins the secondary
+cd alice-desktop
+echo "Primary adding secondary device to group..."
+footnote-cli service join "$CONNECTION_URL" alice-phone
 cd ..
 
 wait $JOIN_LISTEN_PID 2>/dev/null || true
@@ -47,7 +53,7 @@ echo ""
 echo "Verifying setup..."
 
 # Verify primary contact.json
-PRIMARY_CONTACT=$(cat alice-primary/.footnote/user.json)
+PRIMARY_CONTACT=$(cat alice-desktop/.footnote/user.json)
 PRIMARY_DEVICES=$(echo "$PRIMARY_CONTACT" | jq '.devices | length')
 PRIMARY_SIGNATURE=$(echo "$PRIMARY_CONTACT" | jq -r '.signature')
 
@@ -86,7 +92,7 @@ echo "Device 1: $DEVICE1"
 echo "Device 2: $DEVICE2"
 
 # Cleanup
-rm -f /tmp/device_create_output.txt
+rm -f /tmp/join_listen_output.txt
 
 echo ""
 echo "Device join test passed!"
