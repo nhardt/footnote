@@ -1,7 +1,6 @@
-use crate::{context::AppContext, Route};
+use crate::context::AppContext;
 use chrono::Local;
 use dioxus::prelude::*;
-use std::path::PathBuf;
 
 #[component]
 pub fn NewNoteModal(ondone: EventHandler<()>) -> Element {

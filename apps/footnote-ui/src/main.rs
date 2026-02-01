@@ -1,4 +1,3 @@
-use dioxus::prelude::*;
 use footnote_lib::App;
 use tracing::Level;
 
