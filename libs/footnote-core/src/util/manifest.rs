@@ -175,8 +175,6 @@ pub fn diff_manifests(local: &Manifest, remote: &Manifest) -> Vec<ManifestEntry>
 
 #[cfg(test)]
 mod tests {
-    use dioxus::html::base;
-
     use super::*;
 
     #[test]

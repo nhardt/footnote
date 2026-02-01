@@ -1,9 +1,8 @@
 use crate::context::AppContext;
-use crate::service::sync_service::SyncService;
-use crate::{model::vault::Vault, service::sync_service};
 use dioxus::prelude::*;
+use footnote_core::model::vault::Vault;
+use footnote_core::service::sync_service::SyncService;
 use iroh::Endpoint;
-use std::path::Path;
 use tokio::time::{interval, Duration};
 use tokio_util::sync::CancellationToken;
 

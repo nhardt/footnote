@@ -4,6 +4,7 @@ version = "0.2.14"
 edition = "2021"
 
 [dependencies]
+footnote-core = { path = "../../libs/footnote-core" }
 anyhow = "1.0.100"
 bincode = "2.0.1"
 blake3 = "1.8.2"

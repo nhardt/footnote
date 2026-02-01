@@ -1,4 +1,8 @@
-use crate::{context::AppContext, platform::SHARE_SHEET_SUPPORTED};
+use crate::context::AppContext;
+#[cfg(any(target_os = "android", target_os = "ios"))]
+use crate::platform::SHARE_SHEET_SUPPORTED;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+const SHARE_SHEET_SUPPORTED: bool = false;
 use dioxus::prelude::*;
 
 #[derive(Clone, Copy, PartialEq)]
@@ -23,7 +27,9 @@ pub fn ShareMyContactModal() -> Element {
         Err(e) => format!("Contact record unable to load: {}", e),
     });
 
+    #[allow(unused)]
     let handle_share = move |_| {
+        #[cfg(any(target_os = "android", target_os = "ios"))]
         use crate::platform;
         error_message.set(None);
 
@@ -44,6 +50,7 @@ pub fn ShareMyContactModal() -> Element {
 
         match std::fs::write(&file_path, json_content) {
             Ok(_) => {
+                #[cfg(any(target_os = "android", target_os = "ios"))]
                 if let Err(e) = platform::share_contact_file(&file_path) {
                     error_message.set(Some(format!("Share failed: {}", e)));
                 }

@@ -7,9 +7,9 @@ use crate::{
         share_my_contact_modal::ShareMyContactModalVisible,
     },
     context::AppContext,
-    model::vault::VaultState,
     Route,
 };
+use footnote_core::model::vault::VaultState;
 use dioxus::prelude::*;
 
 #[derive(Clone, Copy, PartialEq)]

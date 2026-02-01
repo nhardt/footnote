@@ -1,7 +1,6 @@
-use crate::{components::footnote_editor::FootnoteEditor, context::AppContext, model::note::Note};
+use crate::components::footnote_editor::FootnoteEditor;
 use dioxus::prelude::*;
 use indexmap::IndexMap;
-use std::path::PathBuf;
 
 #[component]
 pub fn Footnotes(

@@ -1,4 +1,5 @@
-use crate::{context::AppContext, service::join_service::JoinService};
+use crate::context::AppContext;
+use footnote_core::service::join_service::JoinService;
 use dioxus::prelude::*;
 
 #[derive(Clone, Copy, PartialEq)]

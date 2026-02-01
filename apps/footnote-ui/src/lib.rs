@@ -1,30 +1,22 @@
 use dioxus::prelude::*;
-use std::path::PathBuf;
 mod components;
 mod context;
 mod elements;
-mod model;
 mod platform;
-mod service;
-mod util;
 mod views;
 use crate::components::app_menu::AppMenuVisible;
 use crate::components::import_contact_modal::{
     ImportContactModal, ImportContactModalVisible, ImportedContactString,
 };
-use crate::components::listen_for_pair_modal::{
-    self, ListenForPairModal, ListenForPairModalVisible,
-};
+use crate::components::listen_for_pair_modal::{ListenForPairModal, ListenForPairModalVisible};
 use crate::components::pair_with_listening_device_modal::{
     ListeningDeviceUrl, PairWithListeningDeviceModal, PairWithListeningDeviceModalVisible,
 };
 use crate::components::share_my_contact_modal::{ShareMyContactModal, ShareMyContactModalVisible};
-use crate::components::sync_service_toggle::SyncServiceToggle;
 use crate::context::AppContext;
-use crate::model::vault::{Vault, VaultState};
-use crate::util::manifest::create_manifest_local;
-use tracing::Level;
-use util::filesystem::hack_ensure_default_vault;
+use footnote_core::model::vault::{Vault, VaultState};
+use footnote_core::util::filesystem::hack_ensure_default_vault;
+use footnote_core::util::manifest::create_manifest_local;
 use views::contact_view::ContactBrowser;
 use views::note_view::NoteView;
 use views::profile_view::Profile;
@@ -32,7 +24,7 @@ use views::profile_view::Profile;
 #[cfg(feature = "cli")]
 pub mod cli;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn start_footnote_app() {
     dioxus::launch(App);
 }
@@ -42,7 +34,6 @@ use {
     crate::platform::{
         handle_incoming_share, read_uri_from_string, send_incoming_file, take_file_receiver,
     },
-    std::sync::mpsc::{channel, Receiver, Sender},
     std::sync::Mutex,
     std::sync::OnceLock,
 };

@@ -1,13 +1,8 @@
-use crate::{
-    model::{
-        contact::Contact,
-        device::Device,
-        vault::{Vault, VaultState},
-    },
-    util::manifest::{create_manifest_local, Manifest},
-};
 use dioxus::prelude::*;
-use std::path::PathBuf;
+use footnote_core::model::contact::Contact;
+use footnote_core::model::device::Device;
+use footnote_core::model::vault::{Vault, VaultState};
+use footnote_core::util::manifest::{create_manifest_local, Manifest};
 
 /// AppContext is to just for grouping high level objects and easily accessing
 /// them. for Footnote, this is probably:

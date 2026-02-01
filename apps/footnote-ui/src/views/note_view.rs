@@ -1,16 +1,15 @@
-use crate::model::note::Note;
 use crate::{
     components::{
         app_header::AppHeader,
-        app_menu::{AppMenu, MenuButton, MenuDivider},
+        app_menu::{AppMenu, MenuButton},
         footnotes::Footnotes,
         new_note_modal::NewNoteModal,
         sync_service_toggle::SyncServiceToggle,
     },
     context::AppContext,
-    util::tree_node::{build_tree_from_manifest, TreeNode},
-    Route,
 };
+use footnote_core::model::note::Note;
+use footnote_core::util::tree_node::{build_tree_from_manifest, TreeNode};
 use dioxus::prelude::*;
 use indexmap::IndexMap;
 use regex::bytes::Regex;

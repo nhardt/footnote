@@ -1,12 +1,13 @@
 use crate::{
     components::{
         app_header::AppHeader,
-        app_menu::{AppMenu, MenuButton, MenuDivider},
+        app_menu::{AppMenu, MenuButton},
         confirm_dialog::ConfirmDialog,
     },
     context::AppContext,
-    model::{device::Device, vault::VaultState},
 };
+use footnote_core::model::device::Device;
+use footnote_core::model::vault::VaultState;
 use dioxus::prelude::*;
 
 #[component]
@@ -205,7 +206,7 @@ fn DeviceRow(device: Device, read_only: bool) -> Element {
     let mut app_context = use_context::<AppContext>();
     let device_for_outbound = device.clone();
     let outbound_device_status = use_signal(move || {
-        use crate::util::sync_status_record::{SyncDirection, SyncStatusRecord};
+        use footnote_core::util::sync_status_record::{SyncDirection, SyncStatusRecord};
         match SyncStatusRecord::last_success(
             app_context.vault.read().base_path().clone(),
             &device_for_outbound.iroh_endpoint_id,
@@ -218,7 +219,7 @@ fn DeviceRow(device: Device, read_only: bool) -> Element {
 
     let device_for_inbound = device.clone();
     let inbound_device_status = use_signal(move || {
-        use crate::util::sync_status_record::{SyncDirection, SyncStatusRecord};
+        use footnote_core::util::sync_status_record::{SyncDirection, SyncStatusRecord};
         match SyncStatusRecord::last_success(
             app_context.vault.read().base_path().clone(),
             &device_for_inbound.iroh_endpoint_id,

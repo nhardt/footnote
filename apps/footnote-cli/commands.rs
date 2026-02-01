@@ -1,12 +1,9 @@
-use crate::model::contact::Contact;
-use crate::model::note::Note;
-use crate::service::join_service::JoinService;
-use crate::service::sync_service::SyncService;
-use crate::{model::vault::Vault, service::join_service::JoinEvent};
 use clap::{Parser, Subcommand};
-use dioxus::html::g::to;
-use futures::future::Join;
-use iroh::Endpoint;
+use footnote_core::model::contact::Contact;
+use footnote_core::model::note::Note;
+use footnote_core::model::vault::Vault;
+use footnote_core::service::join_service::{JoinEvent, JoinService};
+use footnote_core::service::sync_service::SyncService;
 use std::path::{Path, PathBuf};
 use tokio_util::sync::CancellationToken;
 

@@ -1,7 +1,7 @@
 [package]
 name = "footnote-cli"
 version = "0.3.0"
-edition = "2024"
+edition = "2021"
 
 [[bin]]
 name = "footnote-cli"
@@ -11,5 +11,8 @@ path = "main.rs"
 footnote-core = { path = "../../libs/footnote-core" }
 
 clap = { version = "4.5", features = ["derive"] }
+iroh = "0.95"
+serde_json = "1.0"
 tokio = { version = "1.0", features = ["full"] }
+tokio-util = "0.7"
 anyhow = "1.0"

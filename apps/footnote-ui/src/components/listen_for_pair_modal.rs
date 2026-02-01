@@ -1,7 +1,5 @@
-use crate::{
-    context::AppContext,
-    service::join_service::{JoinEvent, JoinService},
-};
+use crate::context::AppContext;
+use footnote_core::service::join_service::{JoinEvent, JoinService};
 use dioxus::prelude::*;
 use qrcode_generator::QrCodeEcc;
 use tokio_util::sync::CancellationToken;

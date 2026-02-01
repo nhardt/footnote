@@ -13,7 +13,7 @@ pub struct AppConfig {
 impl AppConfig {
     /// Get the config file path (cross-platform)
     pub fn get_config_path() -> Result<PathBuf> {
-        let app_dir = crate::platform::get_app_dir()?;
+        let app_dir = footnote_core::platform::get_app_dir()?;
         Ok(app_dir.join(CONFIG_FILENAME))
     }
 

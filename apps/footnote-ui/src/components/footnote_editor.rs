@@ -1,5 +1,5 @@
-use crate::model::note::Note;
-use crate::{context::AppContext, Route};
+use crate::context::AppContext;
+use footnote_core::model::note::Note;
 use dioxus::prelude::*;
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;

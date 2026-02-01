@@ -5,9 +5,10 @@ use crate::{
         import_contact_modal::ImportContactModalVisible,
     },
     context::AppContext,
-    model::{contact::Contact, device::Device},
-    util::sync_status_record::{SyncDirection, SyncStatusRecord},
 };
+use footnote_core::model::contact::Contact;
+use footnote_core::model::device::Device;
+use footnote_core::util::sync_status_record::{SyncDirection, SyncStatusRecord};
 use dioxus::prelude::*;
 
 fn truncate_endpoint_id(id: &str) -> String {
