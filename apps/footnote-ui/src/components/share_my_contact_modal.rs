@@ -68,7 +68,7 @@ pub fn ShareMyContactModal() -> Element {
                 class: "bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl w-full max-w-2xl h-[80vh] flex flex-col",
                 onclick: move |evt| evt.stop_propagation(),
                 div { class: "p-6 border-b border-zinc-800",
-                    h3 { class: "text-lg text-zinc-300 font-semibold font-mono", "Export Contact Record" }
+                    h3 { class: "text-lg font-semibold font-mono", "Export Contact Record" }
                     p { class: "text-sm text-zinc-500 mt-1",
                         if cfg!(target_os = "android") {
                             "Share or copy this with your trusted contacts"
