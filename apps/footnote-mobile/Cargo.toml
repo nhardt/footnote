@@ -1,5 +1,5 @@
 [package]
-name = "Footnote"
+name = "footnote-mobile"
 version = "0.1.0"
 authors = ["Nate Hardt <nate.hardt@pm.me>"]
 edition = "2018"
@@ -8,7 +8,7 @@ edition = "2018"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [[bin]]
-name = "Footnote-desktop"
+name = "footnote-desktop"
 path = "gen/bin/desktop.rs"
 
 [package.metadata.cargo-android]
@@ -35,9 +35,9 @@ frameworks = [ "WebKit" ]
 [dependencies]
 anyhow = "1.0"
 log = "0.4"
-wry = "0.37"
+wry = "0.53"
 tao = "0.26"
-dioxus = { version = "0.6.0-alpha.2", features = ["mobile"] }
+dioxus = { version = "0.7.3", features = ["mobile"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 android_logger = "0.13"

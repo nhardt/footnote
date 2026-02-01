@@ -1,5 +1,5 @@
 [package]
-name = "footnote"
+name = "footnote-ui"
 version = "0.2.14"
 edition = "2021"
 
