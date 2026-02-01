@@ -4,16 +4,8 @@ use crate::{
     util::{manifest, transfer},
 };
 use anyhow::{Context, Result};
-use iroh::{endpoint::Connection, Endpoint};
-use n0_error::StdResultExt;
-use serde::{Deserialize, Serialize};
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
-use tokio::sync::mpsc::{self, Receiver};
+use iroh::Endpoint;
 use tokio_util::sync::CancellationToken;
-use uuid::Uuid;
 
 pub struct SyncService;
 

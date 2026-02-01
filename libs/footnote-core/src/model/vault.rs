@@ -1,17 +1,12 @@
-use crate::model::contact;
 use crate::model::device::Device;
 use crate::model::{contact::Contact, note::Note, user::LocalUser};
 use anyhow::Result;
 use core::fmt;
 use iroh::Endpoint;
-use n0_error::StdResultExt;
-use serde::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use tokio::fs::remove_dir_all;
-use tokio::sync::mpsc::{self, Receiver};
 use uuid::Uuid;
 use walkdir::{DirEntry, WalkDir};
 

@@ -3,7 +3,6 @@ use std::{
     path::{Path, PathBuf},
 };
 use uuid::Uuid;
-use walkdir::{DirEntry, WalkDir};
 
 use crate::util::manifest::Manifest;
 

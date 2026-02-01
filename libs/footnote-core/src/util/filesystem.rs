@@ -1,10 +1,5 @@
-use crate::model::{
-    contact::Contact,
-    note::Note,
-    vault::{Vault, VaultState},
-};
+use crate::model::vault::{Vault, VaultState};
 use anyhow::Result;
-use gethostname::gethostname;
 use std::{
     env, fs,
     path::PathBuf,

@@ -7,7 +7,6 @@ use anyhow::{Context, Result};
 use iroh::endpoint::Connection;
 use iroh::Endpoint;
 use std::fs;
-use std::path::PathBuf;
 
 /// file exchange protocol:
 /// - on push from device A to device B

@@ -1,6 +1,6 @@
 use crate::util::lamport_timestamp::LamportTimestamp;
 use anyhow::Result;
-use iroh::{EndpointAddr, PublicKey};
+use iroh::PublicKey;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};

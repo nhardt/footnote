@@ -1,7 +1,6 @@
 use anyhow::Result;
 use iroh::endpoint::{RecvStream, SendStream};
 use n0_error::StdResultExt;
-use std::path::{Path, PathBuf};
 
 pub async fn send_u32(stream: &mut SendStream, value: u32) -> Result<()> {
     SendStream::write_all(stream, &value.to_be_bytes())
