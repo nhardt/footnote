@@ -59,9 +59,6 @@ desktop = ["dioxus/desktop"]
 mobile = ["dioxus/mobile"]
 cli = []
 
-[[bin]]
-name = "footnote-cli"
-path = "src/bin/cli.rs"
 required-features = ["cli"]
 
 [lib]
