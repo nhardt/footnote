@@ -71,9 +71,8 @@ pub fn ShareMyContactModal() -> Element {
                     }
                 }
                 div { class: "p-6 flex-1 min-h-0 flex flex-col",
-                    textarea {
-                        class: "flex-1 w-full select-all px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-lg text-xs font-mono text-zinc-300 resize-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 mb-4",
-                        readonly: "true",
+                    pre {
+                        class: "flex-1 w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-lg text-xs font-mono text-zinc-300 overflow-auto mb-4 whitespace-pre",
                         "{user_record_json}"
                     }
 
