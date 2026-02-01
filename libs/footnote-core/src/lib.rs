@@ -1,14 +1,11 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+pub mod model;
+pub mod service;
+pub mod util;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+// pub use crate::model::vault::Vault;
+// pub use crate::model::user::User;
+// pub use crate::model::note::Note;
+// pub use crate::service::sync_service::SyncService;
+// pub use crate::service::join_service::JoinService;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub type Result<T> = anyhow::Result<T>;

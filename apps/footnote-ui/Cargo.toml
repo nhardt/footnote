@@ -3,10 +3,6 @@ name = "footnote"
 version = "0.2.14"
 edition = "2021"
 
-[lints.rust]
-unused_imports = "allow"
-
-
 [dependencies]
 anyhow = "1.0.100"
 bincode = "2.0.1"
