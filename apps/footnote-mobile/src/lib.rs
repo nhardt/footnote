@@ -5,7 +5,7 @@ fn init_logging() {
     android_logger::init_once(
         android_logger::Config::default()
             .with_max_level(log::LevelFilter::Trace)
-            .with_tag("Footnote"),
+            .with_tag("footnote-mobile"),
     );
 }
 
@@ -38,12 +38,12 @@ pub extern "C" fn start_app() {
     {
         tao::android_binding!(
             wiki_footnote,
-            footnote,
+            footnote_mobile,
             WryActivity,
             wry::android_setup, // pass the wry::android_setup function to tao which will invoke when the event loop is created
             _start_app
         );
-        wry::android_binding!(wiki_footnote, footnote);
+        wry::android_binding!(wiki_footnote, footnote_mobile);
     }
 
     #[cfg(target_os = "ios")]

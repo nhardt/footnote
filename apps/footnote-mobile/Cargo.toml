@@ -8,7 +8,7 @@ edition = "2018"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [[bin]]
-name = "footnote-desktop"
+name = "footnote-mobile-desktop"
 path = "gen/bin/desktop.rs"
 
 [package.metadata.cargo-android]
@@ -26,7 +26,7 @@ vulkan-validation = false
 
 [package.metadata.cargo-android.env-vars]
 WRY_ANDROID_PACKAGE = "wiki.footnote.app"
-WRY_ANDROID_LIBRARY = "footnote"
+WRY_ANDROID_LIBRARY = "footnote_mobile"
 WRY_ANDROID_KOTLIN_FILES_OUT_DIR = "<android-project-dir>/app/src/main/kotlin/wiki/footnote/app"
 
 [package.metadata.cargo-apple.ios]

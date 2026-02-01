@@ -1,5 +1,5 @@
 [app]
-name = "Footnote"
+name = "footnote-mobile"
 stylized-name = "Footnote"
 identifier = "wiki.footnote.app"
 template-pack = "dioxus"
