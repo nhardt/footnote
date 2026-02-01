@@ -1,6 +1,3 @@
-// Platform-specific code for mobile (Android/iOS)
-// Desktop uses footnote_core::platform directly
-
 #[cfg(target_os = "android")]
 mod android;
 #[cfg(target_os = "android")]
@@ -11,5 +8,7 @@ mod ios;
 #[cfg(target_os = "ios")]
 pub use ios::*;
 
-// Re-export core platform functions for all platforms
-pub use footnote_core::platform::get_app_dir;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+mod stub;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+pub use stub::*;
