@@ -56,9 +56,6 @@ enum Route {
     #[route("/profile")]
     Profile {},
 }
-const FAVICON: Asset = asset!("/assets/favicon.ico");
-const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
-const MAIN_CSS: Asset = asset!("/assets/main.css");
 
 #[component]
 pub fn App() -> Element {
@@ -133,7 +130,6 @@ pub fn App() -> Element {
     rsx! {
         document::Link { rel: "stylesheet", href: "assets/tailwind.css" }
         document::Link { rel: "stylesheet", href: "assets/main.css" }
-        document::Link { rel: "icon", href: FAVICON }
 
         document::Meta {
             name: "viewport",

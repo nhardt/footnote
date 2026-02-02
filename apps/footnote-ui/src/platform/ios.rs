@@ -1,19 +1,12 @@
-use objc2::ffi::*;
 use objc2::rc::Retained;
-use objc2::runtime::ProtocolObject;
+use objc2::runtime::AnyObject;
 use objc2::runtime::{AnyClass, Bool, Sel};
-use objc2::runtime::{AnyObject, NSObject};
 use objc2::{msg_send, sel};
 use objc2::{MainThreadMarker, MainThreadOnly};
 use objc2_foundation::{NSArray, NSDictionary, NSString, NSURL};
-use objc2_ui_kit::UIApplicationDelegate;
-use objc2_ui_kit::{UIActivityViewController, UIApplication, UIViewController};
-use std::ffi::c_void;
+use objc2_ui_kit::{UIActivityViewController, UIApplication};
 use std::ffi::CStr;
-use std::path::Path;
 use std::path::PathBuf;
-use std::ptr;
-use std::sync::Mutex;
 use std::sync::OnceLock;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
