@@ -6,3 +6,7 @@ template-pack = "dioxus"
 
 [apple]
 development-team = "7X4L53VGR3"
+
+resources = [
+    "./assets/*"
+]
