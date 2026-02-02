@@ -49,7 +49,8 @@ pub fn ShareMyContactModal() -> Element {
         let file_path = temp_dir.join(format!("{}.{}.fncontact", username, timestamp));
 
         match std::fs::write(&file_path, json_content) {
-            Ok(_) => {
+            Ok(_) =>
+            {
                 #[cfg(any(target_os = "android", target_os = "ios"))]
                 if let Err(e) = platform::share_contact_file(&file_path) {
                     error_message.set(Some(format!("Share failed: {}", e)));
@@ -68,19 +69,14 @@ pub fn ShareMyContactModal() -> Element {
                 class: "bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl w-full max-w-2xl h-[80vh] flex flex-col",
                 onclick: move |evt| evt.stop_propagation(),
                 div { class: "p-6 border-b border-zinc-800",
-                    h3 { class: "text-lg font-semibold font-mono", "Export Contact Record" }
+                    h3 { class: "text-lg text-zinc-300 font-semibold font-mono", "Export Contact Record" }
                     p { class: "text-sm text-zinc-500 mt-1",
-                        if cfg!(target_os = "android") {
-                            "Share or copy this with your trusted contacts"
-                        } else {
-                            "Copy and share this with your trusted contacts"
-                        }
+                        "Share this with your trusted contacts"
                     }
                 }
                 div { class: "p-6 flex-1 min-h-0 flex flex-col",
-                    textarea {
-                        class: "flex-1 w-full select-all px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-lg text-xs font-mono text-zinc-300 resize-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 mb-4",
-                        readonly: "true",
+                    pre {
+                        class: "flex-1 w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-lg text-xs font-mono text-zinc-300 overflow-auto mb-4 whitespace-pre overflow-x-auto",
                         "{user_record_json}"
                     }
 
