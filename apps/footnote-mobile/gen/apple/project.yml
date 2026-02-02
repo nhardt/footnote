@@ -1,0 +1,94 @@
+name: footnote_mobile
+options:
+  bundleIdPrefix: wiki.footnote.app
+  deploymentTarget:
+    iOS: 13.0
+    macOS: 11.0
+fileGroups: [../../src]
+configs:
+  debug: debug
+  release: release
+settingGroups:
+  app:
+    base:
+      PRODUCT_NAME: Footnote
+      PRODUCT_BUNDLE_IDENTIFIER: wiki.footnote.app
+      DEVELOPMENT_TEAM: 7X4L53VGR3
+targetTemplates:
+  app:
+    type: application
+    sources:
+      - path: Sources
+    scheme:
+      environmentVariables:
+        RUST_BACKTRACE: full
+        RUST_LOG: info
+    settings:
+      groups: [app]
+targets:
+  footnote_mobile_iOS:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      - path: assets
+        buildPhase: resources
+        type: folder
+      
+       
+    info:
+      path: footnote_mobile_iOS/Info.plist
+      properties:
+        LSRequiresIPhoneOS: true
+        UILaunchStoryboardName: LaunchScreen
+        UIRequiredDeviceCapabilities: [arm64, metal]
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        CFBundleShortVersionString: 1.0.0
+        CFBundleVersion: 1.0.0
+        
+    scheme:
+      environmentVariables:
+        RUST_BACKTRACE: full
+        RUST_LOG: info
+    settings:
+      base:
+        ENABLE_BITCODE: false
+        ARCHS: [arm64]
+        VALID_ARCHS:  arm64 
+        LIBRARY_SEARCH_PATHS[sdk=iphoneos*]: $(inherited) $(PROJECT_DIR)/Sources/aarch64-apple-ios/$(CONFIGURATION)
+        LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]: $(inherited) "/Users/nhardt/src/footnote/apps/footnote-mobile/target/aarch64-apple-ios-sim/$(CONFIGURATION)"
+        ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: true
+      groups: [app]
+    dependencies:
+      - framework: libfootnote_mobile.a
+        embed: false
+      
+      
+      
+      - sdk: CoreGraphics.framework
+      - sdk: Metal.framework
+      - sdk: MetalKit.framework
+      - sdk: QuartzCore.framework
+      - sdk: Security.framework
+      - sdk: UIKit.framework
+      
+      - sdk: WebKit.framework
+    preBuildScripts:
+      
+      - script: |-
+          PATH=${PATH}:${HOME:?}/.cargo/bin
+          CARGO_APPLE=`which cargo-apple`
+          ${CARGO_APPLE} xcode-script -v --platform "${PLATFORM_DISPLAY_NAME:?}" --sdk-root ${SDKROOT:?} --framework-search-paths "${FRAMEWORK_SEARCH_PATHS:?}" --header-search-paths "${HEADER_SEARCH_PATHS:?}" --gcc-preprocessor-definitions "${GCC_PREPROCESSOR_DEFINITIONS:?}" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?} ${FEATURES}
+        name: Build Rust Code
+        basedOnDependencyAnalysis: false
+        outputFiles:
+          - $(SRCROOT)/target/aarch64-apple-ios/${CONFIGURATION}/deps/libfootnote_mobile.a
+          - $(SRCROOT)/target/x86_64-apple-ios/${CONFIGURATION}/deps/libfootnote_mobile.a
