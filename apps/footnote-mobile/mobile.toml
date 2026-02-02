@@ -6,3 +6,7 @@ template-pack = "dioxus"
 
 [apple]
 development-team = "7X4L53VGR3"
+plist-pairs = [
+    ["NSLocalNetworkUsageDescription", "Footnote uses the local network to find and sync with Footnote running on other devices."]
+]
+entitlements-file = "ios.entitlements.plist"
