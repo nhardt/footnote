@@ -1,4 +1,4 @@
-use dioxus::prelude::*;
+use footnote_lib::App;
 
 #[cfg(target_os = "android")]
 fn init_logging() {
@@ -52,33 +52,6 @@ pub extern "C" fn start_app() {
 
 pub fn main() {
     init_logging();
-    
-    dioxus::launch(app);
-}
 
-fn app() -> Element {
-    let mut items = use_signal(|| vec![1, 2, 3]);
-
-    log::debug!("Hello from the app");
-
-    rsx! {
-        div {
-            h1 { "Hello, Mobile"}
-            div { margin_left: "auto", margin_right: "auto", width: "200px", padding: "10px", border: "1px solid black",
-                button {
-                    onclick: move|_| {
-                        println!("Clicked!");
-                        let mut items_mut = items.write();
-                        let new_item = items_mut.len() + 1;
-                        items_mut.push(new_item);
-                        println!("Requested update");
-                    },
-                    "Add item"
-                }
-                for item in items.read().iter() {
-                    div { "- {item}" }
-                }
-            }
-        }
-    }
+    dioxus::launch(App);
 }

@@ -38,6 +38,7 @@ log = "0.4"
 wry = "0.53"
 tao = "0.26"
 dioxus = { version = "0.7.3", features = ["mobile"] }
+footnote-ui = { path = "../footnote-ui", default-features = false, features = ["mobile"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 android_logger = "0.13"
