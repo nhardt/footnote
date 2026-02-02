@@ -2251,22 +2251,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "footnote-mobile"
-version = "0.3.0"
-dependencies = [
- "android_logger",
- "anyhow",
- "core-foundation 0.10.1",
- "dioxus",
- "env_logger 0.9.3",
- "jni",
- "log",
- "paste",
- "tao 0.26.2",
- "wry",
-]
-
-[[package]]
 name = "footnote-ui"
 version = "0.3.0"
 dependencies = [
@@ -2310,6 +2294,22 @@ dependencies = [
  "urlencoding",
  "uuid",
  "walkdir",
+]
+
+[[package]]
+name = "footnote_mobile"
+version = "0.3.0"
+dependencies = [
+ "android_logger",
+ "anyhow",
+ "core-foundation 0.10.1",
+ "dioxus",
+ "env_logger 0.9.3",
+ "jni",
+ "log",
+ "paste",
+ "tao 0.26.2",
+ "wry",
 ]
 
 [[package]]
