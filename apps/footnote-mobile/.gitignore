@@ -7,3 +7,5 @@ target/
 
 # macOS
 **/.DS_Store
+
+gen/apple/Sources
