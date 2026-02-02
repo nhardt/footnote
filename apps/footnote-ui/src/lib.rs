@@ -131,9 +131,9 @@ pub fn App() -> Element {
     });
 
     rsx! {
+        document::Link { rel: "stylesheet", href: "assets/tailwind.css" }
+        document::Link { rel: "stylesheet", href: "assets/main.css" }
         document::Link { rel: "icon", href: FAVICON }
-        document::Link { rel: "stylesheet", href: TAILWIND_CSS }
-        document::Stylesheet { href: MAIN_CSS }
 
         document::Meta {
             name: "viewport",
