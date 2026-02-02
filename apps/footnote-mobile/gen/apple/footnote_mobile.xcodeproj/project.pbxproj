@@ -10,6 +10,7 @@
 		2E729A88148EFA5947F891A4 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 72BCBCC67DEA1DB697414E41 /* WebKit.framework */; };
 		3FE66D6942D06F1A4519EEDF /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 372CA31529AA37ABF8414C01 /* Metal.framework */; };
 		7392F0852F3166680086060E /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 7392F0842F3166680086060E /* assets */; };
+		7392F0872F3167350086060E /* Media.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7392F0862F3167350086060E /* Media.xcassets */; };
 		8288473EB634C61D3A5D3B4A /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = B86E0A2438FFFFC8F0D504C5 /* main.mm */; };
 		8693E260D9D1521BC65394F0 /* libfootnote_mobile.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8A9A251171E3608D215C9AED /* libfootnote_mobile.a */; };
 		8DBBA572E80F2D9FA115D77A /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ADA2521E6D95C528605D82C3 /* UIKit.framework */; };
@@ -25,6 +26,7 @@
 		372CA31529AA37ABF8414C01 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		72BCBCC67DEA1DB697414E41 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
 		7392F0842F3166680086060E /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = assets; path = "../../../footnote-ui/assets"; sourceTree = "<group>"; };
+		7392F0862F3167350086060E /* Media.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Media.xcassets; sourceTree = "<group>"; };
 		7BD34B4EE4829DE5BD271D53 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
 		7D6DB86C338826569C690CA4 /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
 		8A9A251171E3608D215C9AED /* libfootnote_mobile.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libfootnote_mobile.a; sourceTree = "<group>"; };
@@ -114,6 +116,7 @@
 		F8CDB010EF4AAECF86387184 = {
 			isa = PBXGroup;
 			children = (
+				7392F0862F3167350086060E /* Media.xcassets */,
 				7392F0842F3166680086060E /* assets */,
 				EAD5611B5DC78CBFDA74B258 /* Sources */,
 				1584BB39DA3A6696DC35D29B /* src */,
@@ -182,6 +185,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7392F0872F3167350086060E /* Media.xcassets in Resources */,
 				7392F0852F3166680086060E /* assets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
