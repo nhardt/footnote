@@ -1,7 +1,7 @@
 [package]
 name = "footnote-mobile"
 version = "0.3.0"
-authors = ["Nate Hardt <nate.hardt@pm.me>"]
+authors = ["Nate Hardt <nhardt@footnote.wiki>"]
 edition = "2018"
 
 [lib]
