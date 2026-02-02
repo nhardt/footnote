@@ -6,3 +6,4 @@ external
 node_modules/
 third-party/
 .claude/
+**/.DS_Store

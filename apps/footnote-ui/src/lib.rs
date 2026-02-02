@@ -57,7 +57,9 @@ enum Route {
     Profile {},
 }
 
+#[cfg(not(target_os = "ios"))]
 const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
+#[cfg(not(target_os = "ios"))]
 const MAIN_CSS: Asset = asset!("/assets/main.css");
 
 #[component]

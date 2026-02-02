@@ -7,4 +7,4 @@ target/
 /gen
 
 # macOS
-.DS_Store
+**/.DS_Store
