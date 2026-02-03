@@ -1,0 +1,26 @@
+[package]
+name = "footnote-core"
+version = "0.3.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+chrono = "0.4"
+dirs = "5.0"
+ed25519-dalek = { version = "2.1", features = ["rand_core"] }
+gethostname = "1.1"
+hex = "0.4"
+indexmap = "2.0"
+iroh = "0.95"
+n0-error = { version = "0.1.2", features = ["anyhow"] }
+n0-future = "0.3.1"
+rand = "0.9"
+rand_core = "0.6"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+tokio = { version = "1.0", features = ["full"] }
+tokio-util = "0.7"
+tracing = "0.1"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+walkdir = "2.4"

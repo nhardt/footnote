@@ -1,0 +1,12 @@
+[app]
+name = "footnote_mobile"
+stylized-name = "Footnote"
+identifier = "wiki.footnote.app"
+template-pack = "dioxus"
+
+[apple]
+development-team = "7X4L53VGR3"
+
+resources = [
+    "./assets/*"
+]

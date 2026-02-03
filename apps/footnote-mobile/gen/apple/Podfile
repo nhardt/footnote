@@ -1,0 +1,17 @@
+# Uncomment the next line to define a global platform for your project
+
+target 'footnote_mobile_iOS' do
+platform :ios, '13.0'
+  
+
+  # Pods for footnote_mobile_iOS
+  
+end
+
+target 'footnote_mobile_macOS' do
+platform :osx, '11.0'
+  
+
+  # Pods for footnote_mobile_macOS
+  
+end

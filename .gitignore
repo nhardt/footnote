@@ -1,8 +1,10 @@
 /target
 data
 .keys
-assets/tailwind.css
+apps/footnote-ui/assets/tailwind.css
 external
 node_modules/
 third-party/
 .claude/
+**/.DS_Store
+**/generated-icons
