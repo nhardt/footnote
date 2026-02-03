@@ -9,6 +9,6 @@ mod ios;
 pub use ios::*;
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
-mod stub;
+mod default;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
-pub use stub::*;
+pub use default::*;

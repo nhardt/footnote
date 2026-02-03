@@ -7,10 +7,6 @@ edition = "2018"
 [lib]
 crate-type = ["staticlib", "cdylib", "rlib"]
 
-[[bin]]
-name = "footnote_mobile_desktop"
-path = "gen/bin/desktop.rs"
-
 [package.metadata.cargo-android]
 app-activity-name = "wiki.footnote.app.MainActivity"
 app-dependencies = [
