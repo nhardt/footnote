@@ -11,21 +11,25 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt install -y libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev
+          sudo apt install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev lld
 
       - name: Install Tailwind CSS CLI
-        run: npm install -D tailwindcss
+        run: npm install tailwindcss @tailwindcss/cli
 
       - name: Generate Tailwind CSS
-        run: npx tailwindcss -i ./apps/footnote-ui/assets/main.css -o ./apps/footnote-ui/assets/tailwind.css --minify
+        working-directory: apps/footnote-ui
+        run: npx tailwindcss -i ./assets/main.css -o ./assets/tailwind.css --minify
 
-      - name: Unit Test
-        run: cargo test --verbose
+      - name: Build
+        run: cargo build --verbose
+      - name: Run tests
+        run: cargo test --verbose --all-features
 
   bundle:
     needs: test
