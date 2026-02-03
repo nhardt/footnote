@@ -54,11 +54,6 @@ enum Route {
     Profile {},
 }
 
-#[cfg(not(target_os = "ios"))]
-const TAILWIND_CSS: Asset = asset!("/assets/tailwind.css");
-#[cfg(not(target_os = "ios"))]
-const MAIN_CSS: Asset = asset!("/assets/main.css");
-
 #[component]
 pub fn App() -> Element {
     // this no longer seems like a good way to do this :crying_laughing_face:
@@ -129,21 +124,21 @@ pub fn App() -> Element {
         ),
     });
 
-    #[cfg(not(target_os = "ios"))]
     rsx! {
-        document::Stylesheet { href: TAILWIND_CSS }
-        document::Stylesheet { href: MAIN_CSS }
-        document::Meta {
-            name: "viewport",
-            content: "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover",
+        {
+            #[cfg(not(target_os = "ios"))]
+            rsx! {
+                document::Stylesheet { href: asset!("/assets/tailwind.css") }
+                document::Stylesheet { href: asset!("/assets/main.css") }
+            }
         }
-        Router::<Route> {}
-    }
-
-    #[cfg(target_os = "ios")]
-    rsx! {
-        document::Link { rel: "stylesheet", href: "/assets/tailwind.css" }
-        document::Link { rel: "stylesheet", href: "/assets/main.css" }
+        {
+            #[cfg(target_os = "ios")]
+            rsx! {
+                document::Link { rel: "stylesheet", href: "/assets/tailwind.css" }
+                document::Link { rel: "stylesheet", href: "/assets/main.css" }
+            }
+        }
         document::Meta {
             name: "viewport",
             content: "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover",
