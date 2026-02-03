@@ -21,9 +21,6 @@ use views::contact_view::ContactBrowser;
 use views::note_view::NoteView;
 use views::profile_view::Profile;
 
-#[cfg(feature = "cli")]
-pub mod cli;
-
 #[unsafe(no_mangle)]
 pub extern "C" fn start_footnote_app() {
     dioxus::launch(App);
