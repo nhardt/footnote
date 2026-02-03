@@ -15,8 +15,10 @@ use crate::components::pair_with_listening_device_modal::{
 use crate::components::share_my_contact_modal::{ShareMyContactModal, ShareMyContactModalVisible};
 use crate::context::AppContext;
 use footnote_core::model::vault::{Vault, VaultState};
-use footnote_core::util::filesystem::hack_ensure_default_vault;
+use footnote_core::util::filesystem::ensure_vault_at_path;
 use footnote_core::util::manifest::create_manifest_local;
+use std::path::PathBuf;
+use std::{env, fs};
 use views::contact_view::ContactBrowser;
 use views::note_view::NoteView;
 use views::profile_view::Profile;
@@ -112,7 +114,22 @@ pub fn App() -> Element {
         });
     });
 
-    let vault_path = hack_ensure_default_vault()?;
+    let path_key = "FOOTNOTE_PATH";
+    let vault_name_key = "FOOTNOTE_VAULT";
+
+    let vault_path = match env::var(path_key) {
+        Ok(ref val) if val.is_empty() => crate::platform::get_app_dir()?,
+        Ok(val) => PathBuf::from(val),
+        Err(_) => crate::platform::get_app_dir()?,
+    };
+
+    let vault_name = match env::var(vault_name_key) {
+        Ok(ref val) if val.is_empty() => "footnote.wiki".to_string(),
+        Ok(val) => val,
+        Err(_) => "footnote.wiki".to_string(),
+    };
+
+    let vault_path = ensure_vault_at_path(&vault_path, &vault_name)?;
     let vault = Vault::new(&vault_path)?;
     use_context_provider(|| AppContext {
         vault: Signal::new(vault.clone()),

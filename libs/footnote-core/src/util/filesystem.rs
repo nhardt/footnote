@@ -1,7 +1,8 @@
 use crate::model::vault::{Vault, VaultState};
 use anyhow::Result;
 use std::{
-    env, fs,
+    fs,
+    path::Path,
     path::PathBuf,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -9,22 +10,8 @@ use std::{
 /// mvp: ensure the user has a footnote.wiki in their home directory
 /// mvp+1: allow custom via env var
 /// mvp+2: if on disk metadata is inconsistent, clean up and start standalone
-pub fn hack_ensure_default_vault() -> Result<PathBuf> {
-    let path_key = "FOOTNOTE_PATH";
-    let vault_name_key = "FOOTNOTE_VAULT";
-
-    let vault_path = match env::var(path_key) {
-        Ok(ref val) if val.is_empty() => crate::platform::get_app_dir()?,
-        Ok(val) => PathBuf::from(val),
-        Err(_) => crate::platform::get_app_dir()?,
-    };
-
-    let vault_name = match env::var(vault_name_key) {
-        Ok(ref val) if val.is_empty() => "footnote.wiki".to_string(),
-        Ok(val) => val,
-        Err(_) => "footnote.wiki".to_string(),
-    };
-
+/// mvp+3: take in path and name (this file is poorly named)
+pub fn ensure_vault_at_path(vault_path: &Path, vault_name: &str) -> Result<PathBuf> {
     let default_vault_dir = vault_path.join(vault_name);
     fs::create_dir_all(&default_vault_dir)?;
     let vault = Vault::new(&default_vault_dir)?;
