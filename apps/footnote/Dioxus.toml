@@ -8,8 +8,8 @@ name = "Footnote"
 identifier = "wiki.footnote.app"
 publisher = "Nate Hardt"
 icon = [
-    "assets/icon.png",
-    "assets/icon.icns",
-    "assets/icon.ico"
+    "icons/icon.png",
+    "icons/icon.icns",
+    "icons/icon.ico"
 ]
 asset_dir = "assets"
