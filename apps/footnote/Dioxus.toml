@@ -7,5 +7,9 @@ name = "Footnote"
 [bundle]
 identifier = "wiki.footnote.app"
 publisher = "Nate Hardt"
-icon = ["assets/icon.png"]
-resources = ["assets/*"]
+icon = [
+    "assets/icon.png",
+    "assets/icon.icns",
+    "assets/icon.ico"
+]
+asset_dir = "assets"
