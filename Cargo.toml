@@ -2,7 +2,7 @@
 members = [
     "libs/footnote-core",
     "apps/footnote-cli",
-    "apps/footnote-ui",
+    "apps/footnote",
     "apps/footnote-mobile",
 ]
 resolver = "2"

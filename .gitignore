@@ -1,7 +1,7 @@
 /target
 data
 .keys
-apps/footnote-ui/assets/tailwind.css
+apps/footnote/assets/tailwind.css
 external
 node_modules/
 third-party/

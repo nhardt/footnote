@@ -25,7 +25,7 @@
 		171A57A0A9285C24F192CAD6 /* lib.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = lib.rs; sourceTree = "<group>"; };
 		372CA31529AA37ABF8414C01 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		72BCBCC67DEA1DB697414E41 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
-		7392F0842F3166680086060E /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = assets; path = "../../../footnote-ui/assets"; sourceTree = "<group>"; };
+		7392F0842F3166680086060E /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = assets; path = "../../../footnote/assets"; sourceTree = "<group>"; };
 		7392F0862F3167350086060E /* Media.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Media.xcassets; sourceTree = "<group>"; };
 		7392F08E2F31AB650086060E /* libfootnote_mobile.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libfootnote_mobile.a; path = "Sources/aarch64-apple-ios/release/libfootnote_mobile.a"; sourceTree = "<group>"; };
 		7BD34B4EE4829DE5BD271D53 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
