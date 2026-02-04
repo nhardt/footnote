@@ -1,4 +1,4 @@
-name: Bundle and Release
+name: Release
 on:
   push:
     branches: ["main"]
