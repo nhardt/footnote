@@ -23,7 +23,7 @@ jobs:
         run: npm install tailwindcss @tailwindcss/cli
 
       - name: Generate Tailwind CSS
-        working-directory: apps/footnote-ui
+        working-directory: apps/footnote
         run: npx tailwindcss -i ./assets/main.css -o ./assets/tailwind.css --minify
 
       - name: Build
@@ -60,7 +60,7 @@ jobs:
         uses: sravinet/toml-select@v1.0.1
         id: version_number
         with:
-          file: "apps/footnote-ui/Cargo.toml"
+          file: "apps/footnote/Cargo.toml"
           field: "package.version"
 
       - name: Validate git version tag matches version in Cargo.toml
@@ -107,13 +107,13 @@ jobs:
       - name: Setup Android resources
         if: matrix.platform == 'android'
         run: |
-          mkdir -p ./target/dx/footnote-ui/release/android/app/app/src/main/res/xml
-          cp apps/footnote-ui/platform_build/file_paths.xml ./target/dx/footnote-ui/release/android/app/app/src/main/res/xml/
+          mkdir -p ./target/dx/footnote/release/android/app/app/src/main/res/xml
+          cp apps/footnote/platform_build/file_paths.xml ./target/dx/footnote/release/android/app/app/src/main/res/xml/
 
       - name: Bundle
         env:
           NO_STRIP: ${{ matrix.no_strip || 'false' }}
-        working-directory: apps/footnote-ui
+        working-directory: apps/footnote
         run: dx bundle --release --platform ${{ matrix.platform }}
 
       - name: Upload Artifacts

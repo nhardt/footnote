@@ -24,7 +24,7 @@ jobs:
         run: npm install tailwindcss @tailwindcss/cli
 
       - name: Generate Tailwind CSS
-        working-directory: apps/footnote-ui
+        working-directory: apps/footnote
         run: npx tailwindcss -i ./assets/main.css -o ./assets/tailwind.css --minify
 
       - name: Build
