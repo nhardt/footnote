@@ -1,9 +1,13 @@
 use dioxus::prelude::*;
 
+use footnote_core::model::vault::{Vault, VaultState};
+
 use crate::context::AppContext;
 use crate::route::Route;
 
-use footnote_core::model::vault::{Vault, VaultState};
+use crate::modal::listen_for_pair_modal::ListenForPairModalVisible;
+use crate::modal::pair_with_listening_device_modal::PairWithListeningDeviceModalVisible;
+use crate::modal::share_my_contact_modal::ShareMyContactModalVisible;
 
 #[component]
 pub fn HeaderMenu() -> Element {
@@ -30,7 +34,6 @@ pub fn HeaderMenu() -> Element {
                 }
             }
         }
-
 
         div {
             class: "fixed inset-0 bg-black/60 backdrop-blur-sm z-40",
@@ -74,7 +77,6 @@ pub fn HeaderMenu() -> Element {
                         MenuButton {
                             label: "Add Listening Device",
                             onclick: move |_| {
-                                consume_context::<ListeningDeviceUrl>().set("".to_string());
                                 consume_context::<PairWithListeningDeviceModalVisible>().set(true);
                                 menu_visible().set(false);
                             }

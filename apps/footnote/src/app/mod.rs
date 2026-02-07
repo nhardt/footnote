@@ -11,11 +11,6 @@ use footnote_core::model::vault::{Vault, VaultState};
 use footnote_core::util::filesystem::ensure_vault_at_path;
 use footnote_core::util::manifest::create_manifest_local;
 
-#[unsafe(no_mangle)]
-pub extern "C" fn start_footnote_app() {
-    dioxus::launch(App);
-}
-
 #[cfg(target_os = "android")]
 use {
     crate::platform::{
@@ -27,6 +22,11 @@ use {
 
 #[cfg(target_os = "ios")]
 use crate::platform::{send_incoming_file, take_file_receiver};
+
+#[unsafe(no_mangle)]
+pub extern "C" fn start_footnote_app() {
+    dioxus::launch(App);
+}
 
 #[component]
 pub fn App() -> Element {

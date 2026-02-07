@@ -2,6 +2,8 @@ use dioxus::prelude::*;
 
 pub mod menu;
 
+use menu::HeaderMenu;
+
 #[component]
 pub fn Header(children: Element) -> Element {
     rsx! {
