@@ -8,11 +8,12 @@ use crate::{
     },
     context::AppContext,
 };
+use dioxus::prelude::*;
 use footnote_core::model::note::Note;
 use footnote_core::util::tree_node::{build_tree_from_manifest, TreeNode};
-use dioxus::prelude::*;
 use indexmap::IndexMap;
 use regex::bytes::Regex;
+use std::fs;
 use std::path::PathBuf;
 use uuid::Uuid;
 
@@ -95,8 +96,6 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
                 .entry((&name).to_string())
                 .or_insert(String::new());
         }
-
-        tracing::info!("sync'd {} footnotes", footnotes_vec.len());
         footnotes_signal.set(footnotes_vec);
     };
 
@@ -164,33 +163,117 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
         }
     };
 
+    /// Semantics for navigating:
+    /// - if footnote_text is http(s) link, do external nav
+    /// - if footnote_text is footnote link with uuid, do internal nav
+    /// - if source page for link is under footnotes/user and page exists under
+    ///     footnotes/user, navigate
+    /// - if source page for link is under footnotes/user and page does not exist, log and return
+    /// - if vault dir + footnote_text resolves to path under vault dir and vault
+    ///     + footnote_text exists, navigate to it
+    /// - if vault dir + footnote_text resolves to path under vault dir and vault
+    ///     footnote_text does not exist, create and navigate to it
     let navigate_to_footnote = move |footnote_text: String| async move {
         tracing::info!("navigate_to_uuid: {}", footnote_text);
 
-        if let Some(uuid_part) = footnote_text.split("footnote://").nth(1) {
-            if let Ok(uuid) = Uuid::parse_str(&uuid_part) {
-                if let Some(entry) = app_context.manifest.read().get(&uuid) {
-                    tracing::info!(
-                        "found entry for uuid, requesting nav to: {}",
-                        entry.path.to_string_lossy()
-                    );
-                    nav.push(format!(
-                        "/notes/{}",
-                        &app_context
-                            .vault
-                            .read()
-                            .base_path()
-                            .join(&entry.path)
-                            .to_string_lossy()
-                            .to_string()
-                    ));
+        let result: Result<()> = async {
+            if footnote_text.starts_with("http://") || footnote_text.starts_with("https://") {
+                tracing::info!("opening external link in system browser: {}", footnote_text);
+                open::that(&footnote_text).context("failed to open external link")?;
+                return Ok(());
+            } else if let Some(uuid_part) = footnote_text.split("footnote://").nth(1) {
+                if let Ok(uuid) = Uuid::parse_str(&uuid_part) {
+                    if let Some(entry) = app_context.manifest.read().get(&uuid) {
+                        tracing::info!(
+                            "found entry for uuid, requesting nav to: {}",
+                            entry.path.to_string_lossy()
+                        );
+                        nav.push(format!(
+                            "/notes/{}",
+                            &app_context
+                                .vault
+                                .read()
+                                .base_path()
+                                .join(&entry.path)
+                                .to_string_lossy()
+                                .to_string()
+                        ));
+                        return Ok(());
+                    }
                 }
+            } else {
+                let vault_base = app_context.vault.read().base_path();
+                let canonical_footnotes = vault_base.join("footnotes").canonicalize()?;
+                let current_note_path = loaded_note_full_path()
+                    .as_str()
+                    .parse::<PathBuf>()
+                    .context("invalid path")?
+                    .canonicalize()?;
+
+                if let Ok(relative) = current_note_path.strip_prefix(&canonical_footnotes) {
+                    if let Some(remote_user_dir) = relative.components().next() {
+                        tracing::info!(
+                            "current path is in {}, will see if relative path exists",
+                            remote_user_dir.as_os_str().to_string_lossy()
+                        );
+                        // since we clicked:
+                        // - a link from a document that is not ours,
+                        // - the link is not an known url
+                        // - it is not a link by uuid
+                        // we will see if the relative path exists
+                        let relative_path = canonical_footnotes
+                            .join(remote_user_dir.as_os_str())
+                            .join(&footnote_text);
+
+                        if relative_path.exists() {
+                            nav.push(format!("/notes/{}", relative_path.to_string_lossy()));
+                            return Ok(());
+                        } else {
+                            // if, not, this is just a link in a doc we don't have
+                            tracing::info!(
+                                "link from footnotes/ to non-existent file, not creating: {}",
+                                footnote_text
+                            );
+                            return Ok(());
+                        }
+                    }
+                }
+
+                let path = PathBuf::from(&footnote_text);
+                let full_path = vault_base.join(&path);
+                let canonical_base = vault_base.canonicalize()?;
+
+                let canonical_full = if full_path.exists() {
+                    full_path.canonicalize()?
+                } else {
+                    let parent = full_path.parent().context("no parent")?;
+                    fs::create_dir_all(parent)?;
+                    parent
+                        .canonicalize()?
+                        .join(full_path.file_name().context("no filename")?)
+                };
+
+                if !canonical_full.starts_with(&canonical_base) {
+                    tracing::info!(
+                        "this is not a local link, will not create file: {}",
+                        footnote_text
+                    );
+                    return Ok(());
+                }
+
+                // Create file if needed, then navigate
+                if !canonical_full.exists() {
+                    fs::write(&canonical_full, "")?;
+                }
+                nav.push(format!("/notes/{}", canonical_full.to_string_lossy()));
             }
-        } else if footnote_text.starts_with("http://") || footnote_text.starts_with("https://") {
-            tracing::info!("opening external link in system browser: {}", footnote_text);
-            if let Err(e) = open::that(&footnote_text) {
-                tracing::error!("failed to open link: {}", e);
-            }
+
+            Ok(())
+        }
+        .await;
+
+        if let Err(e) = result {
+            tracing::error!("navigation failed: {}", e);
         }
     };
 
