@@ -1,24 +1,15 @@
-use crate::header::Header;
+pub mod body;
+pub mod header;
+pub mod modal;
+pub mod route;
 
-use crate::components::app_menu::AppMenuVisible;
-use crate::components::import_contact_modal::{
-    ImportContactModal, ImportContactModalVisible, ImportedContactString,
-};
-use crate::components::listen_for_pair_modal::{ListenForPairModal, ListenForPairModalVisible};
-use crate::components::pair_with_listening_device_modal::{
-    ListeningDeviceUrl, PairWithListeningDeviceModal, PairWithListeningDeviceModalVisible,
-};
-use crate::components::share_my_contact_modal::{ShareMyContactModal, ShareMyContactModalVisible};
-use crate::context::AppContext;
 use dioxus::prelude::*;
+use std::env;
+use std::path::PathBuf;
+
 use footnote_core::model::vault::{Vault, VaultState};
 use footnote_core::util::filesystem::ensure_vault_at_path;
 use footnote_core::util::manifest::create_manifest_local;
-use std::env;
-use std::path::PathBuf;
-use views::contact_view::ContactBrowser;
-use views::note_view::NoteView;
-use views::profile_view::Profile;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn start_footnote_app() {
@@ -37,25 +28,8 @@ use {
 #[cfg(target_os = "ios")]
 use crate::platform::{send_incoming_file, take_file_receiver};
 
-#[derive(Debug, Clone, Routable, PartialEq)]
-enum Route {
-    #[layout(Main)]
-    #[route("/")]
-    NoteDefault {},
-
-    #[route("/notes/:..file_path_segments")]
-    NoteView { file_path_segments: Vec<String> },
-
-    #[route("/contacts")]
-    ContactBrowser {},
-
-    #[route("/profile")]
-    Profile {},
-}
-
 #[component]
 pub fn App() -> Element {
-    use_context_provider(|| AppMenuVisible(Signal::new(false)));
     use_context_provider(|| ImportContactModalVisible(Signal::new(false)));
     use_context_provider(|| ImportedContactString(Signal::new(String::new())));
     use_context_provider(|| PairWithListeningDeviceModalVisible(Signal::new(false)));

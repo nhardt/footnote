@@ -299,63 +299,6 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
             SyncServiceToggle {}
         }
 
-        AppMenu {
-            visible: menu_visible(),
-            on_close: move |_| menu_visible.set(false),
-
-
-            MenuButton {
-                label: "← Back",
-                onclick: move |_| {
-                    nav.go_back();
-                    menu_visible.set(false);
-                }
-            }
-
-            MenuButton {
-                label: "→ Forward",
-                onclick: move |_| {
-                    nav.go_forward();
-                    menu_visible.set(false);
-                }
-            }
-
-            MenuButton {
-                label: "New Note",
-                onclick: move |_| {
-                    show_new_note_modal.set(true);
-                    menu_visible.set(false);
-                }
-            }
-
-            MenuButton {
-                label: "Open...",
-                onclick: move |_| {
-                    let mut app_context = use_context::<AppContext>();
-                    if app_context.reload_manifest().is_ok() {
-                        show_open_modal.set(true);
-                    }
-                    menu_visible.set(false);
-                }
-            }
-
-            MenuButton {
-                label: "Share...",
-                onclick: move |_| {
-                    show_share_modal.set(true);
-                    menu_visible.set(false);
-                }
-            }
-
-            MenuButton {
-                label: "Save as...",
-                onclick: move |_| {
-                    show_save_as_modal.set(true);
-                    menu_visible.set(false);
-                }
-            }
-        }
-
         div {
             class: "flex-1 overflow-y-auto",
 

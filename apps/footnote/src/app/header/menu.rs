@@ -1,60 +1,40 @@
-use crate::{
-    components::{
-        listen_for_pair_modal::ListenForPairModalVisible,
-        pair_with_listening_device_modal::{
-            ListeningDeviceUrl, PairWithListeningDeviceModalVisible,
-        },
-        share_my_contact_modal::ShareMyContactModalVisible,
-    },
-    context::AppContext,
-    Route,
-};
-use footnote_core::model::vault::VaultState;
 use dioxus::prelude::*;
 
-#[derive(Clone, Copy, PartialEq)]
-pub struct AppMenuVisible(pub Signal<bool>);
+use crate::context::AppContext;
+use crate::route::Route;
 
-impl AppMenuVisible {
-    pub fn set(&mut self, value: bool) {
-        self.0.set(value);
-    }
-}
+use footnote_core::model::vault::{Vault, VaultState};
 
 #[component]
-pub fn MenuButton(label: &'static str, onclick: EventHandler<MouseEvent>) -> Element {
-    rsx! {
-        button {
-            class: "w-full px-4 py-3 text-left text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 rounded-lg transition-colors",
-            onclick: onclick,
-            "{label}"
-        }
-    }
-}
-
-#[component]
-pub fn MenuDivider() -> Element {
-    rsx! {
-        div {
-            class: "my-2 border-t border-zinc-800"
-        }
-    }
-}
-
-#[component]
-pub fn AppMenu(visible: bool, on_close: EventHandler, children: Element) -> Element {
+pub fn HeaderMenu() -> Element {
     let nav = use_navigator();
     let mut app_context = use_context::<AppContext>();
     let vault_state = app_context.vault_state;
-
-    if !visible {
-        return rsx! {};
-    }
+    let mut menu_visible = use_signal(|| false);
 
     rsx! {
+        button {
+            class: "p-2 -ml-2 hover:bg-zinc-800 rounded-lg transition-colors",
+            onclick: move |_| menu_visible.set(true),
+            aria_label: "Menu",
+            svg {
+                class: "w-5 h-5",
+                fill: "none",
+                stroke: "currentColor",
+                view_box: "0 0 24 24",
+                path {
+                    d: "M4 6h16M4 12h16M4 18h16",
+                    stroke_linecap: "round",
+                    stroke_linejoin: "round",
+                    stroke_width: "2",
+                }
+            }
+        }
+
+
         div {
             class: "fixed inset-0 bg-black/60 backdrop-blur-sm z-40",
-            onclick: move |_| on_close.call(()),
+            onclick: move |_| menu_visible().set(false),
         }
 
         div {
@@ -69,28 +49,14 @@ pub fn AppMenu(visible: bool, on_close: EventHandler, children: Element) -> Elem
                 }
             }
 
-            nav {
-                class: "flex-1 overflow-y-auto p-2",
-
-                MenuButton {
-                    label: "Home",
-                    onclick: move |_| {
-                        nav.push(Route::NoteDefault {});
-                        on_close.call(());
-                    }
-                }
-
-                {children}
-            }
-
             div {
                 class: "p-2 border-t border-zinc-800",
 
                 MenuButton {
-                    label: "Notes",
+                    label: "Home",
                     onclick: move |_| {
-                        nav.push(Route::NoteDefault {});
-                        on_close.call(());
+                        nav.push(Route::Home {});
+                        menu_visible().set(false);
                     }
                 }
 
@@ -101,7 +67,7 @@ pub fn AppMenu(visible: bool, on_close: EventHandler, children: Element) -> Elem
                             label: "Device List",
                             onclick: move |_| {
                                 nav.push(Route::Profile {});
-                                consume_context::<AppMenuVisible>().set(false);
+                                menu_visible().set(false);
                             }
                         }
 
@@ -110,7 +76,7 @@ pub fn AppMenu(visible: bool, on_close: EventHandler, children: Element) -> Elem
                             onclick: move |_| {
                                 consume_context::<ListeningDeviceUrl>().set("".to_string());
                                 consume_context::<PairWithListeningDeviceModalVisible>().set(true);
-                                consume_context::<AppMenuVisible>().set(false);
+                                menu_visible().set(false);
                             }
                         }
 
@@ -118,7 +84,7 @@ pub fn AppMenu(visible: bool, on_close: EventHandler, children: Element) -> Elem
                             label: "Share Contact Record",
                             onclick: move |_| {
                                 consume_context::<ShareMyContactModalVisible>().set(true);
-                                consume_context::<AppMenuVisible>().set(false);
+                                menu_visible().set(false);
                             }
                         }
 
@@ -126,7 +92,7 @@ pub fn AppMenu(visible: bool, on_close: EventHandler, children: Element) -> Elem
                             label: "Contacts",
                             onclick: move |_| {
                                 nav.push(Route::ContactBrowser {});
-                                consume_context::<AppMenuVisible>().set(false);
+                                menu_visible().set(false);
                             }
                         }
 
@@ -139,7 +105,7 @@ pub fn AppMenu(visible: bool, on_close: EventHandler, children: Element) -> Elem
                                         tracing::warn!("failed to reload app: {}", e);
                                     }
                                 }
-                                consume_context::<AppMenuVisible>().set(false);
+                                menu_visible().set(false);
                             }
                         }
                     },
@@ -149,7 +115,7 @@ pub fn AppMenu(visible: bool, on_close: EventHandler, children: Element) -> Elem
                             label: "Share Contact Record*",
                             onclick: move |_| {
                                 consume_context::<ShareMyContactModalVisible>().set(true);
-                                consume_context::<AppMenuVisible>().set(false);
+                                menu_visible().set(false);
                             }
                         }
 
@@ -157,7 +123,7 @@ pub fn AppMenu(visible: bool, on_close: EventHandler, children: Element) -> Elem
                             label: "Device List*",
                             onclick: move |_| {
                                 nav.push(Route::Profile {});
-                                consume_context::<AppMenuVisible>().set(false);
+                                menu_visible().set(false);
                             }
                         }
 
@@ -165,7 +131,7 @@ pub fn AppMenu(visible: bool, on_close: EventHandler, children: Element) -> Elem
                             label: "Contacts*",
                             onclick: move |_| {
                                 nav.push(Route::ContactBrowser {});
-                                consume_context::<AppMenuVisible>().set(false);
+                                menu_visible().set(false);
                             }
                         }
 
@@ -178,7 +144,7 @@ pub fn AppMenu(visible: bool, on_close: EventHandler, children: Element) -> Elem
                                         tracing::warn!("failed to reload app, probably should crash: {}", e);
                                     }
                                 }
-                                consume_context::<AppMenuVisible>().set(false);
+                                menu_visible().set(false);
                             }
                         }
 
@@ -199,19 +165,39 @@ pub fn AppMenu(visible: bool, on_close: EventHandler, children: Element) -> Elem
                                         tracing::warn!("failed to reload app: {}", e);
                                     }
                                 }
-                                consume_context::<AppMenuVisible>().set(false);
+                                menu_visible().set(false);
                             }
                         }
                         MenuButton {
                             label: "Join Device Group",
                             onclick: move |_| {
                                 consume_context::<ListenForPairModalVisible>().set(true);
-                                consume_context::<AppMenuVisible>().set(false);
+                                menu_visible().set(false);
                             }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+#[component]
+pub fn MenuButton(label: &'static str, onclick: EventHandler<MouseEvent>) -> Element {
+    rsx! {
+        button {
+            class: "w-full px-4 py-3 text-left text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 rounded-lg transition-colors",
+            onclick: onclick,
+            "{label}"
+        }
+    }
+}
+
+#[component]
+pub fn MenuDivider() -> Element {
+    rsx! {
+        div {
+            class: "my-2 border-t border-zinc-800"
         }
     }
 }
