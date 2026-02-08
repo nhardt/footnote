@@ -69,9 +69,12 @@ pub fn SyncServiceToggle() -> Element {
     };
     rsx! {
         button {
-            class: "text-sm font-mono text-zinc-400",
+            class: "flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors",
             onclick: toggle_listener,
-            if listening() { "Sync: On" } else { "Sync: Off" }
+            div {
+                class: if listening() { "h-2.5 w-2.5 rounded-full bg-emerald-500" } else { "h-2.5 w-2.5 rounded-full bg-zinc-600" }
+            }
+            "Sync"
         }
     }
 }
