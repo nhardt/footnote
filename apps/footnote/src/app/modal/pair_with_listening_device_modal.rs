@@ -1,5 +1,9 @@
 use dioxus::prelude::*;
 
+use footnote_core::service::join_service::JoinService;
+
+use crate::context::AppContext;
+
 #[derive(Clone, Copy, PartialEq)]
 pub struct PairWithListeningDeviceModalVisible(pub Signal<bool>);
 

@@ -11,6 +11,13 @@ use footnote_core::model::vault::{Vault, VaultState};
 use footnote_core::util::filesystem::ensure_vault_at_path;
 use footnote_core::util::manifest::create_manifest_local;
 
+use crate::modal::import_contact_modal::ImportedContactString;
+use crate::modal::listen_for_pair_modal::ListenForPairModalVisible;
+use crate::modal::pair_with_listening_device_modal::{
+    ListeningDeviceUrl, PairWithListeningDeviceModalVisible,
+};
+use crate::modal::share_my_contact_modal::ShareMyContactModalVisible;
+
 #[cfg(target_os = "android")]
 use {
     crate::platform::{
