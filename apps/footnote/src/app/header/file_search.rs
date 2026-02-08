@@ -57,10 +57,12 @@ pub fn FileSearch() -> Element {
     });
 
     rsx! {
-        div { class: "file-search",
+        div {
+            class: "flex-1 relative",
             input {
                 r#type: "text",
-                placeholder: "Search files...",
+                class: "w-full px-3 py-1.5 bg-zinc-900 border border-zinc-700 rounded-md text-sm font-mono text-zinc-100 placeholder-zinc-500 focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
+                placeholder: "Search notes, contacts...",
                 value: "{search_input}",
                 onfocus: move |_| dropdown_open.set(true),
                 oninput: move |evt| {
@@ -68,7 +70,6 @@ pub fn FileSearch() -> Element {
                     dropdown_open.set(!evt.value().is_empty());
                 },
                 onblur: move |_| {
-                    // Delay hiding to allow click on dropdown
                     let mut dropdown_open = dropdown_open.clone();
                     spawn(async move {
                         tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
@@ -77,11 +78,12 @@ pub fn FileSearch() -> Element {
                 },
             }
             if dropdown_open() && !filtered_files().is_empty() {
-                div { class: "search-dropdown",
+                div {
+                    class: "absolute top-full left-0 right-0 mt-1 bg-zinc-900 border border-zinc-700 rounded-md shadow-2xl z-50 max-h-64 overflow-y-auto",
                     for path in filtered_files() {
                         {
                             let file = path.to_string_lossy().to_string();
-                            let segments : Vec<String> = path.components()
+                            let segments: Vec<String> = path.components()
                                 .filter_map(|component| {
                                     match component {
                                         Component::Normal(os_str) => Some(os_str.to_string_lossy().into_owned()),
@@ -90,17 +92,29 @@ pub fn FileSearch() -> Element {
                                 })
                                 .collect();
 
+                            let display_name = path.file_stem()
+                                .and_then(|s| s.to_str())
+                                .unwrap_or("(unnamed)");
 
                             rsx! {
-                                div {
+                                button {
                                     key: "{file}",
-                                    class: "list-item",
+                                    class: "w-full px-3 py-2 text-left hover:bg-zinc-800 text-sm",
                                     onclick: move |_| {
                                         nav.push(Route::NoteView { file_path_segments: segments.clone() });
                                         search_input.set(String::new());
                                         dropdown_open.set(false);
                                     },
-                                    "{file}"
+                                    div {
+                                        class: "flex items-center gap-3",
+                                        span {
+                                            class: "text-zinc-500 text-xs font-mono w-16",
+                                            "Note"
+                                        }
+                                        span {
+                                            "{display_name}.md"
+                                        }
+                                    }
                                 }
                             }
                         }
