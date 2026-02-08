@@ -1,5 +1,5 @@
-use crate::components::footnote_editor::FootnoteEditor;
 use dioxus::prelude::*;
+
 use indexmap::IndexMap;
 
 #[component]

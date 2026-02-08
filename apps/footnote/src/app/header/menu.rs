@@ -91,6 +91,14 @@ pub fn HeaderMenu() -> Element {
                         }
 
                         MenuButton {
+                            label: "Import Contact",
+                            onclick: move |_| {
+                                consume_context::<ImportContactModalVisible>().set(true);
+                                menu_visible.set(false);
+                            },
+                        }
+
+                        MenuButton {
                             label: "Contacts",
                             onclick: move |_| {
                                 nav.push(Route::ContactBrowser {});

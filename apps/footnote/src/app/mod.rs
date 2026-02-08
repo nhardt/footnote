@@ -173,5 +173,19 @@ fn Main() -> Element {
             ListenForPairModal {}
         }
 
+        if show_new_note_modal() {
+            NewNoteModal {
+                ondone: move |_| show_new_note_modal.set(false)
+            }
+        }
+
+        if show_open_modal() {
+            NoteSelectModal {
+                oncancel: move |_| show_open_modal.set(false),
+                onselect: move |_| show_open_modal.set(false)
+            }
+        }
+
+
     }
 }

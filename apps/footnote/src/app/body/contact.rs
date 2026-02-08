@@ -1,52 +1,15 @@
-use crate::{
-    components::{
-        app_header::AppHeader,
-        app_menu::{AppMenu, MenuButton, MenuDivider},
-        import_contact_modal::ImportContactModalVisible,
-    },
-    context::AppContext,
-};
+use dioxus::prelude::*;
+
 use footnote_core::model::contact::Contact;
 use footnote_core::model::device::Device;
 use footnote_core::util::sync_status_record::{SyncDirection, SyncStatusRecord};
-use dioxus::prelude::*;
-
-fn truncate_endpoint_id(id: &str) -> String {
-    if id.len() > 9 {
-        format!("{}...{}", &id[..4], &id[id.len() - 5..])
-    } else {
-        id.to_string()
-    }
-}
 
 #[component]
 pub fn ContactBrowser() -> Element {
     let app_context = use_context::<AppContext>();
     let contact_list = app_context.contacts.read().clone();
 
-    let mut menu_visible = use_signal(|| false);
-
     rsx! {
-        AppHeader { on_menu_click: move |_| menu_visible.set(true),
-            h1 { class: "flex-1 text-center text-sm font-medium text-zinc-300", "Contacts" }
-            div { class: "w-8" }
-        }
-
-        AppMenu {
-            visible: menu_visible(),
-            on_close: move |_| menu_visible.set(false),
-
-            MenuDivider {}
-
-            MenuButton {
-                label: "Import Contact",
-                onclick: move |_| {
-                    consume_context::<ImportContactModalVisible>().set(true);
-                    menu_visible.set(false);
-                },
-            }
-        }
-
         main { class: "flex-1 overflow-y-auto",
             div { class: "max-w-3xl mx-auto px-4 py-6 sm:px-6",
                 div { class: "space-y-2",
@@ -157,5 +120,13 @@ fn DeviceItem(device: Device) -> Element {
                 div { class: "text-xs text-zinc-400", "Last inbound: {status.files_transferred} files" }
             }
         }
+    }
+}
+
+fn truncate_endpoint_id(id: &str) -> String {
+    if id.len() > 9 {
+        format!("{}...{}", &id[..4], &id[id.len() - 5..])
+    } else {
+        id.to_string()
     }
 }

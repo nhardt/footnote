@@ -1,21 +1,20 @@
-use crate::{
-    components::{
-        app_header::AppHeader,
-        app_menu::{AppMenu, MenuButton},
-        footnotes::Footnotes,
-        new_note_modal::NewNoteModal,
-        sync_service_toggle::SyncServiceToggle,
-    },
-    context::AppContext,
-};
+mod footnote_editor;
+mod footnotes;
+
 use dioxus::prelude::*;
-use footnote_core::model::note::Note;
-use footnote_core::util::tree_node::{build_tree_from_manifest, TreeNode};
+
 use indexmap::IndexMap;
 use regex::bytes::Regex;
 use std::fs;
 use std::path::PathBuf;
 use uuid::Uuid;
+
+use crate::{
+    components::{new_note_modal::NewNoteModal, sync_service_toggle::SyncServiceToggle},
+    context::AppContext,
+};
+use footnote_core::model::note::Note;
+use footnote_core::util::tree_node::{build_tree_from_manifest, TreeNode};
 
 #[derive(Clone, Copy, PartialEq)]
 enum SaveStatus {
@@ -296,7 +295,6 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
                 onclick: move |_| save_note(None),
                 "{status_icon}"
             }
-            SyncServiceToggle {}
         }
 
         div {
@@ -325,18 +323,6 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
             }
         }
 
-        if show_new_note_modal() {
-            NewNoteModal {
-                ondone: move |_| show_new_note_modal.set(false)
-            }
-        }
-
-        if show_open_modal() {
-            NoteSelectModal {
-                oncancel: move |_| show_open_modal.set(false),
-                onselect: move |_| show_open_modal.set(false)
-            }
-        }
 
         if show_share_modal() {
             ShareWithModal {
