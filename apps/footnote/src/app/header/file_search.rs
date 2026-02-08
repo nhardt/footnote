@@ -11,6 +11,7 @@ use crate::route::Route;
 pub fn FileSearch() -> Element {
     let app_context = use_context::<AppContext>();
     let search_path = app_context.vault.read().base_path();
+    let vault_path = app_context.vault.read().base_path();
 
     let nav = use_navigator();
 
@@ -80,7 +81,11 @@ pub fn FileSearch() -> Element {
                     for path in filtered_files() {
                         {
                             let file = path.to_string_lossy().to_string();
-                            let segments: Vec<String> = path.components()
+                            let Ok(relative_path) = path.strip_prefix(&vault_path) else {
+                                return rsx!{};
+                            };
+                            let segments: Vec<String> = relative_path
+                                .components()
                                 .filter_map(|component| {
                                     match component {
                                         Component::Normal(os_str) => Some(os_str.to_string_lossy().into_owned()),

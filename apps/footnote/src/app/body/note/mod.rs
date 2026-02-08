@@ -37,19 +37,22 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
     let mut loaded_note_full_path = use_signal(move || String::new());
 
     use_effect(move || {
-        let full_path = file_path_segments().join("/");
-        tracing::info!("loaded note full path changed to: {}", full_path);
+        let vault_path = app_context.vault.read().base_path();
+        let full_path = file_path_segments()
+            .iter()
+            .fold(vault_path, |acc, seg| acc.join(seg));
 
-        let Ok(note) = Note::from_path(PathBuf::from(&full_path), true) else {
-            tracing::info!("note at {}  failed to load", full_path);
-            // TODO: not sure what the error case represents
+        tracing::info!("loaded note full path changed to: {}", full_path.display());
+
+        let Ok(note) = Note::from_path(&full_path, true) else {
+            tracing::info!("note failed to load");
             return;
         };
 
         share_with.set(note.frontmatter.share_with.join(" "));
         body.set(note.content);
         footnotes.set(note.footnotes);
-        loaded_note_full_path.set(full_path);
+        loaded_note_full_path.set(full_path.to_string_lossy().to_string());
     });
 
     // derived from file_path_segments directly
@@ -298,6 +301,7 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
                         }
                         button {
                             class: "px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors",
+                            onclick: move |_| show_share_modal.set(true),
                             "Share"
                         }
                     }
