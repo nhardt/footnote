@@ -53,10 +53,5 @@ pub fn ensure_vault_at_path(vault_path: &Path, vault_name: &str) -> Result<PathB
         _other => {}
     }
 
-    let home_note_file = default_vault_dir.join("home.md");
-    if !home_note_file.exists() {
-        vault.note_create(&home_note_file, "Welcome to footnote.wiki")?
-    }
-
     Ok(default_vault_dir)
 }
