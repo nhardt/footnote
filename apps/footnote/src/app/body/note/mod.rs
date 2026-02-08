@@ -278,42 +278,72 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
     };
 
     rsx! {
-        h1 {
-            class: "flex-1 text-center text-sm font-medium text-zinc-300 truncate px-4",
-            "{relative_path()}"
-        }
-        button {
-            class: "w-8 text-center text-lg {status_class}",
-            onclick: move |_| save_note(None),
-            "{status_icon}"
-        }
-
         div {
             class: "flex-1 overflow-y-auto",
-
             div {
-                class: "max-w-5xl mx-auto px-4 py-6 sm:px-6 space-y-6",
+                class: "max-w-3xl mx-auto px-6 py-6",
+
+                div {
+                    class: "text-xs font-mono text-zinc-500 mb-4",
+                    "{relative_path()}"
+                }
+
+                if !read_only() {
+                    div {
+                        class: "flex items-center gap-2 mb-4",
+                        button {
+                            class: "px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors flex items-center gap-2 {status_class}",
+                            onclick: move |_| save_note(None),
+                            "{status_icon}"
+                        }
+                        button {
+                            class: "px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors",
+                            "Share"
+                        }
+                    }
+                }
+
                 textarea {
                     id: "note-body",
-                    class: "w-full px-4 py-3 bg-zinc-900/30 border border-zinc-800 rounded-lg text-sm font-mono text-zinc-100 focus:border-zinc-700 focus:ring-1 focus:ring-zinc-700 focus:outline-none",
+                    class: "w-full px-4 py-4 bg-zinc-900/30 border border-zinc-800 rounded-lg text-sm font-mono text-zinc-100 focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 focus:outline-none mb-6",
                     style: "min-height: max(60vh, 400px);",
                     onblur: sync_body_to_footnotes,
                     oninput: move |_| save_status.set(SaveStatus::Unsaved),
                     initial_value: "{body}",
                     readonly: read_only,
                 }
-            }
 
-            div {
-                class: "max-w-5xl pt-4 mx-auto px-4 pb-6 sm:px-6",
-                Footnotes {
-                    footnotes: footnotes,
-                    onlink: save_link_to_footnote,
-                    onlinkclick: navigate_to_footnote,
+                div {
+                    class: "mb-6 border border-zinc-800 rounded-lg bg-zinc-900/30",
+                    Footnotes {
+                        footnotes: footnotes,
+                        onlink: save_link_to_footnote,
+                        onlinkclick: navigate_to_footnote,
+                    }
+                }
+
+                div {
+                    class: "border border-zinc-800 rounded-lg bg-zinc-900/30",
+                    div {
+                        class: "px-4 py-3 border-b border-zinc-800 flex items-center justify-between",
+                        h2 {
+                            class: "text-sm font-semibold font-mono text-zinc-400",
+                            "Responses"
+                        }
+                        if read_only() {
+                            button {
+                                class: "px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors",
+                                "Add Response"
+                            }
+                        }
+                    }
+                    div {
+                        class: "px-4 py-4 text-sm text-zinc-500",
+                        "No responses yet"
+                    }
                 }
             }
         }
-
 
         if show_share_modal() {
             ShareWithModal {
