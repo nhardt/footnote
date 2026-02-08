@@ -70,16 +70,13 @@ pub fn FileSearch() -> Element {
                     dropdown_open.set(!evt.value().is_empty());
                 },
                 onblur: move |_| {
-                    let mut dropdown_open = dropdown_open.clone();
-                    spawn(async move {
-                        tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
-                        dropdown_open.set(false);
-                    });
+                    dropdown_open.set(false);
                 },
             }
             if dropdown_open() && !filtered_files().is_empty() {
                 div {
                     class: "absolute top-full left-0 right-0 mt-1 bg-zinc-900 border border-zinc-700 rounded-md shadow-2xl z-50 max-h-64 overflow-y-auto",
+                    onmousedown: move |e| e.prevent_default(),
                     for path in filtered_files() {
                         {
                             let file = path.to_string_lossy().to_string();
