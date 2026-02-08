@@ -1,8 +1,10 @@
 use dioxus::prelude::*;
 
+pub mod file_search;
 pub mod menu;
 pub mod sync_service_toggle;
 
+use file_search::FileSearch;
 use menu::HeaderMenu;
 use sync_service_toggle::SyncServiceToggle;
 
@@ -15,11 +17,7 @@ pub fn Header(children: Element) -> Element {
                 class: "flex items-center justify-between px-4 py-3",
 
                 HeaderMenu {}
-
-                input {
-                    type: "text"
-                }
-
+                FileSearch {  }
                 SyncServiceToggle {}
             }
         }

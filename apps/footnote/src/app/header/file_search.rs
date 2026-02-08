@@ -1,19 +1,28 @@
 use dioxus::prelude::*;
+
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
-use std::path::PathBuf;
+use std::path::{Component, PathBuf};
+
+use crate::context::AppContext;
+use crate::route::Route;
 
 #[component]
-pub fn FileSearch(search_path: PathBuf, on_select: EventHandler<PathBuf>) -> Element {
+pub fn FileSearch() -> Element {
+    let app_context = use_context::<AppContext>();
+    let search_path = app_context.vault.read().base_path();
+
+    let nav = use_navigator();
+
     let mut search_input = use_signal(|| String::new());
     let mut dropdown_open = use_signal(|| false);
-    let search_path_clone = search_path.clone();
 
     let filtered_files = use_memo(move || {
         let query = search_input();
         let path = search_path.clone();
         let mut files = Vec::new();
 
+        // TODO: use manifest
         for entry in walkdir::WalkDir::new(&path)
             .into_iter()
             .filter_map(|e| e.ok())
@@ -72,13 +81,22 @@ pub fn FileSearch(search_path: PathBuf, on_select: EventHandler<PathBuf>) -> Ele
                     for path in filtered_files() {
                         {
                             let file = path.to_string_lossy().to_string();
-                            let file_path = search_path_clone.join(&file);
+                            let segments : Vec<String> = path.components()
+                                .filter_map(|component| {
+                                    match component {
+                                        Component::Normal(os_str) => Some(os_str.to_string_lossy().into_owned()),
+                                        _ => None,
+                                    }
+                                })
+                                .collect();
+
+
                             rsx! {
                                 div {
                                     key: "{file}",
                                     class: "list-item",
                                     onclick: move |_| {
-                                        on_select.call(file_path.clone());
+                                        nav.push(Route::NoteView { file_path_segments: segments.clone() });
                                         search_input.set(String::new());
                                         dropdown_open.set(false);
                                     },
