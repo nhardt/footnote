@@ -22,168 +22,157 @@ pub fn HeaderMenu() -> Element {
             class: "p-2 -ml-2 hover:bg-zinc-800 rounded-lg transition-colors",
             onclick: move |_| menu_visible.set(true),
             aria_label: "Menu",
-            svg {
-                class: "w-5 h-5",
-                fill: "none",
-                stroke: "currentColor",
-                view_box: "0 0 24 24",
-                path {
-                    d: "M4 6h16M4 12h16M4 18h16",
-                    stroke_linecap: "round",
-                    stroke_linejoin: "round",
-                    stroke_width: "2",
-                }
-            }
+            "☰"
         }
 
-        div {
-            class: "fixed inset-0 bg-black/60 backdrop-blur-sm z-40",
-            onclick: move |_| menu_visible.set(false),
-        }
-
-        div {
-            class: "fixed inset-y-0 left-0 w-72 bg-zinc-900 border-r border-zinc-800 z-50 shadow-2xl flex flex-col",
-            onclick: move |e| e.stop_propagation(),
-
+        if menu_visible() {
             div {
-                class: "p-4 border-b border-zinc-800",
-                h2 {
-                    class: "text-lg font-semibold text-zinc-100",
-                    "Footnote"
-                }
+                class: "fixed inset-0 bg-black/60 backdrop-blur-sm z-40",
+                onclick: move |_| menu_visible.set(false),
             }
 
             div {
-                class: "p-2 border-t border-zinc-800",
+                class: "border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm flex-shrink-0",
+                onclick: move |e| e.stop_propagation(),
 
-                MenuButton {
-                    label: "Home",
-                    onclick: move |_| {
-                        nav.push(Route::Home {});
-                        menu_visible.set(false);
+                div {
+                    class: "p-4 border-b border-zinc-800",
+                    h2 {
+                        class: "text-lg font-semibold text-zinc-100",
+                        "Footnote"
                     }
                 }
 
-                match *vault_state.read() {
+                div {
+                    class: "p-2 border-t border-zinc-800",
 
-                    VaultState::Primary => rsx! {
-                        MenuButton {
-                            label: "Device List",
-                            onclick: move |_| {
-                                nav.push(Route::Profile {});
-                                menu_visible.set(false);
-                            }
+                    MenuButton {
+                        label: "Home",
+                        onclick: move |_| {
+                            nav.push(Route::Home {});
+                            menu_visible.set(false);
                         }
+                    }
 
-                        MenuButton {
-                            label: "Add Listening Device",
-                            onclick: move |_| {
-                                consume_context::<PairWithListeningDeviceModalVisible>().set(true);
-                                menu_visible.set(false);
-                            }
-                        }
+                    match *vault_state.read() {
 
-                        MenuButton {
-                            label: "Share Contact Record",
-                            onclick: move |_| {
-                                consume_context::<ShareMyContactModalVisible>().set(true);
-                                menu_visible.set(false);
-                            }
-                        }
-
-                        MenuButton {
-                            label: "Import Contact",
-                            onclick: move |_| {
-                                consume_context::<ImportContactModalVisible>().set(true);
-                                menu_visible.set(false);
-                            },
-                        }
-
-                        MenuButton {
-                            label: "Contacts",
-                            onclick: move |_| {
-                                nav.push(Route::ContactBrowser {});
-                                menu_visible.set(false);
-                            }
-                        }
-
-                        MenuButton {
-                            label: "Debug: Reset to Standalone",
-                            onclick: move |_| {
-                                let mut app_context = use_context::<AppContext>();
-                                if app_context.vault.read().transition_to_standalone().is_ok() {
-                                    if let Err(e) = app_context.reload() {
-                                        tracing::warn!("failed to reload app: {}", e);
-                                    }
+                        VaultState::Primary => rsx! {
+                            MenuButton {
+                                label: "Device List",
+                                onclick: move |_| {
+                                    nav.push(Route::Profile {});
+                                    menu_visible.set(false);
                                 }
-                                menu_visible.set(false);
                             }
-                        }
-                    },
 
-                    VaultState::SecondaryJoined => rsx! {
-                        MenuButton {
-                            label: "Share Contact Record*",
-                            onclick: move |_| {
-                                consume_context::<ShareMyContactModalVisible>().set(true);
-                                menu_visible.set(false);
-                            }
-                        }
-
-                        MenuButton {
-                            label: "Device List*",
-                            onclick: move |_| {
-                                nav.push(Route::Profile {});
-                                menu_visible.set(false);
-                            }
-                        }
-
-                        MenuButton {
-                            label: "Contacts*",
-                            onclick: move |_| {
-                                nav.push(Route::ContactBrowser {});
-                                menu_visible.set(false);
-                            }
-                        }
-
-                        MenuButton {
-                            label: "Debug: Reset to Standalone",
-                            onclick: move |_| {
-                                let mut app_context = use_context::<AppContext>();
-                                if app_context.vault.read().transition_to_standalone().is_ok() {
-                                    if let Err(e) = app_context.reload() {
-                                        tracing::warn!("failed to reload app, probably should crash: {}", e);
-                                    }
+                            MenuButton {
+                                label: "Add Listening Device",
+                                onclick: move |_| {
+                                    consume_context::<PairWithListeningDeviceModalVisible>().set(true);
+                                    menu_visible.set(false);
                                 }
-                                menu_visible.set(false);
                             }
-                        }
 
-
-                    },
-
-                    _ => rsx! {
-                        MenuButton {
-                            label: "Create Device Group",
-                            onclick: move |_| {
-                                if app_context
-                                    .vault
-                                    .read()
-                                    .transition_to_primary("default", "primary")
-                                    .is_ok()
-                                {
-                                    if let Err(e) = app_context.reload() {
-                                        tracing::warn!("failed to reload app: {}", e);
-                                    }
+                            MenuButton {
+                                label: "Share Contact Record",
+                                onclick: move |_| {
+                                    consume_context::<ShareMyContactModalVisible>().set(true);
+                                    menu_visible.set(false);
                                 }
-                                menu_visible.set(false);
                             }
-                        }
-                        MenuButton {
-                            label: "Join Device Group",
-                            onclick: move |_| {
-                                consume_context::<ListenForPairModalVisible>().set(true);
-                                menu_visible.set(false);
+
+                            MenuButton {
+                                label: "Import Contact",
+                                onclick: move |_| {
+                                    consume_context::<ImportContactModalVisible>().set(true);
+                                    menu_visible.set(false);
+                                },
+                            }
+
+                            MenuButton {
+                                label: "Contacts",
+                                onclick: move |_| {
+                                    nav.push(Route::ContactBrowser {});
+                                    menu_visible.set(false);
+                                }
+                            }
+
+                            MenuButton {
+                                label: "Debug: Reset to Standalone",
+                                onclick: move |_| {
+                                    let mut app_context = use_context::<AppContext>();
+                                    if app_context.vault.read().transition_to_standalone().is_ok() {
+                                        if let Err(e) = app_context.reload() {
+                                            tracing::warn!("failed to reload app: {}", e);
+                                        }
+                                    }
+                                    menu_visible.set(false);
+                                }
+                            }
+                        },
+
+                        VaultState::SecondaryJoined => rsx! {
+                            MenuButton {
+                                label: "Share Contact Record*",
+                                onclick: move |_| {
+                                    consume_context::<ShareMyContactModalVisible>().set(true);
+                                    menu_visible.set(false);
+                                }
+                            }
+
+                            MenuButton {
+                                label: "Device List*",
+                                onclick: move |_| {
+                                    nav.push(Route::Profile {});
+                                    menu_visible.set(false);
+                                }
+                            }
+
+                            MenuButton {
+                                label: "Contacts*",
+                                onclick: move |_| {
+                                    nav.push(Route::ContactBrowser {});
+                                    menu_visible.set(false);
+                                }
+                            }
+
+                            MenuButton {
+                                label: "Debug: Reset to Standalone",
+                                onclick: move |_| {
+                                    let mut app_context = use_context::<AppContext>();
+                                    if app_context.vault.read().transition_to_standalone().is_ok() {
+                                        if let Err(e) = app_context.reload() {
+                                            tracing::warn!("failed to reload app, probably should crash: {}", e);
+                                        }
+                                    }
+                                    menu_visible.set(false);
+                                }
+                            }
+                        },
+
+                        _ => rsx! {
+                            MenuButton {
+                                label: "Create Device Group",
+                                onclick: move |_| {
+                                    if app_context
+                                        .vault
+                                        .read()
+                                        .transition_to_primary("default", "primary")
+                                        .is_ok()
+                                    {
+                                        if let Err(e) = app_context.reload() {
+                                            tracing::warn!("failed to reload app: {}", e);
+                                        }
+                                    }
+                                    menu_visible.set(false);
+                                }
+                            }
+                            MenuButton {
+                                label: "Join Device Group",
+                                onclick: move |_| {
+                                    consume_context::<ListenForPairModalVisible>().set(true);
+                                    menu_visible.set(false);
+                                }
                             }
                         }
                     }

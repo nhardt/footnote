@@ -157,16 +157,18 @@ pub fn Main() -> Element {
     let mut show_open_modal = use_signal(|| false);
 
     rsx! {
-        Header {}
 
-        div {
-            class: "flex flex-col flex-1 min-h-screen bg-zinc-950 text-zinc-100 font-sans antialiased pt-safe pb-safe",
-            main {
-                class: "flex-1 flex flex-col overflow-hidden",
-                Outlet::<Route> {}
+        div { class:"bg-zinc-950 text-zinc-100 font-sans antialiased h-screen flex flex-col",
+            Header {}
+
+            div {
+                class: "flex flex-col flex-1 min-h-screen bg-zinc-950 text-zinc-100 font-sans antialiased pt-safe pb-safe",
+                main {
+                    class: "flex-1 flex flex-col overflow-hidden",
+                    Outlet::<Route> {}
+                }
             }
         }
-
 
         if share_my_contact_modal_visible.0() {
             ShareMyContactModal {}
