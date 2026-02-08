@@ -38,7 +38,7 @@ pub fn HeaderMenu() -> Element {
 
         div {
             class: "fixed inset-0 bg-black/60 backdrop-blur-sm z-40",
-            onclick: move |_| menu_visible().set(false),
+            onclick: move |_| menu_visible.set(false),
         }
 
         div {
@@ -60,7 +60,7 @@ pub fn HeaderMenu() -> Element {
                     label: "Home",
                     onclick: move |_| {
                         nav.push(Route::Home {});
-                        menu_visible().set(false);
+                        menu_visible.set(false);
                     }
                 }
 
@@ -71,7 +71,7 @@ pub fn HeaderMenu() -> Element {
                             label: "Device List",
                             onclick: move |_| {
                                 nav.push(Route::Profile {});
-                                menu_visible().set(false);
+                                menu_visible.set(false);
                             }
                         }
 
@@ -79,7 +79,7 @@ pub fn HeaderMenu() -> Element {
                             label: "Add Listening Device",
                             onclick: move |_| {
                                 consume_context::<PairWithListeningDeviceModalVisible>().set(true);
-                                menu_visible().set(false);
+                                menu_visible.set(false);
                             }
                         }
 
@@ -87,7 +87,7 @@ pub fn HeaderMenu() -> Element {
                             label: "Share Contact Record",
                             onclick: move |_| {
                                 consume_context::<ShareMyContactModalVisible>().set(true);
-                                menu_visible().set(false);
+                                menu_visible.set(false);
                             }
                         }
 
@@ -102,8 +102,8 @@ pub fn HeaderMenu() -> Element {
                         MenuButton {
                             label: "Contacts",
                             onclick: move |_| {
-                                nav.push(Route::ContactBrowser { name: "".to_string() });
-                                menu_visible().set(false);
+                                nav.push(Route::ContactBrowser {});
+                                menu_visible.set(false);
                             }
                         }
 
@@ -116,7 +116,7 @@ pub fn HeaderMenu() -> Element {
                                         tracing::warn!("failed to reload app: {}", e);
                                     }
                                 }
-                                menu_visible().set(false);
+                                menu_visible.set(false);
                             }
                         }
                     },
@@ -126,7 +126,7 @@ pub fn HeaderMenu() -> Element {
                             label: "Share Contact Record*",
                             onclick: move |_| {
                                 consume_context::<ShareMyContactModalVisible>().set(true);
-                                menu_visible().set(false);
+                                menu_visible.set(false);
                             }
                         }
 
@@ -134,15 +134,15 @@ pub fn HeaderMenu() -> Element {
                             label: "Device List*",
                             onclick: move |_| {
                                 nav.push(Route::Profile {});
-                                menu_visible().set(false);
+                                menu_visible.set(false);
                             }
                         }
 
                         MenuButton {
                             label: "Contacts*",
                             onclick: move |_| {
-                                nav.push(Route::ContactBrowser { name: "".to_string() });
-                                menu_visible().set(false);
+                                nav.push(Route::ContactBrowser {});
+                                menu_visible.set(false);
                             }
                         }
 
@@ -155,7 +155,7 @@ pub fn HeaderMenu() -> Element {
                                         tracing::warn!("failed to reload app, probably should crash: {}", e);
                                     }
                                 }
-                                menu_visible().set(false);
+                                menu_visible.set(false);
                             }
                         }
 
@@ -176,14 +176,14 @@ pub fn HeaderMenu() -> Element {
                                         tracing::warn!("failed to reload app: {}", e);
                                     }
                                 }
-                                menu_visible().set(false);
+                                menu_visible.set(false);
                             }
                         }
                         MenuButton {
                             label: "Join Device Group",
                             onclick: move |_| {
                                 consume_context::<ListenForPairModalVisible>().set(true);
-                                menu_visible().set(false);
+                                menu_visible.set(false);
                             }
                         }
                     }

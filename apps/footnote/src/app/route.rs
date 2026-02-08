@@ -16,8 +16,8 @@ pub enum Route {
     #[route("/note/:..file_path_segments")]
     NoteView { file_path_segments: Vec<String> },
 
-    #[route("/contact/:name")]
-    ContactBrowser { name: String },
+    #[route("/contact")]
+    ContactBrowser {},
 
     #[route("/me")]
     Profile {},
