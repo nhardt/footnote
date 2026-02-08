@@ -2,6 +2,8 @@ use dioxus::prelude::*;
 
 use indexmap::IndexMap;
 
+use crate::body::note::footnote_editor::FootnoteEditor;
+
 #[component]
 pub fn Footnotes(
     footnotes: ReadSignal<IndexMap<String, String>>,

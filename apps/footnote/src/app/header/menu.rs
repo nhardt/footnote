@@ -15,6 +15,7 @@ pub fn HeaderMenu() -> Element {
     let mut app_context = use_context::<AppContext>();
     let vault_state = app_context.vault_state;
     let mut menu_visible = use_signal(|| false);
+    let mut show_new_note_modal = use_signal(|| false);
 
     rsx! {
         button {

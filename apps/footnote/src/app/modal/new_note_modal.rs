@@ -1,6 +1,8 @@
-use crate::context::AppContext;
-use chrono::Local;
 use dioxus::prelude::*;
+
+use chrono::Local;
+
+use crate::context::AppContext;
 
 #[component]
 pub fn NewNoteModal(ondone: EventHandler<()>) -> Element {

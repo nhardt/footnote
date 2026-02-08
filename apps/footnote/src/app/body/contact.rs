@@ -4,6 +4,8 @@ use footnote_core::model::contact::Contact;
 use footnote_core::model::device::Device;
 use footnote_core::util::sync_status_record::{SyncDirection, SyncStatusRecord};
 
+use crate::context::AppContext;
+
 #[component]
 pub fn ContactBrowser() -> Element {
     let app_context = use_context::<AppContext>();
