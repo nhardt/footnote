@@ -1,8 +1,11 @@
 use dioxus::prelude::*;
 
-use crate::body::contact::ContactView;
+use crate::Main;
+
+use crate::body::contact::ContactBrowser;
 use crate::body::home::Home;
 use crate::body::note::NoteView;
+use crate::body::profile::Profile;
 
 #[derive(Debug, Clone, Routable, PartialEq)]
 pub enum Route {
@@ -14,8 +17,8 @@ pub enum Route {
     NoteView { file_path_segments: Vec<String> },
 
     #[route("/contact/:name")]
-    ContactView { name: String },
+    ContactBrowser { name: String },
 
     #[route("/me")]
-    ProfileView {},
+    Profile {},
 }

@@ -1,10 +1,11 @@
 use dioxus::prelude::*;
 
-use footnote_core::model::vault::{Vault, VaultState};
+use footnote_core::model::vault::VaultState;
 
 use crate::context::AppContext;
 use crate::route::Route;
 
+use crate::modal::import_contact_modal::ImportContactModalVisible;
 use crate::modal::listen_for_pair_modal::ListenForPairModalVisible;
 use crate::modal::pair_with_listening_device_modal::PairWithListeningDeviceModalVisible;
 use crate::modal::share_my_contact_modal::ShareMyContactModalVisible;
@@ -15,7 +16,6 @@ pub fn HeaderMenu() -> Element {
     let mut app_context = use_context::<AppContext>();
     let vault_state = app_context.vault_state;
     let mut menu_visible = use_signal(|| false);
-    let mut show_new_note_modal = use_signal(|| false);
 
     rsx! {
         button {
@@ -102,7 +102,7 @@ pub fn HeaderMenu() -> Element {
                         MenuButton {
                             label: "Contacts",
                             onclick: move |_| {
-                                nav.push(Route::ContactBrowser {});
+                                nav.push(Route::ContactBrowser { name: "".to_string() });
                                 menu_visible().set(false);
                             }
                         }
@@ -141,7 +141,7 @@ pub fn HeaderMenu() -> Element {
                         MenuButton {
                             label: "Contacts*",
                             onclick: move |_| {
-                                nav.push(Route::ContactBrowser {});
+                                nav.push(Route::ContactBrowser { name: "".to_string() });
                                 menu_visible().set(false);
                             }
                         }

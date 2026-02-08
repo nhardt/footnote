@@ -3,7 +3,6 @@ use dioxus::prelude::*;
 use footnote_core::model::device::Device;
 use footnote_core::model::vault::VaultState;
 
-use crate::confirm_dialog::ConfirmDialog;
 use crate::context::AppContext;
 
 #[component]
@@ -49,12 +48,12 @@ pub fn Profile() -> Element {
                     },
 
                     VaultState::Primary => rsx! {
-                        Button {
-                            label: "Edit Username",
+                        button {
                             onclick: move |_| {
                                 show_edit_username_modal.set(true);
                                 menu_visible.set(false);
-                            }
+                            },
+                            "Edit Username"
                         }
                         UserComponent { read_only: false }
                         DeviceListComponent { read_only: false }

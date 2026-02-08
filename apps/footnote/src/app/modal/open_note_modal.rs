@@ -1,5 +1,8 @@
 use dioxus::prelude::*;
 
+use footnote_core::util::tree_node::build_tree_from_manifest;
+use footnote_core::util::tree_node::TreeNode;
+
 use crate::context::AppContext;
 
 #[component]

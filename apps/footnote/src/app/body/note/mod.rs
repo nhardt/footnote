@@ -10,8 +10,8 @@ use std::path::PathBuf;
 use uuid::Uuid;
 
 use footnote_core::model::note::Note;
-use footnote_core::util::tree_node::{build_tree_from_manifest, TreeNode};
 
+use crate::body::note::footnotes::Footnotes;
 use crate::context::AppContext;
 
 #[derive(Clone, Copy, PartialEq)]
@@ -157,16 +157,16 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
         }
     };
 
-    /// Semantics for navigating:
-    /// - if footnote_text is http(s) link, do external nav
-    /// - if footnote_text is footnote link with uuid, do internal nav
-    /// - if source page for link is under footnotes/user and page exists under
-    ///     footnotes/user, navigate
-    /// - if source page for link is under footnotes/user and page does not exist, log and return
-    /// - if vault dir + footnote_text resolves to path under vault dir and vault
-    ///     + footnote_text exists, navigate to it
-    /// - if vault dir + footnote_text resolves to path under vault dir and vault
-    ///     footnote_text does not exist, create and navigate to it
+    // Semantics for navigating:
+    // - if footnote_text is http(s) link, do external nav
+    // - if footnote_text is footnote link with uuid, do internal nav
+    // - if source page for link is under footnotes/user and page exists under
+    //     footnotes/user, navigate
+    // - if source page for link is under footnotes/user and page does not exist, log and return
+    // - if vault dir + footnote_text resolves to path under vault dir and vault
+    //     + footnote_text exists, navigate to it
+    // - if vault dir + footnote_text resolves to path under vault dir and vault
+    //     footnote_text does not exist, create and navigate to it
     let navigate_to_footnote = move |footnote_text: String| async move {
         tracing::info!("navigate_to_uuid: {}", footnote_text);
 

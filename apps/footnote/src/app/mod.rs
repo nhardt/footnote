@@ -11,12 +11,21 @@ use footnote_core::model::vault::{Vault, VaultState};
 use footnote_core::util::filesystem::ensure_vault_at_path;
 use footnote_core::util::manifest::create_manifest_local;
 
+use crate::context::AppContext;
+use crate::header::Header;
+use crate::modal::import_contact_modal::ImportContactModal;
+use crate::modal::import_contact_modal::ImportContactModalVisible;
 use crate::modal::import_contact_modal::ImportedContactString;
+use crate::modal::listen_for_pair_modal::ListenForPairModal;
 use crate::modal::listen_for_pair_modal::ListenForPairModalVisible;
-use crate::modal::pair_with_listening_device_modal::{
-    ListeningDeviceUrl, PairWithListeningDeviceModalVisible,
-};
+use crate::modal::new_note_modal::NewNoteModal;
+use crate::modal::open_note_modal::NoteSelectModal;
+use crate::modal::pair_with_listening_device_modal::ListeningDeviceUrl;
+use crate::modal::pair_with_listening_device_modal::PairWithListeningDeviceModal;
+use crate::modal::pair_with_listening_device_modal::PairWithListeningDeviceModalVisible;
+use crate::modal::share_my_contact_modal::ShareMyContactModal;
 use crate::modal::share_my_contact_modal::ShareMyContactModalVisible;
+use crate::route::Route;
 
 #[cfg(target_os = "android")]
 use {
@@ -138,15 +147,17 @@ pub fn App() -> Element {
 }
 
 #[component]
-fn Main() -> Element {
+pub fn Main() -> Element {
     let import_contact_modal_visible = use_context::<ImportContactModalVisible>();
     let share_my_contact_modal_visible = use_context::<ShareMyContactModalVisible>();
     let pair_with_listening_device_modal_visible =
         use_context::<PairWithListeningDeviceModalVisible>();
     let listen_for_pair_modal_visible = use_context::<ListenForPairModalVisible>();
+    let mut show_new_note_modal = use_signal(|| false);
+    let mut show_open_modal = use_signal(|| false);
 
     rsx! {
-        Header{}
+        Header {}
 
         div {
             class: "flex flex-col flex-1 min-h-screen bg-zinc-950 text-zinc-100 font-sans antialiased pt-safe pb-safe",
