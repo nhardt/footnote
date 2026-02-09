@@ -29,7 +29,7 @@ fn ContactRow(contact: Contact) -> Element {
     let mut expanded = use_signal(|| false);
 
     rsx! {
-        div { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 overflow-hidden",
+        div { class: "border border-zinc-800 text-zinc-100 rounded-lg bg-zinc-900/30 overflow-hidden",
             button {
                 class: "w-full px-6 py-4 hover:bg-zinc-900/50 transition-colors text-left",
                 onclick: move |_| expanded.toggle(),
