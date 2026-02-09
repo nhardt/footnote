@@ -1,14 +1,9 @@
-use crate::{
-    components::{
-        app_header::AppHeader,
-        app_menu::{AppMenu, MenuButton},
-        confirm_dialog::ConfirmDialog,
-    },
-    context::AppContext,
-};
+use dioxus::prelude::*;
+
 use footnote_core::model::device::Device;
 use footnote_core::model::vault::VaultState;
-use dioxus::prelude::*;
+
+use crate::context::AppContext;
 
 #[component]
 pub fn Profile() -> Element {
@@ -19,31 +14,6 @@ pub fn Profile() -> Element {
     let mut show_edit_username_modal = use_signal(|| false);
 
     rsx! {
-        AppHeader {
-            on_menu_click: move |_| menu_visible.set(true),
-
-            h1 {
-                class: "flex-1 text-center text-sm font-medium text-zinc-300",
-                "Profile"
-            }
-            div { class: "w-8" }
-        }
-
-        AppMenu {
-            visible: menu_visible(),
-            on_close: move |_| menu_visible.set(false),
-
-            if matches!(*vault_state.read(), VaultState::Primary) {
-                MenuButton {
-                    label: "Edit Username",
-                    onclick: move |_| {
-                        show_edit_username_modal.set(true);
-                        menu_visible.set(false);
-                    }
-                }
-            }
-        }
-
         main {
             class: "flex-1 overflow-y-auto",
             div {
@@ -78,6 +48,13 @@ pub fn Profile() -> Element {
                     },
 
                     VaultState::Primary => rsx! {
+                        button {
+                            onclick: move |_| {
+                                show_edit_username_modal.set(true);
+                                menu_visible.set(false);
+                            },
+                            "Edit Username"
+                        }
                         UserComponent { read_only: false }
                         DeviceListComponent { read_only: false }
                     }
@@ -297,6 +274,38 @@ fn DeviceRow(device: Device, read_only: bool) -> Element {
                         }
                         if !delete_dialog_error().is_empty() {
                             div { class: "text-sm text-red-400", "{delete_dialog_error}" }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[component]
+pub fn ConfirmDialog(
+    children: Element,
+    onconfirm: EventHandler,
+    oncancel: EventHandler,
+) -> Element {
+    rsx! {
+        div {
+            class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
+            onclick: move |evt| evt.stop_propagation(),
+            div {
+                class: "bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl max-w-sm w-full",
+                div { class: "p-6",
+                    {children}
+                    div { class: "flex gap-3 justify-end",
+                        button {
+                            class: "px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-md text-sm font-medium transition-all",
+                            onclick: move |_| oncancel.call(()),
+                            "Cancel"
+                        }
+                        button {
+                            class: "px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md text-sm font-medium transition-all",
+                            onclick: move |_| onconfirm.call(()),
+                            "Delete"
                         }
                     }
                 }

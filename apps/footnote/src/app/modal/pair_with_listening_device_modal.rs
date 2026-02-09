@@ -1,23 +1,8 @@
-use crate::context::AppContext;
-use footnote_core::service::join_service::JoinService;
 use dioxus::prelude::*;
 
-#[derive(Clone, Copy, PartialEq)]
-pub struct PairWithListeningDeviceModalVisible(pub Signal<bool>);
+use footnote_core::service::join_service::JoinService;
 
-impl PairWithListeningDeviceModalVisible {
-    pub fn set(&mut self, value: bool) {
-        self.0.set(value);
-    }
-}
-
-#[derive(Clone, Copy, PartialEq)]
-pub struct ListeningDeviceUrl(pub Signal<String>);
-impl ListeningDeviceUrl {
-    pub fn set(&mut self, value: String) {
-        self.0.set(value);
-    }
-}
+use crate::context::{AppContext, MenuContext};
 
 #[component]
 pub fn PairWithListeningDeviceModal() -> Element {
@@ -27,11 +12,13 @@ pub fn PairWithListeningDeviceModal() -> Element {
     let mut is_connecting = use_signal(|| false);
     let mut app_context = use_context::<AppContext>();
 
-    let listening_device_url = use_context::<ListeningDeviceUrl>();
     use_effect(move || {
-        let url = listening_device_url.0.read();
-        if !url.is_empty() {
-            join_url.set(url.clone());
+        let listening_device_url = consume_context::<MenuContext>()
+            .listening_device_url
+            .read()
+            .clone();
+        if !listening_device_url.is_empty() {
+            join_url.set(listening_device_url.clone());
         }
     });
 
@@ -60,7 +47,7 @@ pub fn PairWithListeningDeviceModal() -> Element {
                         tracing::warn!("failed to reload app: {}", e);
                         err_message.set(format!("Connected but failed to reload: {}", e));
                     } else {
-                        consume_context::<PairWithListeningDeviceModalVisible>().set(false);
+                        consume_context::<MenuContext>().close_all();
                     }
                 }
                 Err(e) => {
@@ -121,7 +108,7 @@ pub fn PairWithListeningDeviceModal() -> Element {
                     div { class: "flex gap-3",
                         button {
                             class: "flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
-                            onclick: move |_| consume_context::<PairWithListeningDeviceModalVisible>().set(false),
+                            onclick: move |_| consume_context::<MenuContext>().close_all(),
                             disabled: is_connecting(),
                             "Cancel"
                         }

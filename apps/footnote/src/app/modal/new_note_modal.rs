@@ -1,9 +1,12 @@
-use crate::context::AppContext;
-use chrono::Local;
 use dioxus::prelude::*;
 
+use chrono::Local;
+
+use crate::context::AppContext;
+use crate::context::MenuContext;
+
 #[component]
-pub fn NewNoteModal(ondone: EventHandler<()>) -> Element {
+pub fn NewNoteModal() -> Element {
     let nav = navigator();
     let app_context = use_context::<AppContext>();
     let mut note_path = use_signal(|| String::new());
@@ -30,15 +33,7 @@ pub fn NewNoteModal(ondone: EventHandler<()>) -> Element {
             return;
         }
 
-        let full_path = app_context
-            .vault
-            .read()
-            .base_path()
-            .join(path_str)
-            .to_string_lossy()
-            .to_string();
-        nav.push(format!("/notes/{}", full_path));
-        ondone.call(());
+        consume_context::<MenuContext>().go_note(&path_str);
     };
 
     let create_now_note = move |_| async move {
@@ -58,17 +53,13 @@ pub fn NewNoteModal(ondone: EventHandler<()>) -> Element {
             return;
         }
 
-        nav.push(format!(
-            "/notes/{}",
-            full_path.to_string_lossy().to_string()
-        ));
-        ondone.call(());
+        consume_context::<MenuContext>().go_note(&path_str);
     };
 
     rsx! {
         div {
-            class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
-            onclick: move |_| ondone.call(()),
+            class: "fixed text-zinc-100 inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
+            onclick: move |_| consume_context::<MenuContext>().close_all(),
 
             div {
                 class: "bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl max-w-md w-full",
@@ -147,7 +138,7 @@ pub fn NewNoteModal(ondone: EventHandler<()>) -> Element {
                 div { class: "p-6 border-t border-zinc-800",
                     button {
                         class: "w-full px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
-                        onclick: move |_| ondone.call(()),
+                        onclick: move |_| consume_context::<MenuContext>().close_all(),
                         "Cancel"
                     }
                 }

@@ -1,6 +1,8 @@
-use crate::components::footnote_editor::FootnoteEditor;
 use dioxus::prelude::*;
+
 use indexmap::IndexMap;
+
+use crate::body::note::footnote_editor::FootnoteEditor;
 
 #[component]
 pub fn Footnotes(
@@ -12,8 +14,10 @@ pub fn Footnotes(
 
     rsx! {
         div { class: "overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900/30",
-            div { class: "py-3 px-4 border-b border-zinc-800 bg-zinc-900/50",
-                h3 { class: "text-sm font-semibold text-zinc-300",
+            div {
+                class: "px-4 py-3 border-b border-zinc-800",
+                h3 {
+                    class: "text-sm font-semibold font-mono text-zinc-400",
                     "Footnotes"
                 }
             }

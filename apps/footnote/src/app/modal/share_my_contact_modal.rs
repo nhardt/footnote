@@ -1,18 +1,12 @@
-use crate::context::AppContext;
-#[cfg(any(target_os = "android", target_os = "ios"))]
-use crate::platform::SHARE_SHEET_SUPPORTED;
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
-const SHARE_SHEET_SUPPORTED: bool = false;
 use dioxus::prelude::*;
 
-#[derive(Clone, Copy, PartialEq)]
-pub struct ShareMyContactModalVisible(pub Signal<bool>);
+use crate::context::{AppContext, MenuContext};
 
-impl ShareMyContactModalVisible {
-    pub fn set(&mut self, value: bool) {
-        self.0.set(value);
-    }
-}
+#[cfg(any(target_os = "android", target_os = "ios"))]
+use crate::platform::SHARE_SHEET_SUPPORTED;
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+const SHARE_SHEET_SUPPORTED: bool = false;
 
 #[component]
 pub fn ShareMyContactModal() -> Element {
@@ -97,7 +91,7 @@ pub fn ShareMyContactModal() -> Element {
                                     }
                                     button {
                                         class: "flex-1 px-4 py-2 bg-zinc-300 hover:bg-white text-zinc-900 rounded-md text-sm font-medium transition-all",
-                                        onclick: move |_| consume_context::<ShareMyContactModalVisible>().set(false),
+                                        onclick: move |_| consume_context::<MenuContext>().close_all(),
                                         "Done"
                                     }
                                 }
@@ -106,7 +100,7 @@ pub fn ShareMyContactModal() -> Element {
                             rsx! {
                                 button {
                                     class: "w-full px-4 py-2 bg-zinc-300 hover:bg-white text-zinc-900 rounded-md text-sm font-medium transition-all",
-                                    onclick: move |_| consume_context::<ShareMyContactModalVisible>().set(false),
+                                    onclick: move |_| consume_context::<MenuContext>().close_all(),
                                     "Done"
                                 }
                             }
