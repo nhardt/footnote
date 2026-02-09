@@ -237,12 +237,12 @@ fn DeviceRow(device: Device, read_only: bool) -> Element {
 
                 if let Some(status) = outbound_device_status() {
                     div { class: "text-xs text-zinc-400",
-                        "Last outbound: {status.files_transferred} files"
+                        "Last outbound: {status.files_transferred} files at {status.timestamp.to_date_string()}"
                     }
                 }
                 if let Some(status) = inbound_device_status() {
                     div { class: "text-xs text-zinc-400",
-                        "Last inbound: {status.files_transferred} files"
+                        "Last inbound: {status.files_transferred} files at {status.timestamp.to_date_string()}"
                     }
                 }
             }

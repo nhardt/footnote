@@ -116,10 +116,10 @@ fn DeviceItem(device: Device) -> Element {
             }
 
             if let Some(status) = last_outbound_success() {
-                div { class: "text-xs text-zinc-400", "Last outbound: {status.files_transferred} files" }
+                div { class: "text-xs text-zinc-400", "Last outbound: {status.files_transferred} files at {status.timestamp.to_date_string()}" }
             }
             if let Some(status) = last_inbound_success() {
-                div { class: "text-xs text-zinc-400", "Last inbound: {status.files_transferred} files" }
+                div { class: "text-xs text-zinc-400", "Last inbound: {status.files_transferred} files at {status.timestamp.to_date_string()}" }
             }
         }
     }

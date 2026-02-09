@@ -1,4 +1,4 @@
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -37,5 +37,14 @@ impl LamportTimestamp {
 
     pub fn as_i64(self) -> i64 {
         self.0
+    }
+
+    pub fn to_datetime(self) -> DateTime<Utc> {
+        DateTime::from_timestamp(self.0, 0).unwrap_or_else(|| Utc::now())
+    }
+
+    // Or if you want a formatted string directly:
+    pub fn to_date_string(self) -> String {
+        self.to_datetime().format("%Y-%m-%d %H:%M:%S").to_string()
     }
 }
