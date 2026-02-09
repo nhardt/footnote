@@ -50,8 +50,18 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
         };
 
         share_with.set(note.frontmatter.share_with.join(" "));
-        body.set(note.content);
         footnotes.set(note.footnotes);
+
+        let body_content = note.content.clone();
+        spawn(async move {
+            let json_content = serde_json::to_string(&body_content).unwrap_or_default();
+            let _ = document::eval(&format!(
+                r#"document.getElementById("note-body").value = {};"#,
+                json_content
+            ))
+            .await;
+        });
+
         loaded_note_full_path.set(full_path.to_string_lossy().to_string());
     });
 
@@ -307,7 +317,6 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
                     style: "min-height: max(60vh, 400px);",
                     onblur: sync_body_to_footnotes,
                     oninput: move |_| save_status.set(SaveStatus::Unsaved),
-                    initial_value: "{body}",
                     readonly: read_only,
                 }
 
