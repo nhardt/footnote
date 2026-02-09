@@ -47,7 +47,11 @@ impl Note {
             Ok(r) => r,
             Err(e) => {
                 if coerce_to_footnote {
-                    tracing::warn!("Failed to parse frontmatter, creating new: {}", e);
+                    tracing::warn!(
+                        "Failed to parse frontmatter in {}, creating new. issue: {}",
+                        content,
+                        e
+                    );
                     (Self::create_frontmatter(), 0)
                 } else {
                     anyhow::bail!("failed to parse frontmatter");
