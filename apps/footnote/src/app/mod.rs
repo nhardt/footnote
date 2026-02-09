@@ -7,24 +7,18 @@ use dioxus::prelude::*;
 use std::env;
 use std::path::PathBuf;
 
-use footnote_core::model::vault::{Vault, VaultState};
+use footnote_core::model::vault::Vault;
 use footnote_core::util::filesystem::ensure_vault_at_path;
-use footnote_core::util::manifest::create_manifest_local;
 
 use crate::context::AppContext;
+use crate::context::MenuContext;
 use crate::header::Header;
 use crate::modal::import_contact_modal::ImportContactModal;
-use crate::modal::import_contact_modal::ImportContactModalVisible;
-use crate::modal::import_contact_modal::ImportedContactString;
 use crate::modal::listen_for_pair_modal::ListenForPairModal;
-use crate::modal::listen_for_pair_modal::ListenForPairModalVisible;
 use crate::modal::new_note_modal::NewNoteModal;
 use crate::modal::open_note_modal::NoteSelectModal;
-use crate::modal::pair_with_listening_device_modal::ListeningDeviceUrl;
 use crate::modal::pair_with_listening_device_modal::PairWithListeningDeviceModal;
-use crate::modal::pair_with_listening_device_modal::PairWithListeningDeviceModalVisible;
 use crate::modal::share_my_contact_modal::ShareMyContactModal;
-use crate::modal::share_my_contact_modal::ShareMyContactModalVisible;
 use crate::route::Route;
 
 #[cfg(target_os = "android")]
@@ -46,55 +40,7 @@ pub extern "C" fn start_footnote_app() {
 
 #[component]
 pub fn App() -> Element {
-    use_context_provider(|| ImportContactModalVisible(Signal::new(false)));
-    use_context_provider(|| ImportedContactString(Signal::new(String::new())));
-    use_context_provider(|| PairWithListeningDeviceModalVisible(Signal::new(false)));
-    use_context_provider(|| ListeningDeviceUrl(Signal::new(String::new())));
-    use_context_provider(|| ListenForPairModalVisible(Signal::new(false)));
-    use_context_provider(|| ShareMyContactModalVisible(Signal::new(false)));
-
-    #[cfg(any(target_os = "android", target_os = "ios"))]
-    use_hook(|| {
-        let Some(mut rx) = take_file_receiver() else {
-            tracing::warn!("File receiver already taken!");
-            return;
-        };
-
-        #[cfg(target_os = "ios")]
-        platform::inject_open_url_handler();
-
-        spawn(async move {
-            // Handle launch intent (Android)
-            #[cfg(target_os = "android")]
-            {
-                if let Ok(Some(data)) = handle_incoming_share() {
-                    consume_context::<ImportedContactString>().set(data);
-                    consume_context::<ImportContactModalVisible>().set(true);
-                }
-            }
-
-            while let Some(incoming_uri) = rx.recv().await {
-                tracing::info!("Received data: {}", incoming_uri);
-
-                if incoming_uri.starts_with("footnote+pair://") {
-                    tracing::info!("handle join request: {}", incoming_uri);
-                    consume_context::<ListeningDeviceUrl>().set(incoming_uri);
-                    consume_context::<PairWithListeningDeviceModalVisible>().set(true);
-                } else {
-                    #[cfg(target_os = "android")]
-                    let content = read_uri_from_string(incoming_uri);
-
-                    #[cfg(target_os = "ios")]
-                    let content = std::fs::read_to_string(&incoming_uri).ok();
-
-                    if let Some(data) = content {
-                        consume_context::<ImportedContactString>().set(data);
-                        consume_context::<ImportContactModalVisible>().set(true);
-                    }
-                }
-            }
-        });
-    });
+    use_context_provider(MenuContext::new);
 
     let path_key = "FOOTNOTE_PATH";
     let vault_name_key = "FOOTNOTE_VAULT";
@@ -113,14 +59,46 @@ pub fn App() -> Element {
 
     let vault_path = ensure_vault_at_path(&vault_path, &vault_name)?;
     let vault = Vault::new(&vault_path)?;
-    use_context_provider(|| AppContext {
-        vault: Signal::new(vault.clone()),
-        vault_state: Signal::new(vault.state_read().unwrap_or(VaultState::Uninitialized)),
-        devices: Signal::new(vault.device_read().expect("could not load devices")),
-        contacts: Signal::new(vault.contact_read().expect("could not load contacts")),
-        manifest: Signal::new(
-            create_manifest_local(&vault.base_path()).expect("could not load local list of files"),
-        ),
+    use_context_provider(|| AppContext::new(vault.clone()));
+
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    use_hook(|| {
+        let Some(mut rx) = take_file_receiver() else {
+            tracing::warn!("File receiver already taken!");
+            return;
+        };
+
+        #[cfg(target_os = "ios")]
+        platform::inject_open_url_handler();
+
+        spawn(async move {
+            // Handle launch intent (Android)
+            #[cfg(target_os = "android")]
+            {
+                if let Ok(Some(data)) = handle_incoming_share() {
+                    consume_context::<MenuContext>().set_import_contact_visible(&data);
+                }
+            }
+
+            while let Some(incoming_uri) = rx.recv().await {
+                tracing::info!("Received data: {}", incoming_uri);
+
+                if incoming_uri.starts_with("footnote+pair://") {
+                    tracing::info!("handle join request: {}", incoming_uri);
+                    consume_context::<MenuContext>().set_pair_with_listener_visible(&incoming_uri);
+                } else {
+                    #[cfg(target_os = "android")]
+                    let content = read_uri_from_string(incoming_uri);
+
+                    #[cfg(target_os = "ios")]
+                    let content = std::fs::read_to_string(&incoming_uri).ok();
+
+                    if let Some(data) = content {
+                        consume_context::<MenuContext>().set_import_contact_visible(&data);
+                    }
+                }
+            }
+        });
     });
 
     rsx! {
@@ -148,14 +126,6 @@ pub fn App() -> Element {
 
 #[component]
 pub fn Main() -> Element {
-    let import_contact_modal_visible = use_context::<ImportContactModalVisible>();
-    let share_my_contact_modal_visible = use_context::<ShareMyContactModalVisible>();
-    let pair_with_listening_device_modal_visible =
-        use_context::<PairWithListeningDeviceModalVisible>();
-    let listen_for_pair_modal_visible = use_context::<ListenForPairModalVisible>();
-    let mut show_new_note_modal = use_signal(|| false);
-    let mut show_open_modal = use_signal(|| false);
-
     rsx! {
 
         div { class:"bg-zinc-950 text-zinc-100 font-sans antialiased h-screen flex flex-col",
@@ -170,35 +140,28 @@ pub fn Main() -> Element {
             }
         }
 
-        if share_my_contact_modal_visible.0() {
-            ShareMyContactModal {}
+        if *consume_context::<MenuContext>().new_note_visible.read() {
+            NewNoteModal{}
         }
 
-        if import_contact_modal_visible.0() {
+        if *consume_context::<MenuContext>().note_browser_visible.read() {
+            NoteSelectModal {}
+        }
+
+        if *consume_context::<MenuContext>().import_contact_visible.read() {
             ImportContactModal {}
         }
 
-        if pair_with_listening_device_modal_visible.0() {
-            PairWithListeningDeviceModal {}
+        if *consume_context::<MenuContext>().share_contact_visible.read() {
+            ShareMyContactModal {}
         }
 
-        if listen_for_pair_modal_visible.0() {
+        if *consume_context::<MenuContext>().listen_for_pair_visible.read() {
             ListenForPairModal {}
         }
 
-        if show_new_note_modal() {
-            NewNoteModal {
-                ondone: move |_| show_new_note_modal.set(false)
-            }
+        if *consume_context::<MenuContext>().pair_with_listener_visible.read() {
+            PairWithListeningDeviceModal {}
         }
-
-        if show_open_modal() {
-            NoteSelectModal {
-                oncancel: move |_| show_open_modal.set(false),
-                onselect: move |_| show_open_modal.set(false)
-            }
-        }
-
-
     }
 }

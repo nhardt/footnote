@@ -3,19 +3,13 @@ use dioxus::prelude::*;
 use footnote_core::model::vault::VaultState;
 
 use crate::context::AppContext;
-use crate::route::Route;
-
-use crate::modal::import_contact_modal::ImportContactModalVisible;
-use crate::modal::listen_for_pair_modal::ListenForPairModalVisible;
-use crate::modal::pair_with_listening_device_modal::PairWithListeningDeviceModalVisible;
-use crate::modal::share_my_contact_modal::ShareMyContactModalVisible;
+use crate::context::MenuContext;
 
 #[component]
 pub fn HeaderMenu() -> Element {
-    let nav = use_navigator();
     let mut app_context = use_context::<AppContext>();
+    let mut menu_context = use_context::<MenuContext>();
     let vault_state = app_context.vault_state;
-    let mut menu_visible = use_signal(|| false);
 
     rsx! {
         div {
@@ -23,14 +17,14 @@ pub fn HeaderMenu() -> Element {
 
             button {
                 class: "px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors",
-                onclick: move |_| menu_visible.set(!menu_visible()),
+                onclick: move |_| menu_context.toggle_menu(),
                 "☰"
             }
 
-            if menu_visible() {
+            if *menu_context.menu_visible.read() {
                 div {
                     class: "fixed inset-0 z-40",
-                    onclick: move |_| menu_visible.set(false),
+                    onclick: move |_| menu_context.close_all(),
                 }
 
                 div {
@@ -50,53 +44,44 @@ pub fn HeaderMenu() -> Element {
 
                         MenuButton {
                             label: "Home",
-                            onclick: move |_| {
-                                nav.push(Route::Home {});
-                                menu_visible.set(false);
-                            }
+                            onclick: move |_| { consume_context::<MenuContext>().go_home(); }
+                        }
+
+                        MenuButton {
+                            label: "New Note",
+                            onclick: move |_| { consume_context::<MenuContext>().set_new_note_visible(); }
+                        }
+
+                        MenuButton {
+                            label: "Browse",
+                            onclick: move |_| { consume_context::<MenuContext>().set_note_browser_visible(); }
                         }
 
                         match *vault_state.read() {
-
                             VaultState::Primary => rsx! {
                                 MenuButton {
-                                    label: "Device List",
-                                    onclick: move |_| {
-                                        nav.push(Route::Profile {});
-                                        menu_visible.set(false);
-                                    }
-                                }
-
-                                MenuButton {
                                     label: "Add Listening Device",
-                                    onclick: move |_| {
-                                        consume_context::<PairWithListeningDeviceModalVisible>().set(true);
-                                        menu_visible.set(false);
-                                    }
+                                    onclick: move |_| { consume_context::<MenuContext>().set_pair_with_listener_visible(&"".to_string()); }
                                 }
 
                                 MenuButton {
                                     label: "Share Contact Record",
-                                    onclick: move |_| {
-                                        consume_context::<ShareMyContactModalVisible>().set(true);
-                                        menu_visible.set(false);
-                                    }
+                                    onclick: move |_| { consume_context::<MenuContext>().set_share_contact_visible(); }
+                                }
+
+                                MenuButton {
+                                    label: "Profile",
+                                    onclick: move |_| { consume_context::<MenuContext>().go_profile(); }
                                 }
 
                                 MenuButton {
                                     label: "Import Contact",
-                                    onclick: move |_| {
-                                        consume_context::<ImportContactModalVisible>().set(true);
-                                        menu_visible.set(false);
-                                    },
+                                    onclick: move |_| { consume_context::<MenuContext>().set_import_contact_visible(&"".to_string()); }
                                 }
 
                                 MenuButton {
                                     label: "Contacts",
-                                    onclick: move |_| {
-                                        nav.push(Route::ContactBrowser {});
-                                        menu_visible.set(false);
-                                    }
+                                    onclick: move |_| { consume_context::<MenuContext>().go_contacts(); }
                                 }
 
                                 MenuDivider {}
@@ -110,7 +95,7 @@ pub fn HeaderMenu() -> Element {
                                                 tracing::warn!("failed to reload app: {}", e);
                                             }
                                         }
-                                        menu_visible.set(false);
+                                        consume_context::<MenuContext>().close_all();
                                     }
                                 }
                             },
@@ -118,26 +103,17 @@ pub fn HeaderMenu() -> Element {
                             VaultState::SecondaryJoined => rsx! {
                                 MenuButton {
                                     label: "Share Contact Record*",
-                                    onclick: move |_| {
-                                        consume_context::<ShareMyContactModalVisible>().set(true);
-                                        menu_visible.set(false);
-                                    }
+                                    onclick: move |_| { consume_context::<MenuContext>().set_share_contact_visible(); }
                                 }
 
                                 MenuButton {
                                     label: "Device List*",
-                                    onclick: move |_| {
-                                        nav.push(Route::Profile {});
-                                        menu_visible.set(false);
-                                    }
+                                    onclick: move |_| { consume_context::<MenuContext>().go_profile(); }
                                 }
 
                                 MenuButton {
                                     label: "Contacts*",
-                                    onclick: move |_| {
-                                        nav.push(Route::ContactBrowser {});
-                                        menu_visible.set(false);
-                                    }
+                                    onclick: move |_| { consume_context::<MenuContext>().go_contacts(); }
                                 }
 
                                 MenuDivider {}
@@ -151,7 +127,7 @@ pub fn HeaderMenu() -> Element {
                                                 tracing::warn!("failed to reload app: {}", e);
                                             }
                                         }
-                                        menu_visible.set(false);
+                                        consume_context::<MenuContext>().close_all();
                                     }
                                 }
                             },
@@ -170,14 +146,13 @@ pub fn HeaderMenu() -> Element {
                                                 tracing::warn!("failed to reload app: {}", e);
                                             }
                                         }
-                                        menu_visible.set(false);
+                                        consume_context::<MenuContext>().close_all();
                                     }
                                 }
                                 MenuButton {
                                     label: "Join Device Group",
                                     onclick: move |_| {
-                                        consume_context::<ListenForPairModalVisible>().set(true);
-                                        menu_visible.set(false);
+                                        consume_context::<MenuContext>().set_listen_for_pair_visible();
                                     }
                                 }
                             }

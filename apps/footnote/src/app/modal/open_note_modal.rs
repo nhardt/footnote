@@ -4,9 +4,10 @@ use footnote_core::util::tree_node::build_tree_from_manifest;
 use footnote_core::util::tree_node::TreeNode;
 
 use crate::context::AppContext;
+use crate::context::MenuContext;
 
 #[component]
-pub fn NoteSelectModal(onselect: EventHandler, oncancel: EventHandler) -> Element {
+pub fn NoteSelectModal() -> Element {
     let app_context = use_context::<AppContext>();
     let tree = use_memo(move || build_tree_from_manifest(&app_context.manifest.read()));
 
@@ -24,7 +25,7 @@ pub fn NoteSelectModal(onselect: EventHandler, oncancel: EventHandler) -> Elemen
     rsx! {
         div {
             class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
-            onclick: move |_| oncancel.call(()),
+            onclick: move |_| consume_context::<MenuContext>().close_all(),
 
             div {
                 class: "w-full max-w-2xl h-[80vh] border border-zinc-700 rounded-lg bg-zinc-900 shadow-2xl flex flex-col",
@@ -35,7 +36,7 @@ pub fn NoteSelectModal(onselect: EventHandler, oncancel: EventHandler) -> Elemen
                     h3 { class: "text-sm font-semibold", "Browse Files" }
                     button {
                         class: "p-1 rounded transition-colors text-zinc-500 hover:text-zinc-300",
-                        onclick: move |_| oncancel.call(()),
+                        onclick: move |_| consume_context::<MenuContext>().close_all(),
                         "✕"
                     }
                 }
@@ -45,8 +46,7 @@ pub fn NoteSelectModal(onselect: EventHandler, oncancel: EventHandler) -> Elemen
                     for (name, child) in root_children {
                         TreeNodeView {
                             name: name,
-                            node: child,
-                            onselect: onselect,
+                            node: child
                         }
                     }
                 }
@@ -56,7 +56,7 @@ pub fn NoteSelectModal(onselect: EventHandler, oncancel: EventHandler) -> Elemen
 }
 
 #[component]
-fn TreeNodeView(name: String, node: TreeNode, onselect: EventHandler) -> Element {
+fn TreeNodeView(name: String, node: TreeNode) -> Element {
     let is_folder = !node.children.is_empty();
 
     if is_folder {
@@ -78,8 +78,7 @@ fn TreeNodeView(name: String, node: TreeNode, onselect: EventHandler) -> Element
                 for child in sorted_children {
                     TreeNodeView {
                         name: child.name.clone(),
-                        node: child,
-                        onselect: onselect
+                        node: child
                     }
                 }
             }
@@ -87,8 +86,7 @@ fn TreeNodeView(name: String, node: TreeNode, onselect: EventHandler) -> Element
     } else {
         rsx! {
             BrowserRowFile {
-                node: node,
-                onselect: onselect
+                node: node
             }
         }
     }
@@ -154,24 +152,12 @@ fn BrowserRowFolder(name: String, open: bool, children: Element) -> Element {
 }
 
 #[component]
-fn BrowserRowFile(node: TreeNode, onselect: EventHandler) -> Element {
-    let nav = use_navigator();
-    let app_context = use_context::<AppContext>();
+fn BrowserRowFile(node: TreeNode) -> Element {
     let path_clone = node.full_path.clone();
 
     let onclick = move |_| {
         if let Some(relative_path) = &path_clone {
-            nav.push(format!(
-                "/notes/{}",
-                app_context
-                    .vault
-                    .read()
-                    .base_path()
-                    .join(relative_path)
-                    .to_string_lossy()
-                    .to_string()
-            ));
-            onselect(());
+            consume_context::<MenuContext>().go_note(&relative_path.to_string_lossy().to_string());
         }
     };
 

@@ -12,7 +12,7 @@ use uuid::Uuid;
 use footnote_core::model::note::Note;
 
 use crate::body::note::footnotes::Footnotes;
-use crate::context::AppContext;
+use crate::context::{AppContext, MenuContext};
 
 #[derive(Clone, Copy, PartialEq)]
 enum SaveStatus {
@@ -185,16 +185,8 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
                             "found entry for uuid, requesting nav to: {}",
                             entry.path.to_string_lossy()
                         );
-                        nav.push(format!(
-                            "/notes/{}",
-                            &app_context
-                                .vault
-                                .read()
-                                .base_path()
-                                .join(&entry.path)
-                                .to_string_lossy()
-                                .to_string()
-                        ));
+                        consume_context::<MenuContext>()
+                            .go_note(&entry.path.to_string_lossy().to_string());
                         return Ok(());
                     }
                 }
@@ -262,7 +254,8 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
                 if !canonical_full.exists() {
                     fs::write(&canonical_full, "")?;
                 }
-                nav.push(format!("/notes/{}", canonical_full.to_string_lossy()));
+
+                consume_context::<MenuContext>().go_note(&footnote_text);
             }
 
             Ok(())

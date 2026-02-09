@@ -1,16 +1,10 @@
-use crate::context::AppContext;
-use footnote_core::service::join_service::{JoinEvent, JoinService};
 use dioxus::prelude::*;
+
 use qrcode_generator::QrCodeEcc;
 use tokio_util::sync::CancellationToken;
 
-#[derive(Clone, Copy, PartialEq)]
-pub struct ListenForPairModalVisible(pub Signal<bool>);
-impl ListenForPairModalVisible {
-    pub fn set(&mut self, value: bool) {
-        self.0.set(value);
-    }
-}
+use crate::context::{AppContext, MenuContext};
+use footnote_core::service::join_service::{JoinEvent, JoinService};
 
 #[component]
 pub fn ListenForPairModal() -> Element {
@@ -49,7 +43,7 @@ pub fn ListenForPairModal() -> Element {
                                 if let Err(e) = mut_app_context.reload() {
                                     tracing::warn!("failed to reload app: {}", e);
                                 } else {
-                                    consume_context::<ListenForPairModalVisible>().set(false);
+                                    consume_context::<MenuContext>().close_all();
                                     tracing::info!("reloaded app");
                                 }
                                 return;
@@ -65,7 +59,7 @@ pub fn ListenForPairModal() -> Element {
 
     let cancel_listening = move |_| {
         cancel_token().cancel();
-        consume_context::<ListenForPairModalVisible>().set(false);
+        consume_context::<MenuContext>().close_all();
     };
 
     use_drop(move || {
@@ -77,7 +71,7 @@ pub fn ListenForPairModal() -> Element {
     rsx! {
         div {
             class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
-            onclick: move |_| consume_context::<ListenForPairModalVisible>().set(false),
+            onclick: move |_| consume_context::<MenuContext>().close_all(),
 
             div {
                 class: "bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl max-w-md w-full",
@@ -93,7 +87,7 @@ pub fn ListenForPairModal() -> Element {
                             div { class: "flex gap-3",
                                 button {
                                     class: "px-6 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-lg font-medium transition-all",
-                                    onclick: move |_| consume_context::<ListenForPairModalVisible>().set(false),
+                                    onclick: move |_| consume_context::<MenuContext>().close_all(),
                                     "Cancel"
                                 }
                                 button {

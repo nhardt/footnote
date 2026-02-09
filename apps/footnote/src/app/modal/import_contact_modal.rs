@@ -1,23 +1,7 @@
-use crate::context::AppContext;
 use dioxus::prelude::*;
 
-#[derive(Clone, Copy, PartialEq)]
-pub struct ImportContactModalVisible(pub Signal<bool>);
-
-impl ImportContactModalVisible {
-    pub fn set(&mut self, value: bool) {
-        self.0.set(value);
-    }
-}
-
-#[derive(Clone, Copy, PartialEq)]
-pub struct ImportedContactString(pub Signal<String>);
-
-impl ImportedContactString {
-    pub fn set(&mut self, value: String) {
-        self.0.set(value);
-    }
-}
+use crate::context::AppContext;
+use crate::context::MenuContext;
 
 #[component]
 pub fn ImportContactModal() -> Element {
@@ -26,11 +10,14 @@ pub fn ImportContactModal() -> Element {
     let mut err_message = use_signal(|| String::new());
     let mut app_context = use_context::<AppContext>();
 
-    let imported_contact_data = use_context::<ImportedContactString>();
     use_effect(move || {
-        let data = imported_contact_data.0.read();
-        if !data.is_empty() {
-            contact_json.set(data.clone());
+        let imported_contact_data = consume_context::<MenuContext>()
+            .imported_contact_string
+            .read()
+            .clone();
+
+        if !imported_contact_data.is_empty() {
+            contact_json.set(imported_contact_data.clone());
         }
     });
 
@@ -41,7 +28,7 @@ pub fn ImportContactModal() -> Element {
                 app_context
                     .contacts
                     .set(vault.contact_read().expect("could not load contacts"));
-                consume_context::<ImportContactModalVisible>().set(false);
+                consume_context::<MenuContext>().close_all();
             }
             Err(e) => err_message.set(format!("Failed to import contact: {e}")),
         };
@@ -95,7 +82,7 @@ pub fn ImportContactModal() -> Element {
                     }
                     div { class: "flex gap-3",
                         button { class: "flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
-                            onclick: move |_| consume_context::<ImportContactModalVisible>().set(false),
+                            onclick: move |_| consume_context::<MenuContext>().close_all(),
                             "Cancel"
                         }
                         button { class: "flex-1 px-4 py-2 bg-zinc-100 hover:bg-white hover:shadow-lg text-zinc-900 rounded-md text-sm font-medium transition-all",
