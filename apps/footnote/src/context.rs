@@ -123,7 +123,8 @@ impl MenuContext {
         self.close_all();
 
         let nav = use_navigator();
-        nav.push(format!("/notes/{}", note_path));
+        tracing::info!("navigating to {}", note_path);
+        nav.push(format!("/note/{}", note_path));
     }
 
     pub fn close_all(&mut self) {

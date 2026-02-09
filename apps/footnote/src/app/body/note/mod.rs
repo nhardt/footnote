@@ -215,7 +215,8 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
                             .join(&footnote_text);
 
                         if relative_path.exists() {
-                            nav.push(format!("/notes/{}", relative_path.to_string_lossy()));
+                            consume_context::<MenuContext>()
+                                .go_note(&relative_path.to_string_lossy().to_string());
                             return Ok(());
                         } else {
                             // if, not, this is just a link in a doc we don't have
@@ -364,7 +365,7 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
                         show_save_as_modal.set(false);
                         save_status.set(SaveStatus::Saved);
                         nav.replace(format!(
-                            "/notes/{}",
+                            "/note/{}",
                             app_context.vault.read().relative_string_to_absolute_string(&new_relative_path)
                         ));
                     });

@@ -33,8 +33,7 @@ pub fn NewNoteModal() -> Element {
             return;
         }
 
-        nav.push(format!("/notes/{}", path_str));
-        consume_context::<MenuContext>().close_all();
+        consume_context::<MenuContext>().go_note(&path_str);
     };
 
     let create_now_note = move |_| async move {
@@ -54,11 +53,7 @@ pub fn NewNoteModal() -> Element {
             return;
         }
 
-        nav.push(format!(
-            "/notes/{}",
-            full_path.to_string_lossy().to_string()
-        ));
-        consume_context::<MenuContext>().close_all();
+        consume_context::<MenuContext>().go_note(&path_str);
     };
 
     rsx! {
