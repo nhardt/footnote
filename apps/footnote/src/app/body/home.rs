@@ -1,5 +1,7 @@
 use dioxus::prelude::*;
 
+use crate::context::MenuContext;
+
 #[component]
 pub fn Home() -> Element {
     rsx! {
@@ -34,6 +36,7 @@ pub fn Home() -> Element {
                             class: "space-y-2",
                             button {
                                 class: "w-full px-4 py-3 text-left text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 rounded-lg transition-colors border border-zinc-800",
+                                onclick: move |_| consume_context::<MenuContext>().set_new_note_visible(),
                                 "New Note"
                             }
                             button {
