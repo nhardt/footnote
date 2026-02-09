@@ -24,7 +24,7 @@ pub fn NoteSelectModal() -> Element {
 
     rsx! {
         div {
-            class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
+            class: "fixed text-zinc-100 inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
             onclick: move |_| consume_context::<MenuContext>().close_all(),
 
             div {

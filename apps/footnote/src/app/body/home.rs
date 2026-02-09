@@ -41,7 +41,8 @@ pub fn Home() -> Element {
                             }
                             button {
                                 class: "w-full px-4 py-3 text-left text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 rounded-lg transition-colors border border-zinc-800",
-                                "Import Contact"
+                                onclick: move |_| consume_context::<MenuContext>().set_share_contact_visible(),
+                                "Share Contact Record"
                             }
                         }
                     }
