@@ -103,7 +103,7 @@ pub fn FileSearch() -> Element {
                                     key: "{file}",
                                     class: "w-full px-3 py-2 text-left hover:bg-zinc-800 text-sm",
                                     onclick: move |_| {
-                                        nav.push(Route::NoteView { file_path_segments: segments.clone() });
+                                        nav.push(Route::NoteView { vault_relative_path_segments: segments.clone() });
                                         search_input.set(String::new());
                                         dropdown_open.set(false);
                                     },

@@ -22,7 +22,7 @@ enum SaveStatus {
 }
 
 #[component]
-pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
+pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Element {
     let nav = navigator();
     let app_context = use_context::<AppContext>();
 
@@ -35,17 +35,22 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
     let mut body = use_signal(move || String::new());
     let mut footnotes = use_signal(move || IndexMap::new());
     let mut loaded_note_full_path = use_signal(move || String::new());
+    let relative_path = use_memo(move || vault_relative_path_segments().join("/"));
+    let read_only = use_memo(move || relative_path.read().starts_with("footnotes"));
 
     use_effect(move || {
         let vault_path = app_context.vault.read().base_path();
-        let full_path = file_path_segments()
+        let full_path = vault_relative_path_segments()
             .iter()
             .fold(vault_path, |acc, seg| acc.join(seg));
 
         tracing::info!("loaded note full path changed to: {}", full_path.display());
 
         let Ok(note) = Note::from_path(&full_path, true) else {
-            tracing::info!("note failed to load");
+            tracing::info!(
+                "note failed to load from {}",
+                full_path.to_string_lossy().to_string()
+            );
             return;
         };
 
@@ -64,16 +69,6 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
 
         loaded_note_full_path.set(full_path.to_string_lossy().to_string());
     });
-
-    // derived from file_path_segments directly
-    let relative_path = use_memo(move || {
-        let loaded_from_path = PathBuf::from(file_path_segments().join("/"));
-        app_context
-            .vault
-            .read()
-            .absolute_path_to_relative_string(loaded_from_path)
-    });
-    let read_only = use_memo(move || relative_path.read().starts_with("footnotes"));
 
     let sync_body_to_footnotes = move |_| async move {
         let mut footnotes_signal = footnotes.clone();
@@ -123,10 +118,12 @@ pub fn NoteView(file_path_segments: ReadSignal<Vec<String>>) -> Element {
     let save_note = move |relative_path: Option<String>| async move {
         save_status.set(SaveStatus::Syncing);
 
-        let full_path = file_path_segments().join("/");
-        let mut note_copy = match Note::from_path(PathBuf::from(&full_path), true) {
+        let mut note_copy = match Note::from_path(PathBuf::from(loaded_note_full_path()), true) {
             Ok(n) => n,
-            Err(_) => Note::from_string("", true).unwrap(),
+            Err(e) => {
+                tracing::info!("failed to load note for RMW, {}", e);
+                Note::new()
+            }
         };
 
         note_copy.frontmatter.share_with = share_with

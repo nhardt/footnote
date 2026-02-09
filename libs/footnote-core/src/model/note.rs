@@ -25,6 +25,15 @@ pub struct Frontmatter {
 }
 
 impl Note {
+    pub fn new() -> Self {
+        Note {
+            frontmatter: Self::create_frontmatter(),
+            content: String::new(),
+            footnotes: IndexMap::new(),
+            loaded_from: None,
+        }
+    }
+
     pub fn from_path(path: impl AsRef<Path>, coerce_to_footnote: bool) -> Result<Self> {
         let content = fs::read_to_string(path.as_ref())
             .with_context(|| format!("Failed to read note: {}", path.as_ref().display()))?;
