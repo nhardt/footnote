@@ -20,6 +20,8 @@ pub struct Frontmatter {
     pub modified: LamportTimestamp,
     #[serde(default)]
     pub share_with: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reply_to: Option<Uuid>,
     #[serde(flatten)]
     extra: serde_yaml::Value,
 }
@@ -197,6 +199,7 @@ impl Note {
             uuid: Uuid::new_v4(),
             modified: LamportTimestamp::now(),
             share_with: Vec::new(),
+            reply_to: None,
             extra: serde_yaml::Value::Mapping(serde_yaml::Mapping::new()),
         }
     }
@@ -335,6 +338,7 @@ Text with refs.
             uuid: Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap(),
             modified: LamportTimestamp(1705316400),
             share_with: vec!["alice".to_string()],
+            reply_to: None,
             extra: serde_yaml::Value::Mapping(frontmatter_map),
         };
 
@@ -478,4 +482,46 @@ these days, i just think it's an interesting concept. i know conclusions come fr
             }
         }
     }
+}
+
+#[test]
+fn test_reply_to_round_trip() {
+    let parent_uuid = Uuid::new_v4();
+    let content = format!(
+        r#"---
+uuid: 550e8400-e29b-41d4-a716-446655440000
+modified: 1705316400
+share_with: []
+reply_to: {}
+---
+
+This is a reply to another note.
+"#,
+        parent_uuid
+    );
+
+    let note = Note::from_string(&content, false).unwrap();
+    assert_eq!(note.frontmatter.reply_to, Some(parent_uuid));
+
+    let serialized = note.to_string().unwrap();
+    let reparsed = Note::from_string(&serialized, false).unwrap();
+    assert_eq!(reparsed.frontmatter.reply_to, Some(parent_uuid));
+}
+
+#[test]
+fn test_reply_to_omitted_when_none() {
+    let content = r#"---
+uuid: 550e8400-e29b-41d4-a716-446655440000
+modified: 1705316400
+share_with: []
+---
+
+Regular note without the field that indicates a reply
+"#;
+
+    let note = Note::from_string(content, false).unwrap();
+    assert_eq!(note.frontmatter.reply_to, None);
+
+    let serialized = note.to_string().unwrap();
+    assert!(!serialized.contains("reply_to"));
 }
