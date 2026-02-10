@@ -136,24 +136,30 @@ pub fn FileSearch() -> Element {
                                 .collect();
 
                             let display_name = result.display.clone();
-                            let line_text = match &result.match_type {
-                                MatchType::Filename => display_name.clone(),
-                                MatchType::Content { .. } => {
-                                    let preview = result.preview.as_deref().unwrap_or("");
-                                    format!("{display_name}: {preview}")
-                                }
+                            let preview = match &result.match_type {
+                                MatchType::Filename => None,
+                                MatchType::Content { .. } => result.preview.clone(),
                             };
 
                             rsx! {
                                 button {
                                     key: "{file}-{result.match_type:?}",
-                                    class: "w-full px-2 py-1 text-left hover:bg-zinc-800 border-b border-zinc-800/50 last:border-0 font-mono text-sm truncate",
+                                    class: "w-full px-2 py-1 text-left hover:bg-zinc-800 border-b border-zinc-800/50 last:border-0 font-mono text-sm flex items-center gap-2",
                                     onclick: move |_| {
                                         nav.push(Route::NoteView { vault_relative_path_segments: segments.clone() });
                                         search_input.set(String::new());
                                         dropdown_open.set(false);
                                     },
-                                    "{line_text}"
+                                    span {
+                                        class: "text-zinc-500 text-xs shrink-0",
+                                        "{display_name}"
+                                    }
+                                    if let Some(text) = &preview {
+                                        span {
+                                            class: "text-zinc-100 truncate",
+                                            "{text}"
+                                        }
+                                    }
                                 }
                             }
                         }
