@@ -1,11 +1,14 @@
 use clap::{Parser, Subcommand};
+
+use std::path::{Path, PathBuf};
+use tokio_util::sync::CancellationToken;
+
 use footnote_core::model::contact::Contact;
 use footnote_core::model::note::Note;
 use footnote_core::model::vault::Vault;
 use footnote_core::service::join_service::{JoinEvent, JoinService};
 use footnote_core::service::sync_service::SyncService;
-use std::path::{Path, PathBuf};
-use tokio_util::sync::CancellationToken;
+use footnote_core::service::ALPN_SYNC;
 
 #[derive(Parser)]
 #[command(name = "footnote")]
@@ -120,8 +123,6 @@ pub enum NoteAction {
         path: PathBuf,
     },
 }
-
-const ALPN_SYNC: &[u8] = b"footnote/sync";
 
 pub async fn execute(cli: Cli) -> anyhow::Result<()> {
     match cli.command {

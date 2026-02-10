@@ -9,16 +9,6 @@ use iroh::Endpoint;
 use std::fs;
 use std::path::Component;
 
-/// file exchange protocol:
-/// - on push from device A to device B
-///
-/// A creates manifest for B
-/// A sends manifest to B
-/// B reads manifest, looks for needed files
-/// B requests files from A
-/// A verifies B can read requested file
-/// A sends file to B
-
 pub async fn receive_share(vault: &Vault, nickname: &str, connection: Connection) -> Result<()> {
     // Important Note: The peer that calls open_bi must write to its SendStream
     // before the peer Connection is able to accept the stream using
@@ -35,6 +25,14 @@ pub async fn receive_share(vault: &Vault, nickname: &str, connection: Connection
     let mut incoming_contact: Contact = serde_json::from_slice(&contact_record_bytes)?;
     incoming_contact.verify()?;
     vault.contact_update(nickname, &mut incoming_contact)?;
+
+    let contacts_bytes = network::receive_bytes(&mut recv).await?;
+    let incoming_contacts: Vec<Contact> =
+        serde_json::from_slice(&contacts_bytes).context("Failed to deserialize contact records")?;
+
+    if !incoming_contacts.is_empty() {
+        tracing::error!("received non empty contact list from share peer");
+    }
 
     let manifest_bytes = network::receive_bytes(&mut recv).await?;
     let remote_manifest: Manifest =
@@ -140,6 +138,29 @@ pub async fn receive_mirror(vault: &Vault, connection: Connection) -> Result<()>
     }
     vault.user_write(&incoming_user_record)?;
 
+    let contacts_bytes = network::receive_bytes(&mut recv).await?;
+    let incoming_contacts: Vec<Contact> =
+        serde_json::from_slice(&contacts_bytes).context("Failed to deserialize contact records")?;
+
+    if !incoming_contacts.is_empty() {
+        let sender_is_leader = incoming_user_record
+            .device_leader
+            .parse::<iroh::PublicKey>()
+            .map(|leader_key| leader_key == connection.remote_id())
+            .unwrap_or(false);
+
+        if sender_is_leader {
+            if let Err(e) = vault.contacts_replace(&incoming_contacts) {
+                tracing::error!("failed to sync contacts from mirror: {}", e);
+            }
+        } else {
+            tracing::warn!(
+                "received contacts from non-manager device {}, ignoring",
+                connection.remote_id()
+            );
+        }
+    }
+
     let manifest_bytes = network::receive_bytes(&mut recv).await?;
 
     let remote_manifest: Manifest =
@@ -209,6 +230,7 @@ pub async fn sync_to_target(
     endpoint: Endpoint,
     sync_type: SyncType,
     manifest: Manifest,
+    contacts_to_send: Vec<Contact>,
     remote_endpoint_id: iroh::PublicKey,
     alpn: &[u8],
 ) -> Result<()> {
@@ -243,6 +265,10 @@ pub async fn sync_to_target(
     } else {
         anyhow::bail!("cannot send files without a user record");
     }
+
+    let contacts_bytes =
+        serde_json::to_vec(&contacts_to_send).context("Failed to serialize contacts for mirror")?;
+    network::send_bytes(&mut send, &contacts_bytes).await?;
 
     let serialised_manifest =
         serde_json::to_vec(&manifest).context("Failed to serialize manifest")?;

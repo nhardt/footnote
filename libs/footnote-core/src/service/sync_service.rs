@@ -1,3 +1,4 @@
+use crate::service::ALPN_SYNC;
 use crate::util::sync_status_record::SyncType;
 use crate::{
     model::vault::Vault,
@@ -8,8 +9,6 @@ use iroh::Endpoint;
 use tokio_util::sync::CancellationToken;
 
 pub struct SyncService;
-
-const ALPN_SYNC: &[u8] = b"footnote/sync";
 
 impl SyncService {
     pub async fn listen(vault: Vault, endpoint: Endpoint, cancel: CancellationToken) -> Result<()> {
@@ -80,6 +79,7 @@ impl SyncService {
             endpoint,
             SyncType::Share,
             manifest,
+            Vec::new(),
             endpoint_id,
             ALPN_SYNC,
         )
@@ -99,11 +99,18 @@ impl SyncService {
         let manifest =
             manifest::create_manifest_full(&vault.path).context("Failed to create manifest")?;
 
+        let contacts = if vault.is_device_leader()? {
+            vault.contact_read()?
+        } else {
+            Vec::new()
+        };
+
         transfer::sync_to_target(
             vault,
             endpoint,
             SyncType::Mirror,
             manifest,
+            contacts,
             endpoint_id,
             ALPN_SYNC,
         )

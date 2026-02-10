@@ -1,12 +1,14 @@
-use crate::context::AppContext;
 use dioxus::prelude::*;
-use footnote_core::model::vault::Vault;
-use footnote_core::service::sync_service::SyncService;
+
 use iroh::Endpoint;
 use tokio::time::{interval, Duration};
 use tokio_util::sync::CancellationToken;
 
-const ALPN_SYNC: &[u8] = b"footnote/sync";
+use footnote_core::model::vault::Vault;
+use footnote_core::service::sync_service::SyncService;
+use footnote_core::service::ALPN_SYNC;
+
+use crate::context::AppContext;
 
 #[component]
 pub fn SyncServiceToggle() -> Element {

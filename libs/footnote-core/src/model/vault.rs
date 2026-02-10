@@ -159,8 +159,16 @@ impl Vault {
         Ok(())
     }
 
-    pub fn is_primary_device(&self) -> anyhow::Result<bool> {
-        Ok(self.path.join(".footnote").join("id_key").exists())
+    pub fn is_device_leader(&self) -> anyhow::Result<bool> {
+        let user_record = match self.user_read()? {
+            Some(r) => r,
+            None => return Ok(false),
+        };
+
+        let (our_key, _) = self.device_public_key()?;
+        let leader_key = user_record.device_leader.parse::<iroh::PublicKey>()?;
+
+        Ok(our_key == leader_key)
     }
 
     pub fn is_created(&self) -> Result<bool> {
@@ -360,6 +368,50 @@ impl Vault {
             .join("contacts")
             .join(format!("{}.json", nickname));
         contact.to_file(contacts_file)?;
+        Ok(())
+    }
+
+    pub fn contacts_replace(&self, incoming: &[Contact]) -> anyhow::Result<()> {
+        let contacts_dir = self.path.join(".footnote").join("contacts");
+        fs::create_dir_all(&contacts_dir)?;
+
+        if let Ok(entries) = fs::read_dir(&contacts_dir) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                if entry.path().extension().and_then(|s| s.to_str()) != Some("json") {
+                    continue;
+                }
+                // if let Err(e) = self.archive_contact_file(&entry.path()) {
+                //     tracing::warn!("failed to archive {}: {}", entry.path().display(), e);
+                // }
+                fs::remove_file(entry.path())?;
+            }
+        }
+
+        for contact in incoming {
+            if let Err(e) = contact.verify() {
+                tracing::warn!(
+                    "skipping unverified contact '{}' during mirror: {}",
+                    contact.username,
+                    e
+                );
+                continue;
+            }
+
+            let nickname = if contact.nickname.is_empty() {
+                &contact.username
+            } else {
+                &contact.nickname
+            };
+
+            let target_path = contacts_dir.join(format!("{}.json", nickname));
+            contact.to_file(&target_path)?;
+
+            let footnotes_dir = self.path.join("footnotes").join(nickname);
+            fs::create_dir_all(&footnotes_dir)?;
+
+            tracing::info!("wrote contact '{}' from mirror", nickname);
+        }
+
         Ok(())
     }
 
