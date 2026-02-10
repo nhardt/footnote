@@ -1,12 +1,14 @@
-use crate::context::AppContext;
 use dioxus::prelude::*;
-use footnote_core::model::vault::Vault;
-use footnote_core::service::sync_service::SyncService;
+
 use iroh::Endpoint;
 use tokio::time::{interval, Duration};
 use tokio_util::sync::CancellationToken;
 
-const ALPN_SYNC: &[u8] = b"footnote/sync";
+use footnote_core::model::vault::Vault;
+use footnote_core::service::sync_service::SyncService;
+use footnote_core::service::ALPN_SYNC;
+
+use crate::context::AppContext;
 
 #[component]
 pub fn SyncServiceToggle() -> Element {
@@ -101,7 +103,7 @@ async fn push_changes(vault: Vault, endpoint: Endpoint, cancel_token: Cancellati
                 let contacts = vault.contact_read().unwrap_or_default();
                 for contact in contacts {
                     tracing::info!("attempting to share with {}", contact.nickname);
-                    if let Err(e) = SyncService::share_to_device(&vault, endpoint.clone(), &contact.nickname).await {
+                    if let Err(e) = SyncService::share_to_contact(&vault, endpoint.clone(), &contact.nickname).await {
                         tracing::warn!("Failed to share with {}: {}", contact.nickname, e);
                     }
                 }

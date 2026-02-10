@@ -181,6 +181,8 @@ fn truncate_endpoint_id(id: &str) -> String {
 #[component]
 fn DeviceRow(device: Device, read_only: bool) -> Element {
     let mut app_context = use_context::<AppContext>();
+    let mut show_edit_modal = use_signal(|| false);
+
     let device_for_outbound = device.clone();
     let outbound_device_status = use_signal(move || {
         use footnote_core::util::sync_status_record::{SyncDirection, SyncStatusRecord};
@@ -234,15 +236,43 @@ fn DeviceRow(device: Device, read_only: bool) -> Element {
                         span { class: "text-xs font-mono text-zinc-500 mb-2", "{truncated_id}" }
                     }
                 }
+                if !read_only {
+                    button {
+                        class: "p-1 text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800 rounded transition-all",
+                        onclick: move |_| show_edit_modal.set(true),
+                        svg {
+                            class: "w-3 h-3",
+                            fill: "none",
+                            stroke: "currentColor",
+                            view_box: "0 0 24 24",
+                            path {
+                                d: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z",
+                                stroke_linecap: "round",
+                                stroke_linejoin: "round",
+                                stroke_width: "2",
+                            }
+                        }
+                    }
+                }
 
                 if let Some(status) = outbound_device_status() {
                     div { class: "text-xs text-zinc-400",
-                        "Last outbound: {status.files_transferred} files"
+                        "Last outbound: {status.files_transferred} files at {status.timestamp.relative_time_string()}"
+                    }
+                }
+                else {
+                    div { class: "text-xs text-zinc-400",
+                        "No last outbound sync"
                     }
                 }
                 if let Some(status) = inbound_device_status() {
                     div { class: "text-xs text-zinc-400",
-                        "Last inbound: {status.files_transferred} files"
+                        "Last inbound: {status.files_transferred} files at {status.timestamp.relative_time_string()}"
+                    }
+                }
+                else {
+                    div { class: "text-xs text-zinc-400",
+                        "No last inbound sync"
                     }
                 }
             }
@@ -279,6 +309,15 @@ fn DeviceRow(device: Device, read_only: bool) -> Element {
                 }
             }
         }
+
+        if show_edit_modal() {
+            EditDeviceNameModal {
+                device_id: device.iroh_endpoint_id.clone(),
+                current_name: device.name.clone(),
+                oncancel: move |_| show_edit_modal.set(false),
+            }
+        }
+
     }
 }
 
@@ -307,6 +346,67 @@ pub fn ConfirmDialog(
                             onclick: move |_| onconfirm.call(()),
                             "Delete"
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[component]
+fn EditDeviceNameModal(device_id: String, current_name: String, oncancel: EventHandler) -> Element {
+    let mut app_context = use_context::<AppContext>();
+    let mut device_name = use_signal(move || current_name.clone());
+    let mut err_message = use_signal(|| String::new());
+
+    let save_device_name = move |_| {
+        let vault = app_context.vault.read().clone();
+        match vault.device_update(&device_id, device_name.read().as_str()) {
+            Ok(_) => {
+                if let Err(e) = app_context.reload() {
+                    tracing::warn!("failed to reload app: {}", e);
+                }
+                oncancel.call(());
+            }
+            Err(e) => {
+                err_message.set(format!("Error updating device name: {}", e));
+            }
+        }
+    };
+
+    rsx! {
+        div {
+            class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
+            onclick: move |_| oncancel.call(()),
+
+            div {
+                class: "w-full max-w-md border border-zinc-700 rounded-lg bg-zinc-900 shadow-2xl p-6",
+                onclick: move |evt| evt.stop_propagation(),
+
+                h3 { class: "text-lg font-semibold mb-4", "Edit Device Name" }
+
+                input {
+                    class: "w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-sm font-mono focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 mb-4",
+                    r#type: "text",
+                    placeholder: "Device name",
+                    value: "{device_name}",
+                    oninput: move |e| device_name.set(e.value())
+                }
+
+                if !err_message().is_empty() {
+                    div { class: "mb-4 text-sm text-red-400", "{err_message}" }
+                }
+
+                div { class: "flex gap-2 justify-end",
+                    button {
+                        class: "px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100",
+                        onclick: move |_| oncancel.call(()),
+                        "Cancel"
+                    }
+                    button {
+                        class: "px-4 py-2 bg-zinc-100 text-zinc-900 rounded-md text-sm font-medium hover:bg-white",
+                        onclick: save_device_name,
+                        "Save"
                     }
                 }
             }

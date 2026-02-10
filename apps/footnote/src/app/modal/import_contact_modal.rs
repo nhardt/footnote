@@ -37,7 +37,7 @@ pub fn ImportContactModal() -> Element {
     rsx! {
         div {
             id: "import-modal",
-            class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
+            class: "fixed text-zinc-100 inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
             div {
                 class: "bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl max-w-2xl w-full h-[90vh] flex flex-col",
                 onclick: move |evt| evt.stop_propagation(),
@@ -59,7 +59,6 @@ pub fn ImportContactModal() -> Element {
                         }
                         input {
                             class: "w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-md text-sm font-mono focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
-                            placeholder: "alice",
                             r#type: "text",
                             value: "{nickname}",
                             oninput: move |e| nickname.set(e.value())

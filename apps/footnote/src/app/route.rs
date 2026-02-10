@@ -13,8 +13,10 @@ pub enum Route {
     #[route("/")]
     Home {},
 
-    #[route("/note/:..file_path_segments")]
-    NoteView { file_path_segments: Vec<String> },
+    #[route("/note/:..vault_relative_path_segments")]
+    NoteView {
+        vault_relative_path_segments: Vec<String>,
+    },
 
     #[route("/contact")]
     ContactBrowser {},

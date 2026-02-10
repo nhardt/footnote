@@ -29,7 +29,7 @@ fn ContactRow(contact: Contact) -> Element {
     let mut expanded = use_signal(|| false);
 
     rsx! {
-        div { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 overflow-hidden",
+        div { class: "border border-zinc-800 text-zinc-100 rounded-lg bg-zinc-900/30 overflow-hidden",
             button {
                 class: "w-full px-6 py-4 hover:bg-zinc-900/50 transition-colors text-left",
                 onclick: move |_| expanded.toggle(),
@@ -83,6 +83,8 @@ fn DeviceItems(devices: Vec<Device>) -> Element {
 fn DeviceItem(device: Device) -> Element {
     let app_context = use_context::<AppContext>();
     let device_for_outbound = device.clone();
+    // these signals are likely wrong. they will only update if the vault's base
+    // path changes
     let last_outbound_success = use_signal(move || {
         match SyncStatusRecord::last_success(
             app_context.vault.read().base_path().clone(),
@@ -116,10 +118,24 @@ fn DeviceItem(device: Device) -> Element {
             }
 
             if let Some(status) = last_outbound_success() {
-                div { class: "text-xs text-zinc-400", "Last outbound: {status.files_transferred} files" }
+                div { class: "text-xs text-zinc-400",
+                    "Last outbound: {status.files_transferred} files at {status.timestamp.relative_time_string()}"
+                }
+            }
+            else {
+                div { class: "text-xs text-zinc-400",
+                    "No last outbound sync"
+                }
             }
             if let Some(status) = last_inbound_success() {
-                div { class: "text-xs text-zinc-400", "Last inbound: {status.files_transferred} files" }
+                div { class: "text-xs text-zinc-400",
+                    "Last inbound: {status.files_transferred} files at {status.timestamp.relative_time_string()}"
+                }
+            }
+            else {
+                div { class: "text-xs text-zinc-400",
+                    "No last inbound sync"
+                }
             }
         }
     }

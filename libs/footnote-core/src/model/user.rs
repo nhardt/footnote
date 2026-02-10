@@ -185,4 +185,31 @@ impl LocalUser {
         user_record.to_file(&local_user_file)?;
         Ok(user_record)
     }
+
+    pub fn device_name_update(&self, iroh_endpoint: &str, new_name: &str) -> Result<Contact> {
+        tracing::info!("updating device name for {} to {}", iroh_endpoint, new_name);
+        let local_user_file = self.vault_path.join(".footnote").join("user.json");
+        let current_user_record = match Contact::from_file(&local_user_file) {
+            Ok(contact) => contact,
+            Err(_) => anyhow::bail!("no user file exists to update device in"),
+        };
+        current_user_record.verify()?;
+
+        let mut user_record = current_user_record.clone();
+
+        let device = user_record
+            .devices
+            .iter_mut()
+            .find(|d| d.iroh_endpoint_id == iroh_endpoint)
+            .ok_or_else(|| anyhow::anyhow!("device not found"))?;
+
+        device.name = new_name.to_string();
+
+        user_record.updated_at = LamportTimestamp(user_record.updated_at.as_i64());
+        let (signing_key, _) = self.id_key_read()?;
+        user_record.sign(&signing_key)?;
+        user_record.is_valid_successor_of(&current_user_record)?;
+        user_record.to_file(&local_user_file)?;
+        Ok(user_record)
+    }
 }

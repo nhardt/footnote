@@ -119,12 +119,12 @@ impl MenuContext {
         nav.push(Route::ContactBrowser {});
     }
 
-    pub fn go_note(&mut self, note_path: &str) {
+    pub fn go_note(&mut self, vault_relative_path: &str) {
         self.close_all();
 
         let nav = use_navigator();
-        tracing::info!("navigating to {}", note_path);
-        nav.push(format!("/note/{}", note_path));
+        tracing::info!("navigating to {}", vault_relative_path);
+        nav.push(format!("/note/{}", vault_relative_path));
     }
 
     pub fn close_all(&mut self) {

@@ -1,11 +1,14 @@
 use clap::{Parser, Subcommand};
+
+use std::path::{Path, PathBuf};
+use tokio_util::sync::CancellationToken;
+
 use footnote_core::model::contact::Contact;
 use footnote_core::model::note::Note;
 use footnote_core::model::vault::Vault;
 use footnote_core::service::join_service::{JoinEvent, JoinService};
 use footnote_core::service::sync_service::SyncService;
-use std::path::{Path, PathBuf};
-use tokio_util::sync::CancellationToken;
+use footnote_core::service::ALPN_SYNC;
 
 #[derive(Parser)]
 #[command(name = "footnote")]
@@ -120,8 +123,6 @@ pub enum NoteAction {
         path: PathBuf,
     },
 }
-
-const ALPN_SYNC: &[u8] = b"footnote/sync";
 
 pub async fn execute(cli: Cli) -> anyhow::Result<()> {
     match cli.command {
@@ -290,7 +291,7 @@ async fn service_share_listen() -> anyhow::Result<()> {
 async fn service_share(to_nickname: String) -> anyhow::Result<()> {
     let vault = Vault::new(&std::env::current_dir()?)?;
     let endpoint = vault.build_endpoint(ALPN_SYNC).await?;
-    SyncService::share_to_device(&vault, endpoint, &to_nickname).await?;
+    SyncService::share_to_contact(&vault, endpoint, &to_nickname).await?;
     println!(
         "{}",
         serde_json::json!(

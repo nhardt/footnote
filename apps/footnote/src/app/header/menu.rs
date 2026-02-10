@@ -107,7 +107,7 @@ pub fn HeaderMenu() -> Element {
                                 }
 
                                 MenuButton {
-                                    label: "Device List*",
+                                    label: "Profile*",
                                     onclick: move |_| { consume_context::<MenuContext>().go_profile(); }
                                 }
 
