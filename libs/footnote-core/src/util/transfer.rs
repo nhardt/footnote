@@ -10,6 +10,14 @@ use std::fs;
 use std::path::Component;
 
 pub async fn receive_share(vault: &Vault, nickname: &str, connection: Connection) -> Result<()> {
+    let Ok(mut transfer_record) = SyncStatusRecord::start(
+        vault.base_path(),
+        connection.remote_id(),
+        SyncType::Share,
+        SyncDirection::Inbound,
+    ) else {
+        anyhow::bail!("could not create log for transfer");
+    };
     // Important Note: The peer that calls open_bi must write to its SendStream
     // before the peer Connection is able to accept the stream using
     // accept_bi(). Calling open_bi then waiting on the RecvStream without
@@ -40,7 +48,10 @@ pub async fn receive_share(vault: &Vault, nickname: &str, connection: Connection
     let local_manifest =
         create_manifest_full(&vault.path).context("Failed to create local manifest")?;
     let files_to_sync = diff_manifests(&local_manifest, &remote_manifest);
-
+    if let Err(e) = transfer_record.update(0, Some(files_to_sync.len())) {
+        tracing::warn!("could not update transfer record: {}", e);
+    }
+    let mut transfer_count = 0;
     for file_to_sync in &files_to_sync {
         let path_components: Vec<_> = file_to_sync.path.components().collect();
         for component in &path_components {
@@ -97,8 +108,11 @@ pub async fn receive_share(vault: &Vault, nickname: &str, connection: Connection
         network::send_file_request(&mut send, &file_to_sync.uuid).await?;
         let file_contents = network::receive_file_contents(&mut recv).await?;
         fs::write(&canonical_full, file_contents)?;
-    }
 
+        transfer_count += 1;
+        transfer_record.update(transfer_count, None)?;
+    }
+    transfer_record.record_success()?;
     network::send_eof(&mut send).await?;
     connection.closed().await;
     Ok(())
@@ -301,7 +315,6 @@ pub async fn sync_to_target(
     }
 
     transfer_record.record_success()?;
-
     conn.close(0u8.into(), b"done");
     conn.closed().await;
     Ok(())
