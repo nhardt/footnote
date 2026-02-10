@@ -336,7 +336,11 @@ impl Vault {
     }
 
     pub fn contact_update(&self, nickname: &str, new_contact: &mut Contact) -> anyhow::Result<()> {
-        let contact_file_path = self.path.join(".footnote").join("contacts").join(nickname);
+        let contact_file_path = self
+            .path
+            .join(".footnote")
+            .join("contacts")
+            .join(format!("{}.json", nickname));
         let current_contact = Contact::from_file(&contact_file_path)?;
         current_contact.verify()?;
         new_contact.verify()?;
