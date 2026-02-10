@@ -480,6 +480,11 @@ impl Vault {
         Ok(())
     }
 
+    pub fn device_update(&self, device_id: &str, name: &str) -> anyhow::Result<Contact> {
+        let local_user = LocalUser::new(&self.path)?;
+        local_user.device_name_update(device_id, name)
+    }
+
     pub fn user_read(&self) -> anyhow::Result<Option<Contact>> {
         let user_record = self.path.join(".footnote").join("user.json");
 
