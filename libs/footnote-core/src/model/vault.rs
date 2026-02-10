@@ -293,24 +293,17 @@ impl Vault {
         anyhow::bail!("No contact found with endpoint {}", endpoint)
     }
 
-    pub fn find_primary_device_by_nickname(&self, nickname: &str) -> Result<iroh::PublicKey> {
-        let contacts_dir = self.path.join(".footnote").join("contacts");
+    pub fn contact_read_devices(&self, nickname: &str) -> Result<Vec<Device>> {
+        let contact_record_path = self
+            .path
+            .join(".footnote")
+            .join("contacts")
+            .join(format!("{}.json", &nickname));
 
-        for entry in fs::read_dir(contacts_dir)? {
-            let entry = entry?;
-            if entry.path().extension().and_then(|s| s.to_str()) == Some("json") {
-                let contact = Contact::from_file(entry.path())?;
+        let contact = Contact::from_file(contact_record_path)?;
 
-                if contact.nickname == nickname {
-                    for device in &contact.devices {
-                        if let Ok(device_endpoint) =
-                            device.iroh_endpoint_id.parse::<iroh::PublicKey>()
-                        {
-                            return Ok(device_endpoint);
-                        }
-                    }
-                }
-            }
+        if contact.nickname == nickname {
+            return Ok(contact.devices);
         }
 
         anyhow::bail!(

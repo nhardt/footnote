@@ -291,7 +291,7 @@ async fn service_share_listen() -> anyhow::Result<()> {
 async fn service_share(to_nickname: String) -> anyhow::Result<()> {
     let vault = Vault::new(&std::env::current_dir()?)?;
     let endpoint = vault.build_endpoint(ALPN_SYNC).await?;
-    SyncService::share_to_device(&vault, endpoint, &to_nickname).await?;
+    SyncService::share_to_contact(&vault, endpoint, &to_nickname).await?;
     println!(
         "{}",
         serde_json::json!(

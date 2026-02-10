@@ -60,32 +60,43 @@ impl SyncService {
         Ok(())
     }
 
-    pub async fn share_to_device(vault: &Vault, endpoint: Endpoint, nickname: &str) -> Result<()> {
-        let endpoint_id = match vault.find_primary_device_by_nickname(nickname) {
-            Ok(eid) => {
-                tracing::debug!("will share with {} via {}", nickname, eid.to_string());
-                eid
-            }
-            Err(e) => {
-                tracing::error!("error getting primary device: {}", e);
-                anyhow::bail!("no primary device for nickname")
-            }
-        };
+    pub async fn share_to_contact(vault: &Vault, endpoint: Endpoint, nickname: &str) -> Result<()> {
+        let devices = vault.contact_read_devices(nickname)?;
         let manifest = manifest::create_manifest_for_share(&vault.path, nickname)
             .context("Failed to create manifest for sharing")?;
+        for device in devices {
+            if let Ok(device_endpoint) = device.iroh_endpoint_id.parse::<iroh::PublicKey>() {
+                match transfer::sync_to_target(
+                    vault,
+                    endpoint.clone(),
+                    SyncType::Share,
+                    manifest.clone(),
+                    Vec::new(),
+                    device_endpoint,
+                    ALPN_SYNC,
+                )
+                .await
+                {
+                    Ok(_) => return Ok(()),
+                    Err(e) => {
+                        tracing::warn!(
+                            "username {} device {} could not be contacted, error {}, trying next device",
+                            nickname,
+                            device.name,
+                            e
+                        );
+                    }
+                }
+            } else {
+                tracing::warn!(
+                    "username {} device {} does not have a valid endpoint",
+                    nickname,
+                    device.name
+                );
+            }
+        }
 
-        transfer::sync_to_target(
-            vault,
-            endpoint,
-            SyncType::Share,
-            manifest,
-            Vec::new(),
-            endpoint_id,
-            ALPN_SYNC,
-        )
-        .await?;
-
-        Ok(())
+        anyhow::bail!("no devices availble for {}", nickname)
     }
 
     pub async fn mirror_to_device(
