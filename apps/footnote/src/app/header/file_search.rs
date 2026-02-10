@@ -7,6 +7,20 @@ use std::path::{Component, PathBuf};
 use crate::context::AppContext;
 use crate::route::Route;
 
+/// Split text into (before, match, after) segments for highlighting.
+/// Returns None if query not found.
+fn highlight_split(text: &str, query: &str) -> Option<(String, String, String)> {
+    let lower = text.to_lowercase();
+    let query_lower = query.to_lowercase();
+    let start = lower.find(&query_lower)?;
+    let end = start + query.len();
+    Some((
+        text[..start].to_string(),
+        text[start..end].to_string(),
+        text[end..].to_string(),
+    ))
+}
+
 #[derive(Clone, Debug)]
 struct SearchResult {
     path: PathBuf,
@@ -136,10 +150,13 @@ pub fn FileSearch() -> Element {
                                 .collect();
 
                             let display_name = result.display.clone();
+                            let query = search_input();
                             let preview = match &result.match_type {
                                 MatchType::Filename => None,
                                 MatchType::Content { .. } => result.preview.clone(),
                             };
+                            let name_parts = highlight_split(&display_name, &query);
+                            let preview_parts = preview.as_ref().and_then(|p| highlight_split(p, &query));
 
                             rsx! {
                                 button {
@@ -152,12 +169,24 @@ pub fn FileSearch() -> Element {
                                     },
                                     span {
                                         class: "text-zinc-500 text-xs shrink-0",
-                                        "{display_name}"
+                                        if let Some((before, matched, after)) = &name_parts {
+                                            span { "{before}" }
+                                            span { class: "text-yellow-400", "{matched}" }
+                                            span { "{after}" }
+                                        } else {
+                                            span { "{display_name}" }
+                                        }
                                     }
                                     if let Some(text) = &preview {
                                         span {
                                             class: "text-zinc-100 truncate",
-                                            "{text}"
+                                            if let Some((before, matched, after)) = &preview_parts {
+                                                span { "{before}" }
+                                                span { class: "text-yellow-400", "{matched}" }
+                                                span { "{after}" }
+                                            } else {
+                                                span { "{text}" }
+                                            }
                                         }
                                     }
                                 }
