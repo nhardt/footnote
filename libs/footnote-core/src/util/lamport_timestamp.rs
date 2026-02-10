@@ -39,12 +39,32 @@ impl LamportTimestamp {
         self.0
     }
 
+    ///caveat: the timestamp isn't a "real" timestamp but treating it such is useful
     pub fn to_datetime(self) -> DateTime<Utc> {
         DateTime::from_timestamp(self.0, 0).unwrap_or_else(|| Utc::now())
     }
 
-    // Or if you want a formatted string directly:
+    ///caveat: the timestamp isn't a "real" timestamp but treating it such is useful
     pub fn to_date_string(self) -> String {
         self.to_datetime().format("%Y-%m-%d %H:%M:%S").to_string()
+    }
+
+    ///caveat: the timestamp isn't a "real" timestamp but treating it such is useful
+    pub fn relative_time_string(self) -> String {
+        let now = Utc::now().timestamp();
+        let diff = now - self.0;
+
+        if diff < 0 {
+            return "in the future".to_string();
+        }
+
+        // quite possibly ...
+        match diff {
+            0..=59 => format!("{}s ago", diff),
+            60..=3599 => format!("{}m ago", diff / 60),
+            3600..=86399 => format!("{}h ago", diff / 3600),
+            86400..=2591999 => format!("{}d ago", diff / 86400),
+            _ => format!("{}mo ago", diff / 2592000),
+        }
     }
 }

@@ -257,12 +257,22 @@ fn DeviceRow(device: Device, read_only: bool) -> Element {
 
                 if let Some(status) = outbound_device_status() {
                     div { class: "text-xs text-zinc-400",
-                        "Last outbound: {status.files_transferred} files at {status.timestamp.to_date_string()}"
+                        "Last outbound: {status.files_transferred} files at {status.timestamp.relative_time_string()}"
+                    }
+                }
+                else {
+                    div { class: "text-xs text-zinc-400",
+                        "No last outbound sync"
                     }
                 }
                 if let Some(status) = inbound_device_status() {
                     div { class: "text-xs text-zinc-400",
-                        "Last inbound: {status.files_transferred} files at {status.timestamp.to_date_string()}"
+                        "Last inbound: {status.files_transferred} files at {status.timestamp.relative_time_string()}"
+                    }
+                }
+                else {
+                    div { class: "text-xs text-zinc-400",
+                        "No last inbound sync"
                     }
                 }
             }
