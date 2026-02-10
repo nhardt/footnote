@@ -62,55 +62,74 @@ pub fn FileSearch() -> Element {
 
                 is_searching.set(true);
                 let path = search_path.clone();
-                let case_sensitive = query.chars().any(|c| c.is_uppercase());
-                let query_normalized = if case_sensitive { query.clone() } else { query.to_lowercase() };
-                let mut results = Vec::new();
 
-                for entry in walkdir::WalkDir::new(&path)
-                    .into_iter()
-                    .filter_map(|e| e.ok())
-                {
-                    if let Some(file_name) = entry.file_name().to_str() {
-                        if !file_name.starts_with('.') && file_name.ends_with(".md") {
-                            let path = entry.path().to_path_buf();
-                            let display_name = path
-                                .file_stem()
-                                .and_then(|s| s.to_str())
-                                .unwrap_or("")
-                                .to_string();
+                // file I/O occurs in blocking thread
+                let results = tokio::task::spawn_blocking(move || {
+                    let case_sensitive = query.chars().any(|c| c.is_uppercase());
+                    let query_normalized = if case_sensitive {
+                        query.clone()
+                    } else {
+                        query.to_lowercase()
+                    };
+                    let mut results = Vec::new();
 
-                            let name_cmp = if case_sensitive { display_name.clone() } else { display_name.to_lowercase() };
-                            if name_cmp.contains(&query_normalized) {
-                                results.push(SearchResult {
-                                    path: path.clone(),
-                                    display: display_name.clone(),
-                                    match_type: MatchType::Filename,
-                                    preview: None,
-                                });
-                            }
+                    for entry in walkdir::WalkDir::new(&path)
+                        .into_iter()
+                        .filter_map(|e| e.ok())
+                    {
+                        if let Some(file_name) = entry.file_name().to_str() {
+                            if !file_name.starts_with('.') && file_name.ends_with(".md") {
+                                let path = entry.path().to_path_buf();
+                                let display_name = path
+                                    .file_stem()
+                                    .and_then(|s| s.to_str())
+                                    .unwrap_or("")
+                                    .to_string();
 
-                            if let Ok(content) = fs::read_to_string(&path) {
-                                for (line_num, line) in content.lines().enumerate() {
-                                    let line_cmp = if case_sensitive { line.to_string() } else { line.to_lowercase() };
-                                    if line_cmp.contains(&query_normalized) {
-                                        let preview = line.trim().to_string();
-                                        results.push(SearchResult {
-                                            path: path.clone(),
-                                            display: display_name.clone(),
-                                            match_type: MatchType::Content {
-                                                line_number: line_num + 1,
-                                            },
-                                            preview: Some(preview),
-                                        });
+                                let name_cmp = if case_sensitive {
+                                    display_name.clone()
+                                } else {
+                                    display_name.to_lowercase()
+                                };
+                                if name_cmp.contains(&query_normalized) {
+                                    results.push(SearchResult {
+                                        path: path.clone(),
+                                        display: display_name.clone(),
+                                        match_type: MatchType::Filename,
+                                        preview: None,
+                                    });
+                                }
+
+                                if let Ok(content) = fs::read_to_string(&path) {
+                                    for (line_num, line) in content.lines().enumerate() {
+                                        let line_cmp = if case_sensitive {
+                                            line.to_string()
+                                        } else {
+                                            line.to_lowercase()
+                                        };
+                                        if line_cmp.contains(&query_normalized) {
+                                            let preview = line.trim().to_string();
+                                            results.push(SearchResult {
+                                                path: path.clone(),
+                                                display: display_name.clone(),
+                                                match_type: MatchType::Content {
+                                                    line_number: line_num + 1,
+                                                },
+                                                preview: Some(preview),
+                                            });
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                }
 
-                let top_results = results.into_iter().take(50).collect::<Vec<_>>();
-                search_results.set(top_results);
+                    results.into_iter().take(50).collect::<Vec<_>>()
+                })
+                .await
+                .unwrap_or_default();
+
+                search_results.set(results);
                 is_searching.set(false);
             }
         }
