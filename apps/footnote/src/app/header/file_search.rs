@@ -10,9 +10,12 @@ use crate::route::Route;
 /// Split text into (before, match, after) segments for highlighting.
 /// Returns None if query not found.
 fn highlight_split(text: &str, query: &str) -> Option<(String, String, String)> {
-    let lower = text.to_lowercase();
-    let query_lower = query.to_lowercase();
-    let start = lower.find(&query_lower)?;
+    let case_sensitive = query.chars().any(|c| c.is_uppercase());
+    let start = if case_sensitive {
+        text.find(query)?
+    } else {
+        text.to_lowercase().find(&query.to_lowercase())?
+    };
     let end = start + query.len();
     Some((
         text[..start].to_string(),
@@ -59,7 +62,8 @@ pub fn FileSearch() -> Element {
 
                 is_searching.set(true);
                 let path = search_path.clone();
-                let query_lower = query.to_lowercase();
+                let case_sensitive = query.chars().any(|c| c.is_uppercase());
+                let query_normalized = if case_sensitive { query.clone() } else { query.to_lowercase() };
                 let mut results = Vec::new();
 
                 for entry in walkdir::WalkDir::new(&path)
@@ -75,7 +79,8 @@ pub fn FileSearch() -> Element {
                                 .unwrap_or("")
                                 .to_string();
 
-                            if display_name.to_lowercase().contains(&query_lower) {
+                            let name_cmp = if case_sensitive { display_name.clone() } else { display_name.to_lowercase() };
+                            if name_cmp.contains(&query_normalized) {
                                 results.push(SearchResult {
                                     path: path.clone(),
                                     display: display_name.clone(),
@@ -86,7 +91,8 @@ pub fn FileSearch() -> Element {
 
                             if let Ok(content) = fs::read_to_string(&path) {
                                 for (line_num, line) in content.lines().enumerate() {
-                                    if line.to_lowercase().contains(&query_lower) {
+                                    let line_cmp = if case_sensitive { line.to_string() } else { line.to_lowercase() };
+                                    if line_cmp.contains(&query_normalized) {
                                         let preview = line.trim().to_string();
                                         results.push(SearchResult {
                                             path: path.clone(),
