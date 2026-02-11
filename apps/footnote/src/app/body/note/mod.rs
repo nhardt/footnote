@@ -33,7 +33,6 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
 
     // ui round trippers. set them manually when loaded_note changes
     let mut share_with = use_signal(move || String::new());
-    let mut body = use_signal(move || String::new());
     let mut footnotes = use_signal(move || IndexMap::new());
     let mut loaded_note_full_path = use_signal(move || String::new());
     // responses: Vec<(relative_path, content)> for inline display (author view)
