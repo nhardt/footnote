@@ -7,7 +7,6 @@ use crate::context::MenuContext;
 
 #[component]
 pub fn NewNoteModal() -> Element {
-    let nav = navigator();
     let app_context = use_context::<AppContext>();
     let mut note_path = use_signal(|| String::new());
     let mut error_message = use_signal(|| String::new());
