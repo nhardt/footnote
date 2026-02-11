@@ -69,7 +69,7 @@ pub fn App() -> Element {
         };
 
         #[cfg(target_os = "ios")]
-        platform::inject_open_url_handler();
+        crate::platform::inject_open_url_handler();
 
         spawn(async move {
             // Handle launch intent (Android)
