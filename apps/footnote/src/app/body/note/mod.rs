@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use uuid::Uuid;
 
 use footnote_core::model::note::Note;
-use footnote_core::util::manifest::{find_responses, ManifestEntry};
+use footnote_core::util::manifest::find_responses;
 
 use crate::body::note::footnotes::Footnotes;
 use crate::context::{AppContext, MenuContext};
@@ -36,7 +36,13 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
     let mut body = use_signal(move || String::new());
     let mut footnotes = use_signal(move || IndexMap::new());
     let mut loaded_note_full_path = use_signal(move || String::new());
-    let mut responses = use_signal(|| Vec::<ManifestEntry>::new());
+    // responses: Vec<(relative_path, content)> for inline display (author view)
+    let mut responses = use_signal(|| Vec::<(String, String)>::new());
+    // responder state: editable response textarea
+    let mut show_response_editor = use_signal(|| false);
+    let mut response_body = use_signal(|| String::new());
+    let mut response_save_status = use_signal(|| SaveStatus::Saved);
+
     let relative_path = use_memo(move || vault_relative_path_segments().join("/"));
     let read_only = use_memo(move || relative_path.read().starts_with("footnotes"));
 
@@ -70,9 +76,35 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
             .await;
         });
 
+        // check for existing response file (responder view)
+        let reply_path = vault_path.join(format!("_replies/response-to-{}.md", note_uuid));
+        if reply_path.exists() {
+            if let Ok(reply_note) = Note::from_path(&reply_path, true) {
+                response_body.set(reply_note.content);
+                show_response_editor.set(true);
+            }
+        } else {
+            response_body.set(String::new());
+            show_response_editor.set(false);
+        }
+        response_save_status.set(SaveStatus::Saved);
+
+        // find all responses for inline display (author view)
         spawn(async move {
             let vp = vault_path.clone();
-            match tokio::task::spawn_blocking(move || find_responses(&vp, note_uuid)).await {
+            match tokio::task::spawn_blocking(move || {
+                let entries = find_responses(&vp, note_uuid)?;
+                let mut result = Vec::new();
+                for entry in entries {
+                    let abs = vp.join(&entry.path);
+                    if let Ok(n) = Note::from_path(&abs, false) {
+                        result.push((entry.path.to_string_lossy().to_string(), n.content));
+                    }
+                }
+                Ok::<_, anyhow::Error>(result)
+            })
+            .await
+            {
                 Ok(Ok(found)) => responses.set(found),
                 Ok(Err(e)) => tracing::warn!("find_responses error: {e}"),
                 Err(e) => tracing::warn!("find_responses task failed: {e}"),
@@ -346,72 +378,107 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
                             class: "text-sm font-semibold font-mono text-zinc-400",
                             "Responses"
                         }
-                        if read_only() {
+                        if read_only() && !show_response_editor() {
                             button {
                                 class: "px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors",
-                                onclick: move |_| {
-                                    let vault = app_context.vault.read();
-                                    let vault_path = vault.base_path();
-                                    let rel = relative_path();
-
-                                    // extract owner from footnotes/{username}/...
-                                    let owner = rel
-                                        .strip_prefix("footnotes/")
-                                        .and_then(|rest| rest.split('/').next())
-                                        .unwrap_or("")
-                                        .to_string();
-
-                                    // get the current note's uuid
-                                    let full_path = vault_relative_path_segments()
-                                        .iter()
-                                        .fold(vault_path.clone(), |acc, seg| acc.join(seg));
-                                    let Ok(note) = Note::from_path(&full_path, true) else {
-                                        return;
-                                    };
-                                    let target_uuid = note.frontmatter.uuid;
-
-                                    let reply_relative = format!("_replies/response-to-{}.md", target_uuid);
-                                    let reply_path = vault_path.join(&reply_relative);
-
-                                    if !reply_path.exists() {
-                                        if let Some(parent) = reply_path.parent() {
-                                            let _ = fs::create_dir_all(parent);
-                                        }
-                                        let mut reply_note = Note::new();
-                                        reply_note.frontmatter.reply_to = Some(target_uuid);
-                                        if !owner.is_empty() {
-                                            reply_note.frontmatter.share_with = vec![owner];
-                                        }
-                                        if let Err(e) = reply_note.to_file(&reply_path) {
-                                            tracing::error!("failed to create response note: {e}");
-                                            return;
-                                        }
-                                    }
-
-                                    consume_context::<MenuContext>().go_note(&reply_relative);
-                                },
+                                onclick: move |_| show_response_editor.set(true),
                                 "Add Response"
                             }
                         }
                     }
-                    if responses().is_empty() {
+
+                    // Responder view: editable response textarea
+                    if read_only() && show_response_editor() {
                         div {
-                            class: "px-4 py-4 text-sm text-zinc-500",
-                            "No responses yet"
-                        }
-                    } else {
-                        for entry in responses() {
+                            class: "px-4 py-4",
+                            textarea {
+                                class: "w-full px-4 py-4 bg-zinc-900/30 border border-zinc-800 rounded-lg text-sm font-mono text-zinc-100 focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 focus:outline-none mb-3",
+                                style: "min-height: 200px;",
+                                placeholder: "Write your response...",
+                                value: "{response_body}",
+                                oninput: move |e| {
+                                    response_body.set(e.value());
+                                    response_save_status.set(SaveStatus::Unsaved);
+                                },
+                            }
                             {
-                                let display = entry.path.to_string_lossy().to_string();
-                                let nav_path = display.clone();
+                                let (resp_icon, resp_class) = match response_save_status() {
+                                    SaveStatus::Saved => ("✓", "text-green-500"),
+                                    SaveStatus::Unsaved => ("Save Response", "text-yellow-500"),
+                                    SaveStatus::Syncing => ("↻", "text-blue-500 animate-spin"),
+                                };
                                 rsx! {
                                     button {
-                                        key: "{display}",
-                                        class: "w-full px-4 py-2 text-left text-sm font-mono text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800/50",
+                                        class: "px-3 py-1.5 text-sm font-medium hover:bg-zinc-800 rounded-md transition-colors {resp_class}",
                                         onclick: move |_| {
-                                            consume_context::<MenuContext>().go_note(&nav_path);
+                                            let vault_path = app_context.vault.read().base_path();
+                                            let rel = relative_path();
+                                            let owner = rel
+                                                .strip_prefix("footnotes/")
+                                                .and_then(|rest| rest.split('/').next())
+                                                .unwrap_or("")
+                                                .to_string();
+
+                                            let full_path = vault_relative_path_segments()
+                                                .iter()
+                                                .fold(vault_path.clone(), |acc, seg| acc.join(seg));
+                                            let Ok(note) = Note::from_path(&full_path, true) else {
+                                                return;
+                                            };
+                                            let target_uuid = note.frontmatter.uuid;
+                                            let reply_path = vault_path.join(format!("_replies/response-to-{}.md", target_uuid));
+
+                                            response_save_status.set(SaveStatus::Syncing);
+
+                                            if let Some(parent) = reply_path.parent() {
+                                                let _ = fs::create_dir_all(parent);
+                                            }
+
+                                            let mut reply_note = if reply_path.exists() {
+                                                Note::from_path(&reply_path, true).unwrap_or_else(|_| Note::new())
+                                            } else {
+                                                let mut n = Note::new();
+                                                n.frontmatter.reply_to = Some(target_uuid);
+                                                if !owner.is_empty() {
+                                                    n.frontmatter.share_with = vec![owner];
+                                                }
+                                                n
+                                            };
+
+                                            reply_note.content = response_body();
+                                            match reply_note.to_file(&reply_path) {
+                                                Ok(_) => response_save_status.set(SaveStatus::Saved),
+                                                Err(e) => {
+                                                    tracing::error!("failed to save response: {e}");
+                                                    response_save_status.set(SaveStatus::Unsaved);
+                                                }
+                                            }
                                         },
-                                        "{display}"
+                                        "{resp_icon}"
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if !read_only() {
+                        if responses().is_empty() {
+                            div {
+                                class: "px-4 py-4 text-sm text-zinc-500",
+                                "No responses yet"
+                            }
+                        } else {
+                            for (path, content) in responses() {
+                                div {
+                                    key: "{path}",
+                                    class: "border-b border-zinc-800/50",
+                                    div {
+                                        class: "px-4 py-2 text-xs font-mono text-zinc-500",
+                                        "{path}"
+                                    }
+                                    pre {
+                                        class: "px-4 py-3 text-sm font-mono text-zinc-300 whitespace-pre-wrap",
+                                        "{content}"
                                     }
                                 }
                             }
