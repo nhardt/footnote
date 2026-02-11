@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use uuid::Uuid;
 
 use footnote_core::model::note::Note;
+use footnote_core::util::manifest::{find_responses, ManifestEntry};
 
 use crate::body::note::footnotes::Footnotes;
 use crate::context::{AppContext, MenuContext};
@@ -35,6 +36,7 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
     let mut body = use_signal(move || String::new());
     let mut footnotes = use_signal(move || IndexMap::new());
     let mut loaded_note_full_path = use_signal(move || String::new());
+    let mut responses = use_signal(|| Vec::<ManifestEntry>::new());
     let relative_path = use_memo(move || vault_relative_path_segments().join("/"));
     let read_only = use_memo(move || relative_path.read().starts_with("footnotes"));
 
@@ -42,7 +44,7 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
         let vault_path = app_context.vault.read().base_path();
         let full_path = vault_relative_path_segments()
             .iter()
-            .fold(vault_path, |acc, seg| acc.join(seg));
+            .fold(vault_path.clone(), |acc, seg| acc.join(seg));
 
         tracing::info!("loaded note full path changed to: {}", full_path.display());
 
@@ -57,6 +59,7 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
         share_with.set(note.frontmatter.share_with.join(" "));
         footnotes.set(note.footnotes);
 
+        let note_uuid = note.frontmatter.uuid;
         let body_content = note.content.clone();
         spawn(async move {
             let json_content = serde_json::to_string(&body_content).unwrap_or_default();
@@ -65,6 +68,15 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
                 json_content
             ))
             .await;
+        });
+
+        spawn(async move {
+            let vp = vault_path.clone();
+            match tokio::task::spawn_blocking(move || find_responses(&vp, note_uuid)).await {
+                Ok(Ok(found)) => responses.set(found),
+                Ok(Err(e)) => tracing::warn!("find_responses error: {e}"),
+                Err(e) => tracing::warn!("find_responses task failed: {e}"),
+            }
         });
 
         loaded_note_full_path.set(full_path.to_string_lossy().to_string());
@@ -337,13 +349,73 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
                         if read_only() {
                             button {
                                 class: "px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors",
+                                onclick: move |_| {
+                                    let vault = app_context.vault.read();
+                                    let vault_path = vault.base_path();
+                                    let rel = relative_path();
+
+                                    // extract owner from footnotes/{username}/...
+                                    let owner = rel
+                                        .strip_prefix("footnotes/")
+                                        .and_then(|rest| rest.split('/').next())
+                                        .unwrap_or("")
+                                        .to_string();
+
+                                    // get the current note's uuid
+                                    let full_path = vault_relative_path_segments()
+                                        .iter()
+                                        .fold(vault_path.clone(), |acc, seg| acc.join(seg));
+                                    let Ok(note) = Note::from_path(&full_path, true) else {
+                                        return;
+                                    };
+                                    let target_uuid = note.frontmatter.uuid;
+
+                                    let reply_relative = format!("_replies/response-to-{}.md", target_uuid);
+                                    let reply_path = vault_path.join(&reply_relative);
+
+                                    if !reply_path.exists() {
+                                        if let Some(parent) = reply_path.parent() {
+                                            let _ = fs::create_dir_all(parent);
+                                        }
+                                        let mut reply_note = Note::new();
+                                        reply_note.frontmatter.reply_to = Some(target_uuid);
+                                        if !owner.is_empty() {
+                                            reply_note.frontmatter.share_with = vec![owner];
+                                        }
+                                        if let Err(e) = reply_note.to_file(&reply_path) {
+                                            tracing::error!("failed to create response note: {e}");
+                                            return;
+                                        }
+                                    }
+
+                                    consume_context::<MenuContext>().go_note(&reply_relative);
+                                },
                                 "Add Response"
                             }
                         }
                     }
-                    div {
-                        class: "px-4 py-4 text-sm text-zinc-500",
-                        "No responses yet"
+                    if responses().is_empty() {
+                        div {
+                            class: "px-4 py-4 text-sm text-zinc-500",
+                            "No responses yet"
+                        }
+                    } else {
+                        for entry in responses() {
+                            {
+                                let display = entry.path.to_string_lossy().to_string();
+                                let nav_path = display.clone();
+                                rsx! {
+                                    button {
+                                        key: "{display}",
+                                        class: "w-full px-4 py-2 text-left text-sm font-mono text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800/50",
+                                        onclick: move |_| {
+                                            consume_context::<MenuContext>().go_note(&nav_path);
+                                        },
+                                        "{display}"
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

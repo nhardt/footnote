@@ -153,6 +153,48 @@ pub fn create_manifest_local(vault_path: &Path) -> Result<Manifest> {
     Ok(manifest)
 }
 
+/// Scan the vault for notes whose `reply_to` field matches the given UUID.
+pub fn find_responses(vault_path: &Path, target_uuid: Uuid) -> Result<Vec<ManifestEntry>> {
+    let mut responses = Vec::new();
+
+    for entry in WalkDir::new(vault_path)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        let path = entry.path();
+
+        if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+            if file_name.starts_with('.') {
+                continue;
+            }
+        }
+
+        if !path.is_file() || path.extension().and_then(|s| s.to_str()) != Some("md") {
+            continue;
+        }
+
+        let Ok(note) = Note::from_path(path, false) else {
+            continue;
+        };
+
+        if note.frontmatter.reply_to == Some(target_uuid) {
+            let relative_path = path
+                .strip_prefix(vault_path)
+                .context("Failed to get relative path")?
+                .to_path_buf();
+
+            responses.push(ManifestEntry {
+                uuid: note.frontmatter.uuid,
+                path: relative_path,
+                modified: note.frontmatter.modified,
+            });
+        }
+    }
+
+    Ok(responses)
+}
+
 pub fn diff_manifests(local: &Manifest, remote: &Manifest) -> Vec<ManifestEntry> {
     let mut files_to_sync = Vec::new();
 
