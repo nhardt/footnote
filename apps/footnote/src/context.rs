@@ -112,6 +112,20 @@ impl MenuContext {
         nav.push(Route::Profile {});
     }
 
+    pub fn go_forward(&mut self) {
+        self.close_all();
+
+        let nav = use_navigator();
+        nav.go_forward();
+    }
+
+    pub fn go_back(&mut self) {
+        self.close_all();
+
+        let nav = use_navigator();
+        nav.go_back();
+    }
+
     pub fn go_contacts(&mut self) {
         self.close_all();
 

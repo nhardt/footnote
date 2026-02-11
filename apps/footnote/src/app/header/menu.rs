@@ -21,6 +21,16 @@ pub fn HeaderMenu() -> Element {
                 "☰"
             }
 
+            button { class: "px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors",
+                onclick: move |_| consume_context::<MenuContext>().go_back(),
+                "←"
+            }
+
+            button { class: "px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors",
+                onclick: move |_| consume_context::<MenuContext>().go_forward(),
+                "→"
+            }
+
             if *menu_context.menu_visible.read() {
                 div {
                     class: "fixed inset-0 z-40",
