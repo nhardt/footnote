@@ -20,6 +20,7 @@ use crate::modal::open_note_modal::NoteSelectModal;
 use crate::modal::pair_with_listening_device_modal::PairWithListeningDeviceModal;
 use crate::modal::share_my_contact_modal::ShareMyContactModal;
 use crate::route::Route;
+use crate::sync_status_context::SyncStatusContext;
 
 #[cfg(target_os = "android")]
 use {
@@ -60,6 +61,8 @@ pub fn App() -> Element {
     let vault_path = ensure_vault_at_path(&vault_path, &vault_name)?;
     let vault = Vault::new(&vault_path)?;
     use_context_provider(|| AppContext::new(vault.clone()));
+
+    use_context_provider(|| SyncStatusContext::new(&vault.clone()));
 
     #[cfg(any(target_os = "android", target_os = "ios"))]
     use_hook(|| {
