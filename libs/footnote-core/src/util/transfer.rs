@@ -248,6 +248,11 @@ pub async fn sync_to_target(
     remote_endpoint_id: iroh::PublicKey,
     alpn: &[u8],
 ) -> Result<()> {
+    let (secret_key, _) = vault.device_secret_key()?;
+    if remote_endpoint_id == secret_key.public() {
+        return Ok(());
+    }
+
     let Ok(mut transfer_record) = SyncStatusRecord::start(
         vault.base_path(),
         remote_endpoint_id,
@@ -256,13 +261,6 @@ pub async fn sync_to_target(
     ) else {
         anyhow::bail!("could not create log record");
     };
-
-    let (secret_key, _) = vault.device_secret_key()?;
-
-    if remote_endpoint_id == secret_key.public() {
-        transfer_record.record_failure("attempting to sync with self")?;
-        anyhow::bail!("cannot replicate to self");
-    }
 
     let conn = endpoint
         .connect(remote_endpoint_id, alpn)
