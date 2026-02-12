@@ -314,7 +314,7 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)/Sources/aarch64-apple-ios-sim/$(CONFIGURATION)",
 				);
-				MARKETING_VERSION = 0.3.0;
+				MARKETING_VERSION = 0.4.2;
 				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = wiki.footnote.app;
 				PRODUCT_NAME = Footnote;
@@ -349,7 +349,7 @@
 				);
 				"LIBRARY_SEARCH_PATHS[sdk=iphoneos*]" = "$(PROJECT_DIR)/Sources/aarch64-apple-ios/$(CONFIGURATION)";
 				"LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]" = "$(PROJECT_DIR)/Sources/aarch64-apple-ios-sim/$(CONFIGURATION)";
-				MARKETING_VERSION = 0.3.0;
+				MARKETING_VERSION = 0.4.2;
 				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_BUNDLE_IDENTIFIER = wiki.footnote.app;
 				PRODUCT_NAME = Footnote;
