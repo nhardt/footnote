@@ -183,6 +183,8 @@ fn truncate_endpoint_id(id: &str) -> String {
 #[component]
 fn DeviceRow(device: Device, read_only: bool) -> Element {
     let mut app_context = use_context::<AppContext>();
+    let (this_device_id, this_device_name) = app_context.vault.read().device_public_key()?;
+
     let mut show_edit_modal = use_signal(|| false);
 
     let sync_status_context = use_context::<SyncStatusContext>();
@@ -237,55 +239,65 @@ fn DeviceRow(device: Device, read_only: bool) -> Element {
                     }
                 }
 
-                if let Some(status) = outbound_status {
-                    if let Some(current) = status.current {
-                        div { class: "text-xs text-zinc-400",
-                            "Outbound: {current.files_transferred}",
-                            if let Some(total) = current.files_total {
-                                "/{total}"
-                            }
-                            " files"
-                        }
-                    } else if let Some(success) = status.last_success {
-                        div { class: "text-xs text-zinc-400",
-                            "Last outbound: {success.files_transferred} files at {success.completed_at.relative_time_string()}"
-                        }
-                    } else if let Some(failure) = status.last_failure {
-                        div { class: "text-xs text-red-400",
-                            "Last outbound failed: {failure.error}"
-                        }
-                    }
-                } else {
-                    div { class: "text-xs text-zinc-500",
-                        "No outbound sync"
+                if device.iroh_endpoint_id == this_device_id.to_string() {
+                    div { class: "text-xs text-zinc-400",
+                        "(this device)"
                     }
                 }
-
-                if let Some(status) = inbound_status {
-                    if let Some(current) = status.current {
-                        div { class: "text-xs text-zinc-400",
-                            "Inbound: {current.files_transferred}",
-                            if let Some(total) = current.files_total {
-                                "/{total}"
+                else {
+                    if let Some(status) = outbound_status {
+                        if let Some(current) = status.current {
+                            div { class: "text-xs text-zinc-400",
+                                "Active: {current.files_transferred}",
+                                if let Some(total) = current.files_total {
+                                    "/{total}"
+                                }
+                                " files"
                             }
-                            " files"
                         }
-                    } else if let Some(success) = status.last_success {
-                        div { class: "text-xs text-zinc-400",
-                            "Last inbound: {success.files_transferred} files at {success.completed_at.relative_time_string()}"
+                        if let Some(success) = status.last_success {
+                            div { class: "text-xs text-zinc-400",
+                                "Last sent {success.files_transferred} file(s) {success.completed_at.relative_time_string()}"
+                            }
                         }
-                    } else if let Some(failure) = status.last_failure {
-                        div { class: "text-xs text-red-400",
-                            "Last inbound failed: {failure.error}"
+                        if let Some(failure) = status.last_failure {
+                            div { class: "text-xs text-red-100",
+                                "Last failed to send new files {failure.error} {failure.failed_at.relative_time_string()}"
+                            }
+                        }
+                    } else {
+                        div { class: "text-xs text-zinc-500",
+                            "No outbound mirror record"
                         }
                     }
-                } else {
-                    div { class: "text-xs text-zinc-500",
-                        "No inbound sync"
+
+
+                    if let Some(status) = inbound_status {
+                        if let Some(current) = status.current {
+                            div { class: "text-xs text-zinc-400",
+                                "Active: {current.files_transferred}",
+                                if let Some(total) = current.files_total {
+                                    "/{total}"
+                                }
+                                " files"
+                            }
+                        }
+                        if let Some(success) = status.last_success {
+                            div { class: "text-xs text-zinc-400",
+                                "Last recieved {success.files_transferred} file(s) {success.completed_at.relative_time_string()}"
+                            }
+                        }
+                        if let Some(failure) = status.last_failure {
+                            div { class: "text-xs text-red-100",
+                                "Last failed to receive files {failure.error} {failure.failed_at.relative_time_string()}"
+                            }
+                        }
+                    } else {
+                        div { class: "text-xs text-zinc-500",
+                            "No incoming mirror record"
+                        }
                     }
                 }
-
-
             }
 
             if !read_only {
