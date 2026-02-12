@@ -8,4 +8,4 @@ target/
 # macOS
 **/.DS_Store
 
-gen/apple/Sources
+gen/apple/Sources/aarch64-apple-ios
