@@ -11,7 +11,7 @@ pub enum SyncType {
     Share,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
 pub enum SyncDirection {
     Inbound,
     Outbound,

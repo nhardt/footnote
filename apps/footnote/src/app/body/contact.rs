@@ -2,9 +2,10 @@ use dioxus::prelude::*;
 
 use footnote_core::model::contact::Contact;
 use footnote_core::model::device::Device;
-use footnote_core::util::sync_status_record::{SyncDirection, SyncStatusRecord};
+use footnote_core::util::sync_status_record::SyncDirection;
 
 use crate::context::AppContext;
+use crate::sync_status_context::SyncStatusContext;
 
 #[component]
 pub fn ContactBrowser() -> Element {
@@ -81,33 +82,11 @@ fn DeviceItems(devices: Vec<Device>) -> Element {
 
 #[component]
 fn DeviceItem(device: Device) -> Element {
-    let app_context = use_context::<AppContext>();
-    let device_for_outbound = device.clone();
-    // these signals are likely wrong. they will only update if the vault's base
-    // path changes
-    let last_outbound_success = use_signal(move || {
-        match SyncStatusRecord::last_success(
-            app_context.vault.read().base_path().clone(),
-            &device_for_outbound.iroh_endpoint_id,
-            SyncDirection::Outbound,
-        ) {
-            Ok(r) => r,
-            Err(_) => None,
-        }
-    });
+    let sync_status_context = use_context::<SyncStatusContext>();
 
-    let device_for_inbound = device.clone();
-    let last_inbound_success = use_signal(move || {
-        match SyncStatusRecord::last_success(
-            app_context.vault.read().base_path().clone(),
-            &device_for_inbound.iroh_endpoint_id,
-            SyncDirection::Inbound,
-        ) {
-            Ok(r) => r,
-            Err(_) => None,
-        }
-    });
-
+    let outbound_status =
+        sync_status_context.get(&device.iroh_endpoint_id, SyncDirection::Outbound);
+    let inbound_status = sync_status_context.get(&device.iroh_endpoint_id, SyncDirection::Inbound);
     let truncated_id = truncate_endpoint_id(&device.iroh_endpoint_id);
 
     rsx! {
@@ -117,24 +96,51 @@ fn DeviceItem(device: Device) -> Element {
                 span { class: "text-xs font-mono text-zinc-500", "{truncated_id}" }
             }
 
-            if let Some(status) = last_outbound_success() {
-                div { class: "text-xs text-zinc-400",
-                    "Last outbound: {status.files_transferred} files at {status.timestamp.relative_time_string()}"
+            if let Some(status) = outbound_status {
+                if let Some(current) = status.current {
+                    div { class: "text-xs text-zinc-400",
+                        "Outbound: {current.files_transferred}",
+                        if let Some(total) = current.files_total {
+                            "/{total}"
+                        }
+                        " files"
+                    }
+                } else if let Some(success) = status.last_success {
+                    div { class: "text-xs text-zinc-400",
+                        "Last outbound: {success.files_transferred} files at {success.completed_at.relative_time_string()}"
+                    }
+                } else if let Some(failure) = status.last_failure {
+                    div { class: "text-xs text-red-400",
+                        "Last outbound failed: {failure.error}"
+                    }
+                }
+            } else {
+                div { class: "text-xs text-zinc-500",
+                    "No outbound sync"
                 }
             }
-            else {
-                div { class: "text-xs text-zinc-400",
-                    "No last outbound sync"
+
+            if let Some(status) = inbound_status {
+                if let Some(current) = status.current {
+                    div { class: "text-xs text-zinc-400",
+                        "Inbound: {current.files_transferred}",
+                        if let Some(total) = current.files_total {
+                            "/{total}"
+                        }
+                        " files"
+                    }
+                } else if let Some(success) = status.last_success {
+                    div { class: "text-xs text-zinc-400",
+                        "Last inbound: {success.files_transferred} files at {success.completed_at.relative_time_string()}"
+                    }
+                } else if let Some(failure) = status.last_failure {
+                    div { class: "text-xs text-red-400",
+                        "Last inbound failed: {failure.error}"
+                    }
                 }
-            }
-            if let Some(status) = last_inbound_success() {
-                div { class: "text-xs text-zinc-400",
-                    "Last inbound: {status.files_transferred} files at {status.timestamp.relative_time_string()}"
-                }
-            }
-            else {
-                div { class: "text-xs text-zinc-400",
-                    "No last inbound sync"
+            } else {
+                div { class: "text-xs text-zinc-500",
+                    "No inbound sync"
                 }
             }
         }
