@@ -127,16 +127,12 @@ pub fn App() -> Element {
 #[component]
 pub fn Main() -> Element {
     rsx! {
-
-        div { class:"bg-zinc-950 text-zinc-100 font-sans antialiased h-screen flex flex-col",
+       div {
+            class: "flex flex-col flex-1 min-h-screen bg-zinc-950 text-zinc-100 font-sans antialiased pt-safe pb-safe",
             Header {}
-
-            div {
-                class: "flex flex-col flex-1 min-h-screen bg-zinc-950 text-zinc-100 font-sans antialiased pt-safe pb-safe",
-                main {
-                    class: "flex-1 flex flex-col overflow-hidden",
-                    Outlet::<Route> {}
-                }
+            main {
+                class: "flex-1 flex flex-col overflow-hidden",
+                Outlet::<Route> {}
             }
         }
 
