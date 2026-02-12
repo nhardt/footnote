@@ -138,7 +138,8 @@ impl SyncStatusRecord {
         };
 
         vault_path
-            .join(".footnote/status")
+            .join(".footnote")
+            .join("status")
             .join(endpoint_id)
             .join(direction_str)
             .join("status.json")
