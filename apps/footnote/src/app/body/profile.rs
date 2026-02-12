@@ -248,9 +248,9 @@ fn DeviceRow(device: Device, read_only: bool) -> Element {
                     if let Some(status) = outbound_status {
                         if let Some(current) = status.current {
                             div { class: "text-xs text-zinc-400",
-                                "Active: {current.files_transferred}",
+                                "*Active*",
                                 if let Some(total) = current.files_total {
-                                    "/{total}"
+                                    "{current.files_transferred}/{total}"
                                 }
                                 " files"
                             }
@@ -275,9 +275,9 @@ fn DeviceRow(device: Device, read_only: bool) -> Element {
                     if let Some(status) = inbound_status {
                         if let Some(current) = status.current {
                             div { class: "text-xs text-zinc-400",
-                                "Active: {current.files_transferred}",
+                                "*Active*",
                                 if let Some(total) = current.files_total {
-                                    "/{total}"
+                                    "{current.files_transferred}/{total}"
                                 }
                                 " files"
                             }
