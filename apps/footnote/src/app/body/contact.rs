@@ -98,9 +98,9 @@ fn DeviceItem(device: Device) -> Element {
             if let Some(status) = outbound_status {
                 if let Some(current) = status.current {
                     div { class: "text-xs text-zinc-400",
-                        "Active: {current.files_transferred}",
+                        "*Active*",
                         if let Some(total) = current.files_total {
-                            "/{total}"
+                            "{current.files_transferred}/{total}"
                         }
                         " files"
                     }
@@ -110,9 +110,19 @@ fn DeviceItem(device: Device) -> Element {
                         "Last sent {success.files_transferred} file(s) {success.completed_at.relative_time_string()}"
                     }
                 }
+                else {
+                    div { class: "text-xs text-zinc-400",
+                        "No record successful success output transfer"
+                    }
+                }
                 if let Some(failure) = status.last_failure {
                     div { class: "text-xs text-red-100",
                         "Last failed to send new files {failure.error} {failure.failed_at.relative_time_string()}"
+                    }
+                }
+                else {
+                    div { class: "text-xs text-zinc-400",
+                        "No record of failed outbound transfer"
                     }
                 }
             } else {
@@ -125,9 +135,9 @@ fn DeviceItem(device: Device) -> Element {
             if let Some(status) = inbound_status {
                 if let Some(current) = status.current {
                     div { class: "text-xs text-zinc-400",
-                        "Active: {current.files_transferred}",
+                        "*Active*",
                         if let Some(total) = current.files_total {
-                            "/{total}"
+                            "{current.files_transferred}/{total}"
                         }
                         " files"
                     }
@@ -137,9 +147,19 @@ fn DeviceItem(device: Device) -> Element {
                         "Last recieved {success.files_transferred} file(s) {success.completed_at.relative_time_string()}"
                     }
                 }
+                else {
+                    div { class: "text-xs text-zinc-400",
+                        "No record of succesful incoming transfer"
+                    }
+                }
                 if let Some(failure) = status.last_failure {
                     div { class: "text-xs text-red-100",
                         "Last failed to receive files {failure.error} {failure.failed_at.relative_time_string()}"
+                    }
+                }
+                else {
+                    div { class: "text-xs text-zinc-400",
+                        "No record of failed incoming transfer"
                     }
                 }
             } else {
