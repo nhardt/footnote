@@ -83,7 +83,6 @@ fn DeviceItems(devices: Vec<Device>) -> Element {
 #[component]
 fn DeviceItem(device: Device) -> Element {
     let sync_status_context = use_context::<SyncStatusContext>();
-
     let outbound_status =
         sync_status_context.get(&device.iroh_endpoint_id, SyncDirection::Outbound);
     let inbound_status = sync_status_context.get(&device.iroh_endpoint_id, SyncDirection::Inbound);
@@ -99,48 +98,53 @@ fn DeviceItem(device: Device) -> Element {
             if let Some(status) = outbound_status {
                 if let Some(current) = status.current {
                     div { class: "text-xs text-zinc-400",
-                        "Outbound: {current.files_transferred}",
+                        "Active: {current.files_transferred}",
                         if let Some(total) = current.files_total {
                             "/{total}"
                         }
                         " files"
                     }
-                } else if let Some(success) = status.last_success {
+                }
+                if let Some(success) = status.last_success {
                     div { class: "text-xs text-zinc-400",
-                        "Last outbound: {success.files_transferred} files at {success.completed_at.relative_time_string()}"
+                        "Last sent {success.files_transferred} file(s) {success.completed_at.relative_time_string()}"
                     }
-                } else if let Some(failure) = status.last_failure {
-                    div { class: "text-xs text-red-400",
-                        "Last outbound failed: {failure.error}"
+                }
+                if let Some(failure) = status.last_failure {
+                    div { class: "text-xs text-red-100",
+                        "Last failed to send new files {failure.error} {failure.failed_at.relative_time_string()}"
                     }
                 }
             } else {
                 div { class: "text-xs text-zinc-500",
-                    "No outbound sync"
+                    "No outbound sync record"
                 }
             }
+
 
             if let Some(status) = inbound_status {
                 if let Some(current) = status.current {
                     div { class: "text-xs text-zinc-400",
-                        "Inbound: {current.files_transferred}",
+                        "Active: {current.files_transferred}",
                         if let Some(total) = current.files_total {
                             "/{total}"
                         }
                         " files"
                     }
-                } else if let Some(success) = status.last_success {
+                }
+                if let Some(success) = status.last_success {
                     div { class: "text-xs text-zinc-400",
-                        "Last inbound: {success.files_transferred} files at {success.completed_at.relative_time_string()}"
+                        "Last recieved {success.files_transferred} file(s) {success.completed_at.relative_time_string()}"
                     }
-                } else if let Some(failure) = status.last_failure {
-                    div { class: "text-xs text-red-400",
-                        "Last inbound failed: {failure.error}"
+                }
+                if let Some(failure) = status.last_failure {
+                    div { class: "text-xs text-red-100",
+                        "Last failed to receive files {failure.error} {failure.failed_at.relative_time_string()}"
                     }
                 }
             } else {
                 div { class: "text-xs text-zinc-500",
-                    "No inbound sync"
+                    "No incoming sync record"
                 }
             }
         }
