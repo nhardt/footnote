@@ -58,6 +58,11 @@ impl SyncStatusRecord {
         direction: SyncDirection,
     ) -> Result<Self> {
         let timestamp = LamportTimestamp::now();
+        let existing = Self::read(
+            vault_path.clone(),
+            &endpoint_id.to_string(),
+            direction.clone(),
+        )?;
 
         let status = Self {
             endpoint_id: endpoint_id.to_string(),
@@ -69,8 +74,8 @@ impl SyncStatusRecord {
                 files_total: None,
                 files_transferred: 0,
             }),
-            last_success: None,
-            last_failure: None,
+            last_success: existing.as_ref().and_then(|e| e.last_success.clone()),
+            last_failure: existing.as_ref().and_then(|e| e.last_failure.clone()),
         };
 
         status.write()?;
@@ -139,7 +144,7 @@ impl SyncStatusRecord {
             .join("status.json")
     }
 
-    fn write(&self) -> Result<()> {
+    pub fn write(&self) -> Result<()> {
         let status_path = Self::status_path(&self.vault_path, &self.endpoint_id, &self.direction);
 
         if let Some(parent) = status_path.parent() {
