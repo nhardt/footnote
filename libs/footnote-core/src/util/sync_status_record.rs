@@ -18,11 +18,22 @@ pub enum SyncDirection {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum SyncState {
-    InProgress,
-    Spurious,
-    Success,
-    Failure { error: String },
+pub struct SyncInProgress {
+    pub started_at: LamportTimestamp,
+    pub files_total: Option<usize>,
+    pub files_transferred: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompletedSync {
+    pub completed_at: LamportTimestamp,
+    pub files_transferred: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FailedSync {
+    pub failed_at: LamportTimestamp,
+    pub error: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,11 +41,10 @@ pub struct SyncStatusRecord {
     pub endpoint_id: String,
     pub sync_type: SyncType,
     pub direction: SyncDirection,
-    pub timestamp: LamportTimestamp,
-    pub files_total: Option<usize>,
-    pub files_transferred: usize,
-    pub started_at: LamportTimestamp,
-    pub state: SyncState,
+
+    pub current: Option<SyncInProgress>,
+    pub last_success: Option<CompletedSync>,
+    pub last_failure: Option<FailedSync>,
 
     #[serde(skip)]
     vault_path: PathBuf,
@@ -49,165 +59,104 @@ impl SyncStatusRecord {
     ) -> Result<Self> {
         let timestamp = LamportTimestamp::now();
 
-        let record = Self {
+        let status = Self {
             endpoint_id: endpoint_id.to_string(),
             sync_type,
             direction,
-            timestamp,
             vault_path,
-            files_total: None,
-            files_transferred: 0,
-            started_at: timestamp,
-            state: SyncState::InProgress,
+            current: Some(SyncInProgress {
+                started_at: timestamp,
+                files_total: None,
+                files_transferred: 0,
+            }),
+            last_success: None,
+            last_failure: None,
         };
 
-        record.write()?;
-        Ok(record)
+        status.write()?;
+        Ok(status)
+    }
+
+    pub fn read(
+        vault_path: PathBuf,
+        endpoint_id: &str,
+        direction: SyncDirection,
+    ) -> Result<Option<Self>> {
+        let status_path = Self::status_path(&vault_path, endpoint_id, &direction);
+
+        if !status_path.exists() {
+            return Ok(None);
+        }
+
+        let json = fs::read_to_string(status_path)?;
+        let mut status: Self = serde_json::from_str(&json)?;
+        status.vault_path = vault_path;
+
+        Ok(Some(status))
     }
 
     pub fn update(&mut self, files_transferred: usize, files_total: Option<usize>) -> Result<()> {
-        self.files_transferred = files_transferred;
-        if files_total.is_some() {
-            self.files_total = files_total;
+        if let Some(current) = &mut self.current {
+            current.files_transferred = files_transferred;
+            if files_total.is_some() {
+                current.files_total = files_total;
+            }
         }
         self.write()
     }
 
     pub fn record_success(mut self) -> Result<()> {
-        if self.files_transferred > 0 {
-            self.state = SyncState::Success;
-            self.write()?;
-            fs::write(
-                self.pointer_dir().join("last_success"),
-                self.timestamp.as_i64().to_string(),
-            )?;
-        } else {
-            self.state = SyncState::Spurious;
+        if let Some(current) = self.current.take() {
+            if current.files_transferred > 0 {
+                self.last_success = Some(CompletedSync {
+                    completed_at: LamportTimestamp::now(),
+                    files_transferred: current.files_transferred,
+                });
+            }
         }
-        fs::write(
-            self.pointer_dir().join("last_seen"),
-            self.timestamp.as_i64().to_string(),
-        )?;
-        Ok(())
+        self.write()
     }
 
     pub fn record_failure(mut self, reason: &str) -> Result<()> {
-        self.state = SyncState::Failure {
+        self.current = None;
+        self.last_failure = Some(FailedSync {
+            failed_at: LamportTimestamp::now(),
             error: reason.to_string(),
-        };
-        self.write()?;
-        fs::write(
-            self.pointer_dir().join("last_failure"),
-            self.timestamp.as_i64().to_string(),
-        )?;
-        fs::write(
-            self.pointer_dir().join("last_seen"),
-            self.timestamp.as_i64().to_string(),
-        )?;
-        Ok(())
+        });
+        self.write()
     }
 
-    fn log_path(&self) -> PathBuf {
-        let direction_str = match self.direction {
-            SyncDirection::Inbound => "inbound",
-            SyncDirection::Outbound => "outbound",
-        };
-
-        self.vault_path
-            .join(".footnote/status")
-            .join(&self.endpoint_id)
-            .join(direction_str)
-            .join(format!("{}.log", self.timestamp.as_i64()))
-    }
-
-    fn pointer_dir(&self) -> PathBuf {
-        let direction_str = match self.direction {
-            SyncDirection::Inbound => "inbound",
-            SyncDirection::Outbound => "outbound",
-        };
-
-        self.vault_path
-            .join(".footnote/status")
-            .join(&self.endpoint_id)
-            .join(direction_str)
-    }
-
-    fn write(&self) -> Result<()> {
-        let log_path = self.log_path();
-        if let Some(parent) = log_path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-
-        let json = serde_json::to_string_pretty(self)?;
-        fs::write(log_path, json)?;
-        Ok(())
-    }
-
-    pub fn last_success(
-        vault_path: PathBuf,
-        endpoint_id: &str,
-        direction: SyncDirection,
-    ) -> Result<Option<Self>> {
-        Self::read_pointer(&vault_path, endpoint_id, direction, "last_success")
-    }
-
-    pub fn last_failure(
-        vault_path: PathBuf,
-        endpoint_id: &str,
-        direction: SyncDirection,
-    ) -> Result<Option<Self>> {
-        Self::read_pointer(&vault_path, endpoint_id, direction, "last_failure")
-    }
-
-    fn read_pointer(
-        vault_path: &PathBuf,
-        endpoint_id: &str,
-        direction: SyncDirection,
-        pointer_name: &str,
-    ) -> Result<Option<Self>> {
+    fn status_path(vault_path: &Path, endpoint_id: &str, direction: &SyncDirection) -> PathBuf {
         let direction_str = match direction {
             SyncDirection::Inbound => "inbound",
             SyncDirection::Outbound => "outbound",
         };
 
-        let pointer_path = vault_path
+        vault_path
             .join(".footnote/status")
             .join(endpoint_id)
             .join(direction_str)
-            .join(pointer_name);
+            .join("status.json")
+    }
 
-        if !pointer_path.exists() {
-            return Ok(None);
+    fn write(&self) -> Result<()> {
+        let status_path = Self::status_path(&self.vault_path, &self.endpoint_id, &self.direction);
+
+        if let Some(parent) = status_path.parent() {
+            fs::create_dir_all(parent)?;
         }
 
-        let timestamp_str = fs::read_to_string(pointer_path)?;
-        let timestamp: i64 = timestamp_str.trim().parse()?;
+        let json = serde_json::to_string_pretty(self)?;
 
-        let log_path = vault_path
-            .join(".footnote/status")
-            .join(endpoint_id)
-            .join(direction_str)
-            .join(format!("{}.log", timestamp));
+        let temp_path = status_path.with_extension("json.tmp");
+        fs::write(&temp_path, json)?;
+        fs::rename(temp_path, status_path)?;
 
-        if !log_path.exists() {
-            return Ok(None);
-        }
-
-        let json = fs::read_to_string(log_path)?;
-        let mut record: Self = serde_json::from_str(&json)?;
-        record.vault_path = vault_path.clone();
-
-        Ok(Some(record))
+        Ok(())
     }
 }
 
-// TODO: log_rotate()
-// TODO: log_rotate(device_id)
-
 pub fn delete_logs_for_endpoint(vault_path: &Path, endpoint: &str) -> Result<()> {
-    // TODO: ensure this device does not have active replications.
-    // for now, the most basic validation is we'll ensure the path to delete
-    // parses as an iroh endpoint
     tracing::info!("removing logs for {}", endpoint);
     let _ = endpoint.parse::<iroh::PublicKey>()?;
     let device_log_path = vault_path.join(".footnote/status").join(endpoint);
