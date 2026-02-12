@@ -1,5 +1,6 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
@@ -35,10 +36,6 @@
 	<array>
 		<string>iPhoneOS</string>
 	</array>
-	<key>UIRequiresFullScreen</key>
-        <true/>
-        <key>LSSupportsOpeningDocumentsInPlace</key>
-        <false/>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -53,21 +50,20 @@
 	<key>CFBundleVersion</key>
 	<string>2</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
+	<false />
 	<key>LSRequiresIPhoneOS</key>
-	<true/>
-	<key>UIDeviceFamily</key>
-	<array>
-		<integer>1</integer>
-		<integer>2</integer>
-	</array>
+	<true />
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<false />
 	<key>UILaunchStoryboardName</key>
-	<string></string>
+	<string />
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
 		<string>arm64</string>
 		<string>metal</string>
 	</array>
+	<key>UIRequiresFullScreen</key>
+	<true />
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
@@ -82,7 +78,7 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportsTrueScreenSizeOnMac</key>
-	<true/>
+	<true />
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>
