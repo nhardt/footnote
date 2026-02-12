@@ -9,18 +9,23 @@ use footnote_core::service::sync_service::SyncService;
 use footnote_core::service::ALPN_SYNC;
 
 use crate::context::AppContext;
+use crate::sync_status_context::SyncStatusContext;
 
 #[component]
 pub fn SyncServiceToggle() -> Element {
     let mut listening = use_signal(|| false);
+    let app_context = use_context::<AppContext>();
+    let mut sync_status_context = use_context::<SyncStatusContext>();
     let mut send_cancel_token_signal = use_signal(|| CancellationToken::new());
     let mut listen_cancel_token_signal = use_signal(|| CancellationToken::new());
+    let mut poll_cancel_token_signal = use_signal(|| CancellationToken::new());
 
     let toggle_listener = move |_| {
         if listening() {
             tracing::info!("stopping send/listen activity");
             listen_cancel_token_signal.read().cancel();
             send_cancel_token_signal.read().cancel();
+            poll_cancel_token_signal.read().cancel();
             listening.set(false);
         } else {
             listening.set(true);
@@ -33,7 +38,10 @@ pub fn SyncServiceToggle() -> Element {
             let send_token_clone = send_cancel_token.clone();
             send_cancel_token_signal.set(send_cancel_token);
 
-            let app_context = use_context::<AppContext>();
+            let poll_cancel_token = CancellationToken::new();
+            let poll_token_clone = poll_cancel_token.clone();
+            poll_cancel_token_signal.set(poll_cancel_token);
+
             let vault = app_context.vault.read();
             let Ok((secret_key, _)) = vault.device_secret_key() else {
                 tracing::warn!("could not get secret key");
@@ -41,6 +49,20 @@ pub fn SyncServiceToggle() -> Element {
             };
             let send_vault_clone = vault.clone();
             let listen_vault_clone = vault.clone();
+
+            let mut sync_status_context_clone = sync_status_context.clone();
+            spawn(async move {
+                loop {
+                    tokio::select! {
+                        _ = poll_token_clone.cancelled() => break,
+                        _ = tokio::time::sleep(Duration::from_secs(30)) => {
+                            if let Err(e) = sync_status_context_clone.reload_all() {
+                                tracing::warn!("Failed to reload sync status: {}", e);
+                            }
+                        }
+                    }
+                }
+            });
 
             tokio::spawn(async move {
                 let Ok(endpoint) = Endpoint::builder()
