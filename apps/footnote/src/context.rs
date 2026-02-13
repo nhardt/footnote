@@ -20,6 +20,7 @@ pub struct AppContext {
     pub devices: Signal<Vec<Device>>,
     pub contacts: Signal<Vec<Contact>>,
     pub manifest: Signal<Manifest>,
+    pub user: Signal<Option<Contact>>,
 }
 
 impl AppContext {
@@ -33,6 +34,7 @@ impl AppContext {
                 create_manifest_local(&vault.base_path())
                     .expect("could not load local list of files"),
             ),
+            user: Signal::new(vault.user_read().ok().flatten()),
         }
     }
 
@@ -42,6 +44,7 @@ impl AppContext {
             .set(vault.state_read().unwrap_or(VaultState::Uninitialized));
         self.devices.set(vault.device_read()?);
         self.contacts.set(vault.contact_read()?);
+        self.user.set(vault.user_read().ok().flatten());
         Ok(())
     }
 
