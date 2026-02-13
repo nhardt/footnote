@@ -85,7 +85,9 @@ fn EditUsernameModal(oncancel: EventHandler) -> Element {
         let vault = app_context.vault.read().clone();
         match vault.user_update(username.read().as_str()) {
             Ok(_) => {
-                app_context.reload();
+                if let Err(e) = app_context.reload() {
+                    tracing::warn!("failed to reload app: {}", e);
+                }
                 oncancel.call(());
             }
             Err(e) => {
