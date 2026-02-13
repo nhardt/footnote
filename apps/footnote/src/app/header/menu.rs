@@ -44,8 +44,15 @@ pub fn HeaderMenu() -> Element {
                     div {
                         class: "p-3 border-b border-zinc-800",
                         h2 {
-                            class: "text-lg font-bold font-mono",
-                            "Footnote"
+                            class: "font-mono",
+                            span {
+                                class: "text-lg font-bold",
+                                "Footnote "
+                            }
+                            span {
+                                class: "text-sm text-zinc-500",
+                                "v{env!(\"CARGO_PKG_VERSION\")}"
+                            }
                         }
                     }
 
