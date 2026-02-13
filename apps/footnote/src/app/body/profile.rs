@@ -74,7 +74,7 @@ pub fn Profile() -> Element {
 
 #[component]
 fn EditUsernameModal(oncancel: EventHandler) -> Element {
-    let app_context = use_context::<AppContext>();
+    let mut app_context = use_context::<AppContext>();
     let mut username = use_signal(move || match app_context.vault.read().user_read() {
         Ok(Some(user)) => user.username,
         _ => String::new(),
@@ -85,6 +85,7 @@ fn EditUsernameModal(oncancel: EventHandler) -> Element {
         let vault = app_context.vault.read().clone();
         match vault.user_update(username.read().as_str()) {
             Ok(_) => {
+                app_context.reload();
                 oncancel.call(());
             }
             Err(e) => {
@@ -136,10 +137,12 @@ fn EditUsernameModal(oncancel: EventHandler) -> Element {
 #[component]
 fn UserComponent(read_only: bool) -> Element {
     let app_context = use_context::<AppContext>();
-    let username = use_signal(move || match app_context.vault.read().user_read() {
-        Ok(Some(user)) => user.username,
-        _ => String::new(),
-    });
+    let username = app_context
+        .user
+        .read()
+        .as_ref()
+        .map(|u| u.username.clone())
+        .unwrap_or_default();
 
     rsx! {
         section { class: "border border-zinc-800 rounded-lg bg-zinc-900/30 p-6 mb-4",
