@@ -98,11 +98,10 @@ fn DeviceItem(device: Device) -> Element {
             if let Some(status) = outbound_status {
                 if let Some(current) = status.current {
                     div { class: "text-xs text-zinc-400",
-                        "*Active*",
+                        "Active",
                         if let Some(total) = current.files_total {
-                            "{current.files_transferred}/{total}"
+                            "{current.files_transferred}/{total} files"
                         }
-                        " files"
                     }
                 }
                 if let Some(success) = status.last_success {
@@ -135,11 +134,10 @@ fn DeviceItem(device: Device) -> Element {
             if let Some(status) = inbound_status {
                 if let Some(current) = status.current {
                     div { class: "text-xs text-zinc-400",
-                        "*Active*",
+                        "Active",
                         if let Some(total) = current.files_total {
-                            "{current.files_transferred}/{total}"
+                            "{current.files_transferred}/{total} files"
                         }
-                        " files"
                     }
                 }
                 if let Some(success) = status.last_success {
