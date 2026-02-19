@@ -18,14 +18,14 @@ pub enum SyncDirection {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SyncInProgress {
+pub struct InProgressSync {
     pub started_at: LamportTimestamp,
     pub files_total: Option<usize>,
     pub files_transferred: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CompletedSync {
+pub struct SuccessfulSync {
     pub completed_at: LamportTimestamp,
     pub files_transferred: usize,
 }
@@ -42,8 +42,8 @@ pub struct SyncStatusRecord {
     pub sync_type: SyncType,
     pub direction: SyncDirection,
 
-    pub current: Option<SyncInProgress>,
-    pub last_success: Option<CompletedSync>,
+    pub current: Option<InProgressSync>,
+    pub last_success: Option<SuccessfulSync>,
     pub last_failure: Option<FailedSync>,
 
     #[serde(skip)]
@@ -69,7 +69,7 @@ impl SyncStatusRecord {
             sync_type,
             direction,
             vault_path,
-            current: Some(SyncInProgress {
+            current: Some(InProgressSync {
                 started_at: timestamp,
                 files_total: None,
                 files_transferred: 0,
@@ -113,7 +113,7 @@ impl SyncStatusRecord {
     pub fn record_success(mut self) -> Result<()> {
         if let Some(current) = self.current.take() {
             if current.files_transferred > 0 {
-                self.last_success = Some(CompletedSync {
+                self.last_success = Some(SuccessfulSync {
                     completed_at: LamportTimestamp::now(),
                     files_transferred: current.files_transferred,
                 });
