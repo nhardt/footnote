@@ -1,0 +1,146 @@
+use dioxus::prelude::*;
+use footnote_core::model::contact::Contact;
+use footnote_core::model::device::Device;
+use footnote_core::util::sync_status_record::SyncDirection;
+
+use crate::context::AppContext;
+use crate::sync_status_context::SyncStatusContext;
+
+#[component]
+pub fn SyncActivity() -> Element {
+    let app_context = use_context::<AppContext>();
+    let sync_context = use_context::<SyncStatusContext>();
+
+    let user = app_context.user.read().clone();
+    let contacts = app_context.contacts.read().clone();
+    let my_devices = app_context.devices.read().clone();
+
+    let mut contact_filter: Signal<Option<String>> = use_signal(|| None);
+    let mut device_filter: Signal<Option<String>> = use_signal(|| None);
+
+    // Build the contact list: Me first, then contacts
+    let contact_options: Vec<(String, String)> = {
+        let mut opts = vec![("__all__".to_string(), "All".to_string())];
+        if let Some(ref u) = user {
+            opts.push(("__me__".to_string(), u.username.clone()));
+        }
+        for c in &contacts {
+            let label = if c.nickname.is_empty() {
+                c.username.clone()
+            } else {
+                c.nickname.clone()
+            };
+            opts.push((c.id_public_key.clone(), label));
+        }
+        opts
+    };
+
+    // Devices for the selected contact
+    let available_devices: Vec<Device> = match contact_filter.read().as_deref() {
+        None | Some("__all__") => vec![],
+        Some("__me__") => my_devices.clone(),
+        Some(key) => contacts
+            .iter()
+            .find(|c| c.id_public_key == key)
+            .map(|c| c.devices.clone())
+            .unwrap_or_default(),
+    };
+
+    // When contact changes, reset device filter
+    let mut on_contact_change = move |key: String| {
+        contact_filter.set(if key == "__all__" { None } else { Some(key) });
+        device_filter.set(None);
+    };
+
+    // Devices to pull files from
+    let devices_for_files: Vec<Device> = match contact_filter.read().as_deref() {
+        None | Some("__all__") => {
+            let mut all = my_devices.clone();
+            for c in &contacts {
+                all.extend(c.devices.clone());
+            }
+            all
+        }
+        Some(_) => match device_filter.read().as_ref() {
+            Some(endpoint_id) => available_devices
+                .iter()
+                .filter(|d| &d.iroh_endpoint_id == endpoint_id)
+                .cloned()
+                .collect(),
+            None => available_devices.clone(),
+        },
+    };
+
+    let recent_files = sync_context.recent_files_for_devices(&devices_for_files);
+
+    rsx! {
+        div {
+            class: "border border-zinc-800 rounded-lg bg-zinc-900/30",
+
+            div {
+                class: "px-6 py-4 border-b border-zinc-800 flex flex-wrap items-center gap-3",
+                h2 {
+                    class: "text-sm font-semibold font-mono text-zinc-400 mr-auto",
+                    "Recent Incoming"
+                }
+
+                // Contact dropdown
+                select {
+                    class: "bg-zinc-800 border border-zinc-700 rounded-md text-sm text-zinc-300 px-3 py-1.5 focus:outline-none focus:border-zinc-500",
+                    onchange: move |e| on_contact_change(e.value()),
+                    for (key, label) in &contact_options {
+                        option {
+                            value: "{key}",
+                            selected: contact_filter.read().as_deref() == Some(key.as_str())
+                                || (contact_filter.read().is_none() && key == "__all__"),
+                            "{label}"
+                        }
+                    }
+                }
+
+                // Device dropdown — only shown when a specific contact is selected
+                if !available_devices.is_empty() {
+                    select {
+                        class: "bg-zinc-800 border border-zinc-700 rounded-md text-sm text-zinc-300 px-3 py-1.5 focus:outline-none focus:border-zinc-500",
+                        onchange: move |e| {
+                            let val = e.value();
+                            device_filter.set(if val == "__all__" { None } else { Some(val) });
+                        },
+                        option { value: "__all__", "All Devices" }
+                        for device in &available_devices {
+                            option {
+                                value: "{device.iroh_endpoint_id}",
+                                selected: device_filter.read().as_deref() == Some(device.iroh_endpoint_id.as_str()),
+                                "{device.name}"
+                            }
+                        }
+                    }
+                }
+            }
+
+            if recent_files.is_empty() {
+                div {
+                    class: "px-6 py-8 text-sm text-zinc-500 text-center",
+                    "No recent incoming files"
+                }
+            } else {
+                div {
+                    class: "divide-y divide-zinc-800",
+                    for file in &recent_files {
+                        div {
+                            class: "px-6 py-3 flex items-center justify-between",
+                            span {
+                                class: "text-sm text-zinc-300 font-mono truncate",
+                                "{file.filename}"
+                            }
+                            span {
+                                class: "text-xs text-zinc-500 ml-4 shrink-0",
+                                "{file.timestamp.relative_time_string()}"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

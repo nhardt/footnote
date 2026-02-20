@@ -1,9 +1,17 @@
 use dioxus::prelude::*;
 
-use crate::context::MenuContext;
+use footnote_core::model::vault::VaultState;
+
+use crate::context::{AppContext, MenuContext};
+
+mod sync_activity;
+use sync_activity::SyncActivity;
 
 #[component]
 pub fn Home() -> Element {
+    let app_context = use_context::<AppContext>();
+    let vault_state = app_context.vault_state;
+
     rsx! {
         div {
             class: "flex-1 overflow-y-auto",
@@ -63,20 +71,9 @@ pub fn Home() -> Element {
                         }
                     }
 
-                    // Contacts placeholder
-                    div {
-                        class: "border border-zinc-800 rounded-lg bg-zinc-900/30",
-                        div {
-                            class: "px-6 py-4 border-b border-zinc-800",
-                            h2 {
-                                class: "text-sm font-semibold font-mono text-zinc-400",
-                                "Contacts"
-                            }
-                        }
-                        div {
-                            class: "px-6 py-8 text-sm text-zinc-500 text-center",
-                            "No contacts yet"
-                        }
+                    match *vault_state.read() {
+                        VaultState::StandAlone | VaultState::Uninitialized => rsx! { /* nothing */ },
+                        _ => rsx! { SyncActivity {} }
                     }
                 }
             }
