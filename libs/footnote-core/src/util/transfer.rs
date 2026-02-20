@@ -107,10 +107,15 @@ pub async fn receive_share(vault: &Vault, nickname: &str, connection: Connection
 
         network::send_file_request(&mut send, &file_to_sync.uuid).await?;
         let file_contents = network::receive_file_contents(&mut recv).await?;
-        fs::write(&canonical_full, file_contents)?;
+        let temp_path = canonical_full.with_extension("tmp");
+        fs::write(&temp_path, file_contents)?;
+        fs::rename(&temp_path, &canonical_full)?;
 
-        transfer_count += 1;
-        transfer_record.update(transfer_count, None)?;
+        transfer_record.record_file_complete(RecentFile {
+            uuid: file_to_sync.uuid,
+            filename: file_to_sync.path.to_string_lossy().to_string(),
+            timestamp: file_to_sync.modified,
+        });
     }
     transfer_record.record_success()?;
     network::send_eof(&mut send).await?;
@@ -228,10 +233,14 @@ pub async fn receive_mirror(vault: &Vault, connection: Connection) -> Result<()>
 
         network::send_file_request(&mut send, &file_to_sync.uuid).await?;
         let file_contents = network::receive_file_contents(&mut recv).await?;
-        fs::write(&canonical_full, file_contents)?;
-
-        transfer_count += 1;
-        transfer_record.update(transfer_count, None)?;
+        let temp_path = canonical_full.with_extension("tmp");
+        fs::write(&temp_path, file_contents)?;
+        fs::rename(&temp_path, &canonical_full)?;
+        transfer_record.record_file_complete(RecentFile {
+            uuid: file_to_sync.uuid,
+            filename: file_to_sync.path.to_string_lossy().to_string(),
+            timestamp: file_to_sync.modified,
+        });
     }
     transfer_record.record_success()?;
     network::send_eof(&mut send).await?;
