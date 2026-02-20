@@ -80,27 +80,27 @@ pub fn ListenForPairModal() -> Element {
                 div { class: "p-6 border-b border-zinc-800",
 
                     if !is_listening() {
-                        div {
-                            p { class: "text-sm text-zinc-500 mb-4",
-                                "Connect this device to your primary device"
+                        div { class: "w-full",
+                            p { class: "text-sm text-zinc-300 mb-4",
+                                "Pair this device with your First Device"
                             }
-                            div { class: "flex gap-3",
+                            div { class: "flex",
                                 button {
-                                    class: "px-6 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-lg font-medium transition-all",
+                                    class: "px-4 py-2 bg-zinc-300 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-lg text-sm font-medium transition-all",
                                     onclick: move |_| consume_context::<MenuContext>().close_all(),
                                     "Cancel"
                                 }
                                 button {
-                                    class: "px-6 py-3 bg-zinc-100 hover:bg-white text-zinc-900 rounded-lg font-medium transition-all",
+                                    class: "px-4 py-2 bg-zinc-100 hover:bg-white text-zinc-900 rounded-lg text-sm font-medium transition-all",
                                     onclick: start_listening,
-                                    "Listen for Primary Device"
+                                    "Listen for First Device"
                                 }
                             }
                         }
                     } else {
                         div {
-                            p { class: "text-sm text-zinc-500 mb-6",
-                                "Scan this QR code on your primary device to complete pairing"
+                            p { class: "text-sm text-zinc-300 mb-6",
+                                "Scan this QR code on your First Device to complete pairing"
                             }
 
                             div { class: "flex flex-col items-center mb-6",
