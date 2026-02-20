@@ -2,7 +2,7 @@ use crate::model::contact::Contact;
 use crate::model::vault::Vault;
 use crate::util::manifest::{create_manifest_full, diff_manifests, Manifest};
 use crate::util::network;
-use crate::util::sync_status_record::{SyncDirection, SyncStatusRecord, SyncType};
+use crate::util::sync_status_record::{RecentFile, SyncDirection, SyncStatusRecord, SyncType};
 use anyhow::{Context, Result};
 use iroh::endpoint::Connection;
 use iroh::Endpoint;
@@ -51,7 +51,6 @@ pub async fn receive_share(vault: &Vault, nickname: &str, connection: Connection
     if let Err(e) = transfer_record.update(0, Some(files_to_sync.len())) {
         tracing::warn!("could not update transfer record: {}", e);
     }
-    let mut transfer_count = 0;
     for file_to_sync in &files_to_sync {
         let path_components: Vec<_> = file_to_sync.path.components().collect();
         for component in &path_components {
@@ -191,7 +190,6 @@ pub async fn receive_mirror(vault: &Vault, connection: Connection) -> Result<()>
     if let Err(e) = transfer_record.update(0, Some(files_to_sync.len())) {
         tracing::warn!("could not update transfer record: {}", e);
     }
-    let mut transfer_count = 0;
     for file_to_sync in &files_to_sync {
         let path_components: Vec<_> = file_to_sync.path.components().collect();
         for component in &path_components {

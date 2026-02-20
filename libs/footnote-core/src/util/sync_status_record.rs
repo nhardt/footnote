@@ -4,6 +4,7 @@ use iroh::PublicKey;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SyncType {
@@ -37,10 +38,19 @@ pub struct FailedSync {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RecentFile {
+    pub uuid: Uuid,
+    pub filename: String,
+    pub timestamp: LamportTimestamp,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SyncStatusRecord {
     pub endpoint_id: String,
     pub sync_type: SyncType,
     pub direction: SyncDirection,
+    #[serde(default)]
+    pub recent_files: Vec<RecentFile>,
 
     pub current: Option<InProgressSync>,
     pub last_success: Option<SuccessfulSync>,
@@ -74,6 +84,10 @@ impl SyncStatusRecord {
                 files_total: None,
                 files_transferred: 0,
             }),
+            recent_files: existing
+                .as_ref()
+                .map(|e| e.recent_files.clone())
+                .unwrap_or_default(),
             last_success: existing.as_ref().and_then(|e| e.last_success.clone()),
             last_failure: existing.as_ref().and_then(|e| e.last_failure.clone()),
         };
@@ -108,6 +122,17 @@ impl SyncStatusRecord {
             }
         }
         self.write()
+    }
+
+    pub fn record_file_complete(&mut self, recent_file: RecentFile) -> Result<()> {
+        if let Some(current) = &mut self.current {
+            current.files_transferred += 1;
+        }
+        self.recent_files.push(recent_file);
+        self.recent_files
+            .sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+        self.recent_files.truncate(10);
+        Ok(())
     }
 
     pub fn record_success(mut self) -> Result<()> {
