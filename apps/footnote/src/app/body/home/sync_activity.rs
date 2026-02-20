@@ -19,6 +19,49 @@ pub fn SyncActivity() -> Element {
     let mut contact_filter: Signal<Option<String>> = use_signal(|| None);
     let mut device_filter: Signal<Option<String>> = use_signal(|| None);
 
+    let recent_files = use_memo(move || {
+        let contacts = app_context.contacts.read().clone();
+        let my_devices = app_context.devices.read().clone();
+
+        let devices_for_files: Vec<Device> = match contact_filter.read().as_deref() {
+            None | Some("__all__") => {
+                let mut all = my_devices.clone();
+                for c in &contacts {
+                    all.extend(c.devices.clone());
+                }
+                all
+            }
+            Some(_) => match device_filter.read().as_ref() {
+                Some(endpoint_id) => {
+                    let available: Vec<Device> = match contact_filter.read().as_deref() {
+                        Some("__me__") => my_devices.clone(),
+                        Some(key) => contacts
+                            .iter()
+                            .find(|c| c.id_public_key == key)
+                            .map(|c| c.devices.clone())
+                            .unwrap_or_default(),
+                        _ => vec![],
+                    };
+                    available
+                        .into_iter()
+                        .filter(|d| &d.iroh_endpoint_id == endpoint_id)
+                        .collect()
+                }
+                None => match contact_filter.read().as_deref() {
+                    Some("__me__") => my_devices.clone(),
+                    Some(key) => contacts
+                        .iter()
+                        .find(|c| c.id_public_key == key)
+                        .map(|c| c.devices.clone())
+                        .unwrap_or_default(),
+                    _ => vec![],
+                },
+            },
+        };
+
+        sync_context.recent_files_for_devices(&devices_for_files)
+    });
+
     // Build the contact list: Me first, then contacts
     let contact_options: Vec<(String, String)> = {
         let mut opts = vec![("__all__".to_string(), "All People".to_string())];
@@ -75,8 +118,6 @@ pub fn SyncActivity() -> Element {
         },
     };
 
-    let recent_files = sync_context.recent_files_for_devices(&devices_for_files);
-
     rsx! {
         div { class: "border border-zinc-800 rounded-lg bg-zinc-900/30",
             div { class: "px-6 py-3 border-b border-zinc-800 flex items-center gap-3",
@@ -110,7 +151,7 @@ pub fn SyncActivity() -> Element {
                 }
             }
 
-            if recent_files.is_empty() {
+            if recent_files.read().is_empty() {
                 div {
                     class: "px-6 py-8 text-sm text-zinc-500 text-center",
                     "No recent incoming files"
@@ -119,7 +160,7 @@ pub fn SyncActivity() -> Element {
                 div {
                     class: "divide-y divide-zinc-800",
 
-                    for file in &recent_files {
+                    for file in recent_files.read().iter() {
                         div {
                             class: "px-6 py-3 flex items-center justify-between hover:bg-zinc-900/50 transition-colors cursor-pointer",
                             onclick: {
