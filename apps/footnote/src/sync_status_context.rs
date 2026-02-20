@@ -4,8 +4,8 @@ use anyhow::Result;
 use std::collections::HashMap;
 
 use footnote_core::{
-    model::vault::Vault,
-    util::sync_status_record::{SyncDirection, SyncStatusRecord},
+    model::{device::Device, vault::Vault},
+    util::sync_status_record::{RecentFile, SyncDirection, SyncStatusRecord},
 };
 
 #[derive(Clone, Copy)]
@@ -87,5 +87,18 @@ impl SyncStatusContext {
 
         self.statuses.set(statuses);
         Ok(())
+    }
+
+    pub fn recent_files_for_devices(&self, devices: &[Device]) -> Vec<RecentFile> {
+        let statuses = self.statuses.read();
+        let mut files: Vec<RecentFile> = devices
+            .iter()
+            .filter_map(|d| statuses.get(&(d.iroh_endpoint_id.clone(), SyncDirection::Inbound)))
+            .flat_map(|s| s.recent_files.iter().cloned())
+            .collect();
+        files.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+        files.dedup_by_key(|f| f.uuid);
+        files.truncate(10);
+        files
     }
 }
