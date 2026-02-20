@@ -150,28 +150,7 @@ pub fn HeaderMenu() -> Element {
                             },
 
                             _ => rsx! {
-                                MenuButton {
-                                    label: "Create Device Group",
-                                    onclick: move |_| {
-                                        if app_context
-                                            .vault
-                                            .read()
-                                            .transition_to_primary("default", "primary")
-                                            .is_ok()
-                                        {
-                                            if let Err(e) = app_context.reload() {
-                                                tracing::warn!("failed to reload app: {}", e);
-                                            }
-                                        }
-                                        consume_context::<MenuContext>().close_all();
-                                    }
-                                }
-                                MenuButton {
-                                    label: "Join Device Group",
-                                    onclick: move |_| {
-                                        consume_context::<MenuContext>().set_listen_for_pair_visible();
-                                    }
-                                }
+                                // setup buttons appear on home screen
                             }
                         }
                     }
