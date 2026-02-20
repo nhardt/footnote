@@ -33,46 +33,33 @@ pub fn Home() -> Element {
                 div {
                     class: "space-y-8",
 
-                    // Quick actions
-                    div {
-                        class: "border border-zinc-800 rounded-lg bg-zinc-900/30 p-6",
-                        h2 {
-                            class: "text-sm font-semibold font-mono text-zinc-400 mb-4",
-                            "Quick Actions"
-                        }
-                        div {
-                            class: "space-y-2",
-                            button {
-                                class: "w-full px-4 py-3 text-left text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 rounded-lg transition-colors border border-zinc-800",
-                                onclick: move |_| consume_context::<MenuContext>().set_new_note_visible(),
-                                "New Note"
-                            }
-                            button {
-                                class: "w-full px-4 py-3 text-left text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 rounded-lg transition-colors border border-zinc-800",
-                                onclick: move |_| consume_context::<MenuContext>().set_share_contact_visible(),
-                                "Share Contact Record"
-                            }
-                        }
-                    }
-
-                    // Recent notes placeholder
-                    div {
-                        class: "border border-zinc-800 rounded-lg bg-zinc-900/30",
-                        div {
-                            class: "px-6 py-4 border-b border-zinc-800",
-                            h2 {
-                                class: "text-sm font-semibold font-mono text-zinc-400",
-                                "Recent Notes"
-                            }
-                        }
-                        div {
-                            class: "px-6 py-8 text-sm text-zinc-500 text-center",
-                            "Use the search bar to find notes, or create a new one from the menu"
-                        }
-                    }
-
                     match *vault_state.read() {
-                        VaultState::StandAlone | VaultState::Uninitialized => rsx! { /* nothing */ },
+                        VaultState::StandAlone | VaultState::Uninitialized => rsx! {
+                            div {
+                                class: "border border-zinc-800 rounded-lg bg-zinc-900/30 p-6",
+                                h2 {
+                                    class: "text-sm font-semibold font-mono text-zinc-400 mb-3",
+                                    "Device Setup"
+                                }
+                                p {
+                                    class: "text-xs text-zinc-500 mb-4",
+                                    "Setting up a mobile device as your First Device works best, it has a camera for QR pairing and can share your contact record easily."
+                                }
+                                div {
+                                    class: "flex gap-2",
+                                    button {
+                                        class: "flex-1 px-4 py-3 text-center text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 rounded-lg transition-colors border border-zinc-800",
+                                        onclick: move |_| consume_context::<MenuContext>().set_pair_with_listener_visible(&"".to_string()),
+                                        "First Device"
+                                    }
+                                    button {
+                                        class: "flex-1 px-4 py-3 text-center text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 rounded-lg transition-colors border border-zinc-800",
+                                        onclick: move |_| consume_context::<MenuContext>().set_listen_for_pair_visible(),
+                                        "Join With First Device"
+                                    }
+                                }
+                            }
+                        },
                         _ => rsx! { SyncActivity {} }
                     }
                 }
