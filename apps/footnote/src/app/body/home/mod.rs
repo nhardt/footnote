@@ -9,7 +9,7 @@ use sync_activity::SyncActivity;
 
 #[component]
 pub fn Home() -> Element {
-    let app_context = use_context::<AppContext>();
+    let mut app_context = use_context::<AppContext>();
     let vault_state = app_context.vault_state;
 
     rsx! {
@@ -26,7 +26,7 @@ pub fn Home() -> Element {
                     }
                     p {
                         class: "text-sm text-zinc-400",
-                        "Local-first notes with trusted networks"
+                        "Use the upper left menu to start taking notes"
                     }
                 }
 
@@ -43,19 +43,29 @@ pub fn Home() -> Element {
                                 }
                                 p {
                                     class: "text-xs text-zinc-500 mb-4",
-                                    "Setting up a mobile device as your First Device works best, it has a camera for QR pairing and can share your contact record easily."
+                                    "The First Device will manage your list of
+                                    devices. Mobile is recommended. A mobile
+                                    device can pair by scanning a QR code, and
+                                    can exchange contact records via AirDrop or
+                                    Nearby Share"
                                 }
                                 div {
                                     class: "flex gap-2",
                                     button {
                                         class: "flex-1 px-4 py-3 text-center text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 rounded-lg transition-colors border border-zinc-800",
-                                        onclick: move |_| consume_context::<MenuContext>().set_pair_with_listener_visible(&"".to_string()),
-                                        "First Device"
+                                        onclick:  move |_| {
+                                            if app_context.vault.read().transition_to_primary("default", "primary").is_ok() {
+                                                if let Err(e) = app_context.reload() {
+                                                    tracing::warn!("failed to reload app: {}", e);
+                                                }
+                                            }
+                                        },
+                                        "This is my First Device"
                                     }
                                     button {
                                         class: "flex-1 px-4 py-3 text-center text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 rounded-lg transition-colors border border-zinc-800",
                                         onclick: move |_| consume_context::<MenuContext>().set_listen_for_pair_visible(),
-                                        "Join With First Device"
+                                        "I already have a First Device"
                                     }
                                 }
                             }
