@@ -74,34 +74,30 @@ pub fn SyncActivity() -> Element {
     let recent_files = sync_context.recent_files_for_devices(&devices_for_files);
 
     rsx! {
-        div {
-            class: "border border-zinc-800 rounded-lg bg-zinc-900/30",
-
+        div { class: "border border-zinc-800 rounded-lg bg-zinc-900/30",
             div {
-                class: "px-6 py-4 border-b border-zinc-800 flex flex-wrap items-center gap-3",
+                class: "px-6 py-3 border-b border-zinc-800",
                 h2 {
-                    class: "text-sm font-semibold font-mono text-zinc-400 mr-auto",
+                    class: "text-sm font-semibold font-mono text-zinc-400 mb-3",
                     "Recent Incoming"
                 }
+                div {
+                    class: "flex gap-2",
 
-                // Contact dropdown
-                select {
-                    class: "bg-zinc-800 border border-zinc-700 rounded-md text-sm text-zinc-300 px-3 py-1.5 focus:outline-none focus:border-zinc-500",
-                    onchange: move |e| on_contact_change(e.value()),
-                    for (key, label) in &contact_options {
-                        option {
-                            value: "{key}",
-                            selected: contact_filter.read().as_deref() == Some(key.as_str())
-                                || (contact_filter.read().is_none() && key == "__all__"),
-                            "{label}"
+                    select {
+                        class: "bg-zinc-800 border border-zinc-700 rounded-md text-sm text-zinc-300 px-2 py-1 focus:outline-none focus:border-zinc-500 appearance-none",
+                        onchange: move |e| on_contact_change(e.value()),
+                        for (key, label) in &contact_options {
+                            option {
+                                value: "{key}",
+                                "{label}"
+                            }
                         }
                     }
-                }
 
-                // Device dropdown — only shown when a specific contact is selected
-                if !available_devices.is_empty() {
                     select {
-                        class: "bg-zinc-800 border border-zinc-700 rounded-md text-sm text-zinc-300 px-3 py-1.5 focus:outline-none focus:border-zinc-500",
+                        class: "bg-zinc-800 border border-zinc-700 rounded-md text-sm text-zinc-300 px-2 py-1 focus:outline-none focus:border-zinc-500 appearance-none",
+                        disabled: available_devices.is_empty(),
                         onchange: move |e| {
                             let val = e.value();
                             device_filter.set(if val == "__all__" { None } else { Some(val) });
@@ -110,7 +106,6 @@ pub fn SyncActivity() -> Element {
                         for device in &available_devices {
                             option {
                                 value: "{device.iroh_endpoint_id}",
-                                selected: device_filter.read().as_deref() == Some(device.iroh_endpoint_id.as_str()),
                                 "{device.name}"
                             }
                         }
@@ -141,6 +136,7 @@ pub fn SyncActivity() -> Element {
                     }
                 }
             }
+
         }
     }
 }
