@@ -79,39 +79,34 @@ pub fn SyncActivity() -> Element {
 
     rsx! {
         div { class: "border border-zinc-800 rounded-lg bg-zinc-900/30",
-            div {
-                class: "px-6 py-3 border-b border-zinc-800",
-                h2 {
-                    class: "text-sm font-semibold font-mono text-zinc-400 mb-3",
+            div { class: "px-6 py-3 border-b border-zinc-800 flex items-center gap-3",
+                span { class: "text-sm font-semibold font-mono text-zinc-400 mr-auto",
                     "Recent Incoming"
                 }
-                div {
-                    class: "flex gap-2",
-
-                    select {
-                        class: "bg-zinc-800 border border-zinc-700 rounded-md text-sm text-zinc-300 px-2 py-1 focus:outline-none focus:border-zinc-500 appearance-none",
-                        onchange: move |e| on_contact_change(e.value()),
-                        for (key, label) in &contact_options {
-                            option {
-                                value: "{key}",
-                                "{label}"
-                            }
+                label { "People" }
+                select {
+                    class: "bg-zinc-800 border border-zinc-700 rounded-md text-sm text-zinc-300 px-2 py-1 focus:outline-none focus:border-zinc-500 appearance-none",
+                    onchange: move |e| on_contact_change(e.value()),
+                    for (key, label) in &contact_options {
+                        option {
+                            value: "{key}",
+                            "{label}"
                         }
                     }
-
-                    select {
-                        class: "bg-zinc-800 border border-zinc-700 rounded-md text-sm text-zinc-300 px-2 py-1 focus:outline-none focus:border-zinc-500 appearance-none",
-                        disabled: available_devices.is_empty(),
-                        onchange: move |e| {
-                            let val = e.value();
-                            device_filter.set(if val == "__all__" { None } else { Some(val) });
-                        },
-                        option { value: "__all__", "All Devices" }
-                        for device in &available_devices {
-                            option {
-                                value: "{device.iroh_endpoint_id}",
-                                "{device.name}"
-                            }
+                }
+                label { "Devices" }
+                select {
+                    class: "bg-zinc-800 border border-zinc-700 rounded-md text-sm text-zinc-300 px-2 py-1 focus:outline-none focus:border-zinc-500 appearance-none",
+                    disabled: available_devices.is_empty(),
+                    onchange: move |e| {
+                        let val = e.value();
+                        device_filter.set(if val == "__all__" { None } else { Some(val) });
+                    },
+                    option { value: "__all__", "All Devices" }
+                    for device in &available_devices {
+                        option {
+                            value: "{device.iroh_endpoint_id}",
+                            "{device.name}"
                         }
                     }
                 }
