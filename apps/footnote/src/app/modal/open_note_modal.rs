@@ -13,6 +13,12 @@ pub fn NoteSelectModal() -> Element {
 
     let mut root_children: Vec<_> = tree().children.into_iter().collect();
     root_children.sort_by(|(_, a), (_, b)| {
+        if a.name == "footnotes" {
+            return std::cmp::Ordering::Less;
+        }
+        if b.name == "footnotes" {
+            return std::cmp::Ordering::Greater;
+        }
         let a_is_folder = !a.children.is_empty();
         let b_is_folder = !b.children.is_empty();
         match (a_is_folder, b_is_folder) {
@@ -45,8 +51,9 @@ pub fn NoteSelectModal() -> Element {
                     class: "flex-1 overflow-y-auto p-2",
                     for (name, child) in root_children {
                         TreeNodeView {
-                            name: name,
-                            node: child
+                            name: &name,
+                            node: child,
+                            is_footnote: name == "footnotes"
                         }
                     }
                 }
@@ -56,7 +63,7 @@ pub fn NoteSelectModal() -> Element {
 }
 
 #[component]
-fn TreeNodeView(name: String, node: TreeNode) -> Element {
+fn TreeNodeView(name: String, node: TreeNode, is_footnote: bool) -> Element {
     let is_folder = !node.children.is_empty();
 
     if is_folder {
@@ -75,10 +82,12 @@ fn TreeNodeView(name: String, node: TreeNode) -> Element {
             BrowserRowFolder {
                 name: node.name.clone(),
                 open: false,
+                is_footnote: is_footnote,
                 for child in sorted_children {
                     TreeNodeView {
                         name: child.name.clone(),
-                        node: child
+                        node: child,
+                        is_footnote: is_footnote
                     }
                 }
             }
@@ -86,14 +95,15 @@ fn TreeNodeView(name: String, node: TreeNode) -> Element {
     } else {
         rsx! {
             BrowserRowFile {
-                node: node
+                node: node,
+                is_footnote: is_footnote
             }
         }
     }
 }
 
 #[component]
-fn BrowserRowFolder(name: String, open: bool, children: Element) -> Element {
+fn BrowserRowFolder(name: String, open: bool, children: Element, is_footnote: bool) -> Element {
     let mut open_signal = use_signal(|| open);
     let toggle_open = move |_| open_signal.set(!open_signal());
 
@@ -120,7 +130,10 @@ fn BrowserRowFolder(name: String, open: bool, children: Element) -> Element {
                     view_box: "0 0 20 20",
                     path { d: "M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" }
                 }
-                span { class: "font-medium", "{name}" }
+                span { class: "font-medium",
+                    class: if is_footnote { "text-amber-400" } else { "text-zinc-500" },
+                    "{name}"
+                }
             }
             div { class: "ml-6", {children} }
         } else {
@@ -128,7 +141,7 @@ fn BrowserRowFolder(name: String, open: bool, children: Element) -> Element {
                 class: "flex gap-2 items-center py-1.5 px-2 w-full text-sm text-left rounded transition-colors hover:bg-zinc-800",
                 onclick: toggle_open,
                 svg {
-                    class: "flex-shrink-0 w-4 h-4 text-zinc-500",
+                    class: "flex-shrink-0 w-4 h-4",
                     fill: "none",
                     stroke: "currentColor",
                     view_box: "0 0 24 24",
@@ -145,14 +158,17 @@ fn BrowserRowFolder(name: String, open: bool, children: Element) -> Element {
                     view_box: "0 0 20 20",
                     path { d: "M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" }
                 }
-                span { class: "font-medium", "{name}" }
+                span { class: "font-medium",
+                    class: if is_footnote { "text-amber-400" } else { "text-zinc-500" },
+                    "{name}"
+                }
             }
         }
     }
 }
 
 #[component]
-fn BrowserRowFile(node: TreeNode) -> Element {
+fn BrowserRowFile(node: TreeNode, is_footnote: bool) -> Element {
     let path_clone = node.full_path.clone();
 
     let onclick = move |_| {
@@ -176,7 +192,11 @@ fn BrowserRowFile(node: TreeNode) -> Element {
                     fill_rule: "evenodd",
                 }
             }
-            span { class: "text-zinc-300", "{node.name}" }
+
+            span {
+                class: if is_footnote { "text-amber-300" } else { "text-zinc-300" },
+                "{node.name}"
+            }
         }
     }
 }
