@@ -4,6 +4,7 @@ use footnote_core::model::device::Device;
 use footnote_core::util::sync_status_record::SyncDirection;
 
 use crate::context::AppContext;
+use crate::context::MenuContext;
 use crate::sync_status_context::SyncStatusContext;
 
 #[component]
@@ -22,7 +23,10 @@ pub fn SyncActivity() -> Element {
     let contact_options: Vec<(String, String)> = {
         let mut opts = vec![("__all__".to_string(), "All".to_string())];
         if let Some(ref u) = user {
-            opts.push(("__me__".to_string(), u.username.clone()));
+            opts.push((
+                "__me__".to_string(),
+                format!("{} (me!)", u.username.clone()),
+            ));
         }
         for c in &contacts {
             let label = if c.nickname.is_empty() {
@@ -121,9 +125,14 @@ pub fn SyncActivity() -> Element {
             } else {
                 div {
                     class: "divide-y divide-zinc-800",
+
                     for file in &recent_files {
                         div {
-                            class: "px-6 py-3 flex items-center justify-between",
+                            class: "px-6 py-3 flex items-center justify-between hover:bg-zinc-900/50 transition-colors cursor-pointer",
+                            onclick: {
+                                let nav_path = file.filename.to_string().clone();
+                                move |_| consume_context::<MenuContext>().go_note(&nav_path)
+                            },
                             span {
                                 class: "text-sm text-zinc-300 font-mono truncate",
                                 "{file.filename}"
@@ -136,7 +145,6 @@ pub fn SyncActivity() -> Element {
                     }
                 }
             }
-
         }
     }
 }
