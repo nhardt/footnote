@@ -78,15 +78,29 @@ pub fn ListenForPairModal() -> Element {
                 onclick: move |evt| evt.stop_propagation(),
 
                 div { class: "p-6 border-b border-zinc-800",
-
                     if !is_listening() {
-                        div { class: "w-full",
-                            p { class: "text-sm text-zinc-300 mb-4",
-                                "Pair this device with your First Device"
+                        div { class: "flex flex-col gap-4",
+                            p { class: "text-sm text-zinc-300",
+                                "Clicking \"Listen for First Device\" will
+                                create a unique URL join code and start
+                                listening for a connection from First Device. If
+                                your First Device has a camera, scan the QR code
+                                to open Footnote and complete pairing. If your
+                                device does not have a camera, copy the unique
+                                URL and send it yourself to paste on your First
+                                Device."
                             }
-                            div { class: "flex",
+                            p { class: "text-sm text-red-300",
+                                "Important: Devices paired in this way will mirror all files. Only pair with this
+                                mechanism if you own both devices!"
+                            }
+                            p { class: "text-sm text-zinc-300",
+                                "To selectively share files with a friend, share your Contact Record with them
+                                via email, SMS, Nearby Share or AirDrop"
+                            }
+                            div { class: "flex gap-3 justify-end",
                                 button {
-                                    class: "px-4 py-2 bg-zinc-300 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-lg text-sm font-medium transition-all",
+                                    class: "px-4 py-2 bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 rounded-lg text-sm font-medium transition-all",
                                     onclick: move |_| consume_context::<MenuContext>().close_all(),
                                     "Cancel"
                                 }
@@ -100,7 +114,7 @@ pub fn ListenForPairModal() -> Element {
                     } else {
                         div {
                             p { class: "text-sm text-zinc-300 mb-6",
-                                "Scan this QR code on your First Device to complete pairing"
+                                "Scan this QR code on your First Device to complete pairing. This window will close when pairing is complete."
                             }
 
                             div { class: "flex flex-col items-center mb-6",
@@ -135,7 +149,7 @@ pub fn ListenForPairModal() -> Element {
                             }
 
                             button {
-                                class: "px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
+                                class: "px-4 py-2 bg-zinc-500 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-600 rounded-md text-sm font-medium transition-all",
                                 onclick: cancel_listening,
                                 "Cancel"
                             }
