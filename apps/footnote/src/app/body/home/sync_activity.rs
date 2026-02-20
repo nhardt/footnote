@@ -21,7 +21,7 @@ pub fn SyncActivity() -> Element {
 
     // Build the contact list: Me first, then contacts
     let contact_options: Vec<(String, String)> = {
-        let mut opts = vec![("__all__".to_string(), "All".to_string())];
+        let mut opts = vec![("__all__".to_string(), "All People".to_string())];
         if let Some(ref u) = user {
             opts.push((
                 "__me__".to_string(),
@@ -83,7 +83,6 @@ pub fn SyncActivity() -> Element {
                 span { class: "text-sm font-semibold font-mono text-zinc-400 mr-auto",
                     "Recent Incoming"
                 }
-                label { "People" }
                 select {
                     class: "bg-zinc-800 border border-zinc-700 rounded-md text-sm text-zinc-300 px-2 py-1 focus:outline-none focus:border-zinc-500 appearance-none",
                     onchange: move |e| on_contact_change(e.value()),
@@ -94,7 +93,6 @@ pub fn SyncActivity() -> Element {
                         }
                     }
                 }
-                label { "Devices" }
                 select {
                     class: "bg-zinc-800 border border-zinc-700 rounded-md text-sm text-zinc-300 px-2 py-1 focus:outline-none focus:border-zinc-500 appearance-none",
                     disabled: available_devices.is_empty(),
