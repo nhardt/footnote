@@ -9,6 +9,8 @@ use footnote_core::model::vault::Vault;
 use footnote_core::service::join_service::{JoinEvent, JoinService};
 use footnote_core::service::sync_service::SyncService;
 use footnote_core::service::ALPN_SYNC;
+use footnote_core::util::lamport_timestamp::LamportTimestamp;
+use footnote_core::util::tombstone::tombstone_create;
 
 #[derive(Parser)]
 #[command(name = "footnote")]
@@ -152,7 +154,7 @@ pub async fn execute(cli: Cli) -> anyhow::Result<()> {
                 content,
                 share,
             } => note_update(&path, &content, share),
-            NoteAction::Delete { path } => note_delete(&path),
+            NoteAction::Delete { path } => note_delete(&path).await,
         },
         Commands::Contact { action } => match action {
             ContactAction::Export {} => contact_export(),
@@ -320,8 +322,20 @@ fn note_update(path: &Path, content: &str, shares: Option<Vec<String>>) -> anyho
     Ok(())
 }
 
-fn note_delete(path: &Path) -> anyhow::Result<()> {
-    println!("unimpl");
+async fn note_delete(path: &Path) -> anyhow::Result<()> {
+    let note_path = std::env::current_dir()?.join(path);
+    let n = Note::from_path(note_path, false)?;
+
+    let result = tombstone_create(
+        &std::env::current_dir()?,
+        n.frontmatter.uuid,
+        LamportTimestamp::new(Some(n.frontmatter.modified)),
+    )
+    .await;
+    if let Err(e) = result {
+        println!("{}", e);
+        return Err(e);
+    }
     Ok(())
 }
 
