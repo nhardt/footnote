@@ -10,7 +10,7 @@ use crate::model::vault::Vault;
 use crate::util::manifest::{create_manifest_full, diff_manifests, Manifest};
 use crate::util::network;
 use crate::util::sync_status_record::{RecentFile, SyncDirection, SyncStatusRecord, SyncType};
-use crate::util::tombstone::{tombstone_delete, Tombstone};
+use crate::util::tombstone::{tombstone_delete, tombstones_read, Tombstone};
 
 pub async fn receive_share(vault: &Vault, nickname: &str, connection: Connection) -> Result<()> {
     let Ok(mut transfer_record) = SyncStatusRecord::start(
@@ -219,6 +219,7 @@ pub async fn receive_mirror(vault: &Vault, connection: Connection) -> Result<()>
     if let Err(e) = transfer_record.update(0, Some(files_to_sync.len())) {
         tracing::warn!("could not update transfer record: {}", e);
     }
+    let local_tombstones_cache = tombstones_read(&vault.base_path())?;
     for file_to_sync in &files_to_sync {
         let path_components: Vec<_> = file_to_sync.path.components().collect();
         for component in &path_components {
@@ -256,6 +257,18 @@ pub async fn receive_mirror(vault: &Vault, connection: Connection) -> Result<()>
 
         if !canonical_full.starts_with(&canonical_base) {
             anyhow::bail!("Path escapes vault directory: {:?}", file_to_sync.path);
+        }
+
+        if let Some(tombstone) = local_tombstones_cache
+            .iter()
+            .find(|t| t.uuid == file_to_sync.uuid)
+        {
+            if file_to_sync.modified <= tombstone.deleted_at {
+                // deletion wins, skip
+                continue;
+            }
+            // remote edit is newer than deletion, restore
+            tombstone_delete(&vault.base_path(), &tombstone.uuid).await?;
         }
 
         network::send_file_request(&mut send, &file_to_sync.uuid).await?;
