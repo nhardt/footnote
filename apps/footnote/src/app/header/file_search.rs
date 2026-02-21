@@ -35,7 +35,7 @@ struct SearchResult {
 #[derive(Clone, Debug)]
 enum MatchType {
     Filename,
-    Content { line_number: usize },
+    Content {},
 }
 
 #[component]
@@ -101,7 +101,7 @@ pub fn FileSearch() -> Element {
                                 }
 
                                 if let Ok(content) = fs::read_to_string(&path) {
-                                    for (line_num, line) in content.lines().enumerate() {
+                                    for (_line_num, line) in content.lines().enumerate() {
                                         let line_cmp = if case_sensitive {
                                             line.to_string()
                                         } else {
@@ -112,9 +112,7 @@ pub fn FileSearch() -> Element {
                                             results.push(SearchResult {
                                                 path: path.clone(),
                                                 display: display_name.clone(),
-                                                match_type: MatchType::Content {
-                                                    line_number: line_num + 1,
-                                                },
+                                                match_type: MatchType::Content {},
                                                 preview: Some(preview),
                                             });
                                         }
