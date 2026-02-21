@@ -189,7 +189,7 @@ fn truncate_endpoint_id(id: &str) -> String {
 #[component]
 fn DeviceRow(device: Device, read_only: bool) -> Element {
     let mut app_context = use_context::<AppContext>();
-    let (this_device_id, this_device_name) = app_context.vault.read().device_public_key()?;
+    let (this_device_id, _this_device_name) = app_context.vault.read().device_public_key()?;
 
     let mut show_edit_modal = use_signal(|| false);
 
@@ -215,8 +215,6 @@ fn DeviceRow(device: Device, read_only: bool) -> Element {
                 delete_dialog_error.set(format!("{}", e));
             }
         };
-
-    let truncated_id = truncate_endpoint_id(&device.iroh_endpoint_id);
 
     rsx! {
         div { class: "flex items-start justify-between",
