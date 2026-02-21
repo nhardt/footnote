@@ -3,6 +3,8 @@ mod footnotes;
 
 use dioxus::prelude::*;
 
+use footnote_core::util::lamport_timestamp::LamportTimestamp;
+use footnote_core::util::tombstone::tombstone_create;
 use indexmap::IndexMap;
 use regex::bytes::Regex;
 use std::fs;
@@ -39,6 +41,7 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
     let mut footnotes = use_signal(move || IndexMap::new());
     let mut loaded_note_full_path = use_signal(move || String::new());
     let mut loaded_note_uuid = use_signal(move || Option::<Uuid>::None);
+    let mut loaded_note_timestamp = use_signal(move || Option::<LamportTimestamp>::None);
     // responses: Vec<(relative_path, content)> for inline display (author view)
     let mut responses = use_signal(|| Vec::<(String, String)>::new());
     // responder state: editable response textarea
@@ -52,6 +55,7 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
     use_effect(move || {
         let vault_path = app_context.vault.read().base_path();
         loaded_note_uuid.set(None);
+        loaded_note_timestamp.set(None);
         let full_path = vault_relative_path_segments()
             .iter()
             .fold(vault_path.clone(), |acc, seg| acc.join(seg));
@@ -117,6 +121,7 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
 
         loaded_note_full_path.set(full_path.to_string_lossy().to_string());
         loaded_note_uuid.set(Some(note_uuid));
+        loaded_note_timestamp.set(Some(note.frontmatter.modified));
     });
 
     let sync_body_to_footnotes = move |_| async move {
@@ -165,23 +170,29 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
     };
 
     let delete_note_confirm = move |_| {
-        let result = (|| -> anyhow::Result<()> {
+        spawn(async move {
             if let Some(note_uuid) = loaded_note_uuid() {
                 tracing::info!("deleting {}", note_uuid);
-                let mut t = Tombstones::load(&app_context.vault.read().base_path())?;
-                //TODO: we probably want to get the timestamp of the note as the
-                // base in case another node's timestamp is far in the future
-                t.insert(note_uuid, None);
-                t.save(&app_context.vault.read().base_path())?;
-                fs::remove_file(PathBuf::from(loaded_note_full_path()))?;
-                app_context.reload_manifest();
+                let result = tombstone_create(
+                    &app_context.vault.read().base_path(),
+                    note_uuid,
+                    loaded_note_timestamp(),
+                )
+                .await;
+                if let Err(e) = result {
+                    delete_note_error.set(format!("{}", e));
+                    return;
+                }
+                if let Err(e) = fs::remove_file(PathBuf::from(loaded_note_full_path())) {
+                    delete_note_error.set(format!("{}", e));
+                    return;
+                }
+                if let Err(e) = app_context.reload_manifest() {
+                    tracing::warn!("failed to reload manifest: {}", e);
+                }
                 consume_context::<MenuContext>().go_home();
             }
-            Ok(())
-        })();
-        if let Err(e) = result {
-            delete_note_error.set(format!("{}", e));
-        }
+        });
     };
 
     let save_note = move |relative_path: Option<String>| async move {
