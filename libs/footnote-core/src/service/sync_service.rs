@@ -1,5 +1,6 @@
 use crate::service::ALPN_SYNC;
 use crate::util::sync_status_record::SyncType;
+use crate::util::tombstone::tombstones_read;
 use crate::{
     model::vault::Vault,
     util::{manifest, transfer},
@@ -66,11 +67,13 @@ impl SyncService {
             .context("Failed to create manifest for sharing")?;
         for device in devices {
             if let Ok(device_endpoint) = device.iroh_endpoint_id.parse::<iroh::PublicKey>() {
+                let tombstones = tombstones_read(&vault.path)?;
                 match transfer::sync_to_target(
                     vault,
                     endpoint.clone(),
                     SyncType::Share,
                     manifest.clone(),
+                    tombstones,
                     Vec::new(),
                     device_endpoint,
                     ALPN_SYNC,
@@ -106,6 +109,7 @@ impl SyncService {
     ) -> Result<()> {
         let endpoint_str = vault.owned_device_name_to_endpoint(device_name)?;
         let endpoint_id = endpoint_str.parse::<iroh::PublicKey>()?;
+        let tombstones = tombstones_read(&vault.path)?;
 
         let manifest =
             manifest::create_manifest_full(&vault.path).context("Failed to create manifest")?;
@@ -121,6 +125,7 @@ impl SyncService {
             endpoint,
             SyncType::Mirror,
             manifest,
+            tombstones,
             contacts,
             endpoint_id,
             ALPN_SYNC,

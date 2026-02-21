@@ -11,7 +11,6 @@ use uuid::Uuid;
 
 use footnote_core::model::note::Note;
 use footnote_core::util::manifest::find_responses;
-use footnote_core::util::tombstone::TombstoneList;
 
 use crate::body::note::footnotes::Footnotes;
 use crate::context::{AppContext, MenuContext};
@@ -169,7 +168,7 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
         let result = (|| -> anyhow::Result<()> {
             if let Some(note_uuid) = loaded_note_uuid() {
                 tracing::info!("deleting {}", note_uuid);
-                let mut t = TombstoneList::load(&app_context.vault.read().base_path())?;
+                let mut t = Tombstones::load(&app_context.vault.read().base_path())?;
                 //TODO: we probably want to get the timestamp of the note as the
                 // base in case another node's timestamp is far in the future
                 t.insert(note_uuid, None);
