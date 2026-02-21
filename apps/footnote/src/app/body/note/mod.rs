@@ -3,8 +3,6 @@ mod footnotes;
 
 use dioxus::prelude::*;
 
-use footnote_core::util::lamport_timestamp::LamportTimestamp;
-use footnote_core::util::tombstone::tombstone_create;
 use indexmap::IndexMap;
 use regex::bytes::Regex;
 use std::fs;
@@ -12,7 +10,9 @@ use std::path::PathBuf;
 use uuid::Uuid;
 
 use footnote_core::model::note::Note;
+use footnote_core::util::lamport_timestamp::LamportTimestamp;
 use footnote_core::util::manifest::find_responses;
+use footnote_core::util::tombstone::tombstone_create;
 
 use crate::body::note::footnotes::Footnotes;
 use crate::context::{AppContext, MenuContext};
@@ -176,7 +176,7 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
                 let result = tombstone_create(
                     &app_context.vault.read().base_path(),
                     note_uuid,
-                    loaded_note_timestamp(),
+                    LamportTimestamp::new(loaded_note_timestamp()),
                 )
                 .await;
                 if let Err(e) = result {

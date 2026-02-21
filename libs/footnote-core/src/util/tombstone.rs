@@ -28,16 +28,13 @@ pub fn tombstones_read(vault_path: &Path) -> Result<Vec<Tombstone>> {
 pub async fn tombstone_create(
     vault_path: &Path,
     uuid: Uuid,
-    deleted_at: Option<LamportTimestamp>,
+    deleted_at: LamportTimestamp,
 ) -> Result<()> {
     let lock = TOMBSTONE_WRITE_LOCK.get_or_init(|| tokio::sync::Mutex::new(()));
     let _guard = lock.lock().await;
     let mut entries = tombstones_read(vault_path)?;
     entries.retain(|t| t.uuid != uuid);
-    entries.push(Tombstone {
-        uuid,
-        deleted_at: deleted_at.unwrap_or_else(LamportTimestamp::now),
-    });
+    entries.push(Tombstone { uuid, deleted_at });
     save(vault_path, &entries)
 }
 
