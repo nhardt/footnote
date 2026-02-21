@@ -15,7 +15,7 @@ use crate::sync_status_context::SyncStatusContext;
 pub fn SyncServiceToggle() -> Element {
     let mut listening = use_signal(|| false);
     let app_context = use_context::<AppContext>();
-    let mut sync_status_context = use_context::<SyncStatusContext>();
+    let sync_status_context = use_context::<SyncStatusContext>();
     let mut send_cancel_token_signal = use_signal(|| CancellationToken::new());
     let mut listen_cancel_token_signal = use_signal(|| CancellationToken::new());
     let mut poll_cancel_token_signal = use_signal(|| CancellationToken::new());

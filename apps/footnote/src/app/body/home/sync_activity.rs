@@ -1,7 +1,5 @@
 use dioxus::prelude::*;
-use footnote_core::model::contact::Contact;
 use footnote_core::model::device::Device;
-use footnote_core::util::sync_status_record::SyncDirection;
 
 use crate::context::AppContext;
 use crate::context::MenuContext;

@@ -7,7 +7,7 @@ use crate::context::MenuContext;
 
 #[component]
 pub fn HeaderMenu() -> Element {
-    let mut app_context = use_context::<AppContext>();
+    let app_context = use_context::<AppContext>();
     let mut menu_context = use_context::<MenuContext>();
     let vault_state = app_context.vault_state;
 

@@ -118,11 +118,13 @@ pub async fn receive_share(vault: &Vault, nickname: &str, connection: Connection
         fs::write(&temp_path, file_contents)?;
         fs::rename(&temp_path, &canonical_full)?;
 
-        transfer_record.record_file_complete(RecentFile {
+        if let Err(e) = transfer_record.record_file_complete(RecentFile {
             uuid: file_to_sync.uuid,
             filename: file_to_sync.path.to_string_lossy().to_string(),
             timestamp: file_to_sync.modified,
-        });
+        }) {
+            tracing::warn!("error writing transfer record: {}", e);
+        }
     }
 
     for entry_to_delete in remote_tombstones {
@@ -261,11 +263,13 @@ pub async fn receive_mirror(vault: &Vault, connection: Connection) -> Result<()>
         let temp_path = canonical_full.with_extension("tmp");
         fs::write(&temp_path, file_contents)?;
         fs::rename(&temp_path, &canonical_full)?;
-        transfer_record.record_file_complete(RecentFile {
+        if let Err(e) = transfer_record.record_file_complete(RecentFile {
             uuid: file_to_sync.uuid,
             filename: file_to_sync.path.to_string_lossy().to_string(),
             timestamp: file_to_sync.modified,
-        });
+        }) {
+            tracing::warn!("could not write transfer complete: {}", e);
+        }
     }
 
     for entry_to_delete in remote_tombstones {
