@@ -29,4 +29,13 @@ pub mod sync_service;
 // receiver compares manifest to local files
 // receiver requests files from manifest
 // sender validates file is from manifest, sends
-pub const ALPN_SYNC: &[u8] = b"footnote/sync/1";
+//
+// v2:
+// sender sends user record, serialized contact array, manifest, tombstone
+// receiver writes user record, if successor, contact array, if coming from device_leader
+// receiver compares manifest to local files
+// receiver requests files from manifest
+// sender validates file is from manifest, sends
+// receiver deletes files in the tombstone, if deleted_time < modified_time
+
+pub const ALPN_SYNC: &[u8] = b"footnote/sync/2";

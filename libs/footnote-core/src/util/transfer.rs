@@ -1,13 +1,16 @@
-use crate::model::contact::Contact;
-use crate::model::vault::Vault;
-use crate::util::manifest::{create_manifest_full, diff_manifests, Manifest};
-use crate::util::network;
-use crate::util::sync_status_record::{RecentFile, SyncDirection, SyncStatusRecord, SyncType};
 use anyhow::{Context, Result};
 use iroh::endpoint::Connection;
 use iroh::Endpoint;
 use std::fs;
 use std::path::Component;
+
+use crate::model::contact::Contact;
+use crate::model::vault::Vault;
+
+use crate::util::manifest::{create_manifest_full, diff_manifests, Manifest};
+use crate::util::network;
+use crate::util::sync_status_record::{RecentFile, SyncDirection, SyncStatusRecord, SyncType};
+use crate::util::tombstone::{tombstone_delete, Tombstone};
 
 pub async fn receive_share(vault: &Vault, nickname: &str, connection: Connection) -> Result<()> {
     let Ok(mut transfer_record) = SyncStatusRecord::start(
@@ -45,6 +48,11 @@ pub async fn receive_share(vault: &Vault, nickname: &str, connection: Connection
     let manifest_bytes = network::receive_bytes(&mut recv).await?;
     let remote_manifest: Manifest =
         serde_json::from_slice(&manifest_bytes).context("Failed to deserialize manifest")?;
+
+    let tombstone_bytes = network::receive_bytes(&mut recv).await?;
+    let remote_tombstones: Vec<Tombstone> =
+        serde_json::from_slice(&tombstone_bytes).context("Failed to deserialize tombstone")?;
+
     let local_manifest =
         create_manifest_full(&vault.path).context("Failed to create local manifest")?;
     let files_to_sync = diff_manifests(&local_manifest, &remote_manifest);
@@ -116,6 +124,20 @@ pub async fn receive_share(vault: &Vault, nickname: &str, connection: Connection
             timestamp: file_to_sync.modified,
         });
     }
+
+    for entry_to_delete in remote_tombstones {
+        let entry = local_manifest.get(&entry_to_delete.uuid);
+        if let Some(entry) = entry {
+            let contact_base = vault.path.join("footnotes").join(nickname);
+            if entry.path.starts_with(&contact_base) {
+                fs::remove_file(&entry.path).ok();
+                tombstone_delete(&vault.base_path(), &entry_to_delete.uuid).await?;
+            } else {
+                tracing::warn!("tombstone path escapes contact directory, ignoring");
+            }
+        }
+    }
+
     transfer_record.record_success()?;
     network::send_eof(&mut send).await?;
     connection.closed().await;
@@ -183,6 +205,11 @@ pub async fn receive_mirror(vault: &Vault, connection: Connection) -> Result<()>
 
     let remote_manifest: Manifest =
         serde_json::from_slice(&manifest_bytes).context("Failed to deserialize manifest")?;
+
+    let tombstone_bytes = network::receive_bytes(&mut recv).await?;
+    let remote_tombstones: Vec<Tombstone> =
+        serde_json::from_slice(&tombstone_bytes).context("Failed to deserialize tombstone")?;
+
     let local_manifest =
         create_manifest_full(&vault.path).context("Failed to create local manifest")?;
     let files_to_sync = diff_manifests(&local_manifest, &remote_manifest);
@@ -240,6 +267,15 @@ pub async fn receive_mirror(vault: &Vault, connection: Connection) -> Result<()>
             timestamp: file_to_sync.modified,
         });
     }
+
+    for entry_to_delete in remote_tombstones {
+        let entry = local_manifest.get(&entry_to_delete.uuid);
+        if let Some(entry) = entry {
+            fs::remove_file(&entry.path).ok();
+            tombstone_delete(&vault.base_path(), &entry_to_delete.uuid).await?;
+        }
+    }
+
     transfer_record.record_success()?;
     network::send_eof(&mut send).await?;
     connection.closed().await;
@@ -251,6 +287,7 @@ pub async fn sync_to_target(
     endpoint: Endpoint,
     sync_type: SyncType,
     manifest: Manifest,
+    tombstone: Vec<Tombstone>,
     contacts_to_send: Vec<Contact>,
     remote_endpoint_id: iroh::PublicKey,
     alpn: &[u8],
@@ -292,6 +329,10 @@ pub async fn sync_to_target(
     let serialised_manifest =
         serde_json::to_vec(&manifest).context("Failed to serialize manifest")?;
     network::send_bytes(&mut send, &serialised_manifest).await?;
+
+    let serialised_tombstone =
+        serde_json::to_vec(&tombstone).context("Failed to serialize tombstone")?;
+    network::send_bytes(&mut send, &serialised_tombstone).await?;
 
     let mut files_transferred = 0;
     loop {
