@@ -13,7 +13,7 @@ use crate::util::manifest::{
 };
 use crate::util::network;
 use crate::util::sync_status_record::{RecentFile, SyncDirection, SyncStatusRecord, SyncType};
-use crate::util::tombstone::{tombstone_delete, tombstones_read, Tombstone};
+use crate::util::tombstone::{tombstone_create, tombstone_delete, tombstones_read, Tombstone};
 
 pub async fn receive_share(vault: &Vault, nickname: &str, connection: Connection) -> Result<()> {
     let Ok(mut transfer_record) = SyncStatusRecord::start(
@@ -303,11 +303,20 @@ pub async fn receive_mirror(vault: &Vault, connection: Connection) -> Result<()>
         }
     }
 
+    tracing::info!("processing {} tombstones", remote_tombstones.len());
     for entry_to_delete in remote_tombstones {
         let entry = local_manifest.get(&entry_to_delete.uuid);
         if let Some(entry) = entry {
-            fs::remove_file(&entry.path).ok();
-            tombstone_delete(&vault.base_path(), &entry_to_delete.uuid).await?;
+            tracing::info!("deleting {}", entry.path.display());
+            if let Err(e) = fs::remove_file(&entry.path) {
+                tracing::warn!("cound not remove {}: {}", entry.path.display(), e);
+            }
+            tombstone_create(
+                &vault.base_path(),
+                entry_to_delete.uuid,
+                LamportTimestamp::new(Some(entry.modified)),
+            )
+            .await?;
         }
     }
 
