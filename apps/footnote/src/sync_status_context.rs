@@ -50,23 +50,6 @@ impl SyncStatusContext {
             .cloned()
     }
 
-    pub fn reload(&mut self, endpoint_id: &str, direction: SyncDirection) -> Result<()> {
-        let vault_path = self.vault_path.read().clone();
-
-        if let Some(status) = SyncStatusRecord::read(vault_path, endpoint_id, direction.clone())? {
-            self.statuses
-                .write()
-                .insert((endpoint_id.to_string(), direction), status);
-        }
-
-        Ok(())
-    }
-
-    pub fn reload_from(&mut self, status: SyncStatusRecord) {
-        let key = (status.endpoint_id.clone(), status.direction.clone());
-        self.statuses.write().insert(key, status);
-    }
-
     pub fn reload_all(&mut self) -> Result<()> {
         let vault_path = self.vault_path.read().clone();
         let mut statuses = HashMap::new();
