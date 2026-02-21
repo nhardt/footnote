@@ -11,9 +11,11 @@ use uuid::Uuid;
 
 use footnote_core::model::note::Note;
 use footnote_core::util::manifest::find_responses;
+use footnote_core::util::tombstone::TombstoneList;
 
 use crate::body::note::footnotes::Footnotes;
 use crate::context::{AppContext, MenuContext};
+use crate::modal::confirm_modal::ConfirmModal;
 
 #[derive(Clone, Copy, PartialEq)]
 enum SaveStatus {
@@ -25,16 +27,19 @@ enum SaveStatus {
 #[component]
 pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Element {
     let nav = navigator();
-    let app_context = use_context::<AppContext>();
+    let mut app_context = use_context::<AppContext>();
 
     let mut show_share_modal = use_signal(|| false);
     let mut show_save_as_modal = use_signal(|| false);
+    let mut show_delete_note_modal = use_signal(|| false);
+    let mut delete_note_error = use_signal(|| String::new());
     let mut save_status = use_signal(|| SaveStatus::Saved);
 
     // ui round trippers. set them manually when loaded_note changes
     let mut share_with = use_signal(move || String::new());
     let mut footnotes = use_signal(move || IndexMap::new());
     let mut loaded_note_full_path = use_signal(move || String::new());
+    let mut loaded_note_uuid = use_signal(move || Option::<Uuid>::None);
     // responses: Vec<(relative_path, content)> for inline display (author view)
     let mut responses = use_signal(|| Vec::<(String, String)>::new());
     // responder state: editable response textarea
@@ -47,6 +52,7 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
 
     use_effect(move || {
         let vault_path = app_context.vault.read().base_path();
+        loaded_note_uuid.set(None);
         let full_path = vault_relative_path_segments()
             .iter()
             .fold(vault_path.clone(), |acc, seg| acc.join(seg));
@@ -111,6 +117,7 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
         });
 
         loaded_note_full_path.set(full_path.to_string_lossy().to_string());
+        loaded_note_uuid.set(Some(note_uuid));
     });
 
     let sync_body_to_footnotes = move |_| async move {
@@ -156,6 +163,26 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
         footnotes_vec.insert(footnote_number, footnote_text);
         footnotes_signal.set(footnotes_vec);
         save_status.set(SaveStatus::Unsaved);
+    };
+
+    let delete_note_confirm = move |_| {
+        let result = (|| -> anyhow::Result<()> {
+            if let Some(note_uuid) = loaded_note_uuid() {
+                tracing::info!("deleting {}", note_uuid);
+                let mut t = TombstoneList::load(&app_context.vault.read().base_path())?;
+                //TODO: we probably want to get the timestamp of the note as the
+                // base in case another node's timestamp is far in the future
+                t.insert(note_uuid, None);
+                t.save(&app_context.vault.read().base_path())?;
+                fs::remove_file(PathBuf::from(loaded_note_full_path()))?;
+                app_context.reload_manifest();
+                consume_context::<MenuContext>().go_home();
+            }
+            Ok(())
+        })();
+        if let Err(e) = result {
+            delete_note_error.set(format!("{}", e));
+        }
     };
 
     let save_note = move |relative_path: Option<String>| async move {
@@ -344,6 +371,11 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
                             "{status_icon}"
                         }
                         button {
+                            class: "px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors flex items-center gap-2 {status_class}",
+                            onclick: move |_| show_delete_note_modal.set(true),
+                            "Delete Note"
+                        }
+                        button {
                             class: "px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors",
                             onclick: move |_| show_share_modal.set(true),
                             "Share"
@@ -513,6 +545,22 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
                             app_context.vault.read().relative_string_to_absolute_string(&new_relative_path)
                         ));
                     });
+                }
+            }
+        }
+
+        if show_delete_note_modal() {
+            ConfirmModal {
+                oncancel: move || show_delete_note_modal.set(false),
+                onconfirm: delete_note_confirm,
+                p { class: "text-sm text-zinc-300 mb-6",
+                    "Deleting this note will delete the file locally
+                    immediately. The delete will be synced to other nodes on
+                    next connection. If the file is modified on a remote node
+                    after this delete, the remote version will be kept."
+                }
+                if !delete_note_error().is_empty() {
+                    div { class: "text-sm text-red-400", "{delete_note_error}" }
                 }
             }
         }

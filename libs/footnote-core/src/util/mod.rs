@@ -4,5 +4,6 @@ pub mod lamport_timestamp;
 pub mod manifest;
 pub mod network;
 pub mod sync_status_record;
+pub mod tombstone;
 pub mod transfer;
 pub mod tree_node;
