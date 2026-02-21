@@ -1,3 +1,4 @@
+pub mod confirm_modal;
 pub mod import_contact_modal;
 pub mod listen_for_pair_modal;
 pub mod new_note_modal;

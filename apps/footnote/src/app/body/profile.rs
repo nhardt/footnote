@@ -5,6 +5,7 @@ use footnote_core::model::vault::VaultState;
 use footnote_core::util::sync_status_record::SyncDirection;
 
 use crate::context::AppContext;
+use crate::modal::confirm_modal::ConfirmModal;
 use crate::sync_status_context::SyncStatusContext;
 
 #[component]
@@ -324,7 +325,7 @@ fn DeviceRow(device: Device, read_only: bool) -> Element {
                 }
 
                 if delete_dialog_open() {
-                    ConfirmDialog {
+                    ConfirmModal {
                         oncancel: move || delete_dialog_open.set(false),
                         onconfirm: delete_device_confirm,
                         p { class: "text-sm text-zinc-300 mb-6",
@@ -346,38 +347,6 @@ fn DeviceRow(device: Device, read_only: bool) -> Element {
             }
         }
 
-    }
-}
-
-#[component]
-pub fn ConfirmDialog(
-    children: Element,
-    onconfirm: EventHandler,
-    oncancel: EventHandler,
-) -> Element {
-    rsx! {
-        div {
-            class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
-            onclick: move |evt| evt.stop_propagation(),
-            div {
-                class: "bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl max-w-sm w-full",
-                div { class: "p-6",
-                    {children}
-                    div { class: "flex gap-3 justify-end",
-                        button {
-                            class: "px-4 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-md text-sm font-medium transition-all",
-                            onclick: move |_| oncancel.call(()),
-                            "Cancel"
-                        }
-                        button {
-                            class: "px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md text-sm font-medium transition-all",
-                            onclick: move |_| onconfirm.call(()),
-                            "Delete"
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 
