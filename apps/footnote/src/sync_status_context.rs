@@ -98,7 +98,7 @@ impl SyncStatusContext {
             .collect();
         files.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
         files.dedup_by_key(|f| f.uuid);
-        files.truncate(10);
+        files.truncate(30);
         files
     }
 }
