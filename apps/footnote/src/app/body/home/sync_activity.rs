@@ -97,25 +97,6 @@ pub fn SyncActivity() -> Element {
         device_filter.set(None);
     };
 
-    // Devices to pull files from
-    let devices_for_files: Vec<Device> = match contact_filter.read().as_deref() {
-        None | Some("__all__") => {
-            let mut all = my_devices.clone();
-            for c in &contacts {
-                all.extend(c.devices.clone());
-            }
-            all
-        }
-        Some(_) => match device_filter.read().as_ref() {
-            Some(endpoint_id) => available_devices
-                .iter()
-                .filter(|d| &d.iroh_endpoint_id == endpoint_id)
-                .cloned()
-                .collect(),
-            None => available_devices.clone(),
-        },
-    };
-
     rsx! {
         div { class: "border border-zinc-800 rounded-lg bg-zinc-900/30",
             div { class: "px-6 py-3 border-b border-zinc-800 flex items-center gap-3",
