@@ -67,13 +67,12 @@ impl SyncService {
             .context("Failed to create manifest for sharing")?;
         for device in devices {
             if let Ok(device_endpoint) = device.iroh_endpoint_id.parse::<iroh::PublicKey>() {
-                let tombstones = tombstones_read(&vault.path)?;
                 match transfer::sync_to_target(
                     vault,
                     endpoint.clone(),
                     SyncType::Share,
                     manifest.clone(),
-                    tombstones,
+                    Vec::new(),
                     Vec::new(),
                     device_endpoint,
                     ALPN_SYNC,
