@@ -329,3 +329,42 @@ mod tests {
         assert_eq!(diff.len(), 0);
     }
 }
+
+pub fn create_manifest_for_contact(contact_path: &Path) -> Result<Manifest> {
+    let mut manifest = Manifest::new();
+
+    for entry in WalkDir::new(contact_path)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        let path = entry.path();
+
+        if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+            if file_name.starts_with('.') {
+                continue;
+            }
+        }
+
+        if !path.is_file() || path.extension().and_then(|s| s.to_str()) != Some("md") {
+            continue;
+        }
+
+        let Ok(note) = Note::from_path(path, false) else {
+            continue;
+        };
+
+        let relative_path = path.strip_prefix(contact_path)?.to_path_buf();
+
+        manifest.insert(
+            note.frontmatter.uuid,
+            ManifestEntry {
+                uuid: note.frontmatter.uuid,
+                path: relative_path,
+                modified: note.frontmatter.modified,
+            },
+        );
+    }
+
+    Ok(manifest)
+}

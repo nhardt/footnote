@@ -7,7 +7,10 @@ use std::path::Component;
 use crate::model::contact::Contact;
 use crate::model::vault::Vault;
 
-use crate::util::manifest::{create_manifest_full, diff_manifests, Manifest};
+use crate::util::lamport_timestamp::LamportTimestamp;
+use crate::util::manifest::{
+    create_manifest_for_contact, create_manifest_full, diff_manifests, Manifest,
+};
 use crate::util::network;
 use crate::util::sync_status_record::{RecentFile, SyncDirection, SyncStatusRecord, SyncType};
 use crate::util::tombstone::{tombstone_delete, tombstones_read, Tombstone};
@@ -50,7 +53,7 @@ pub async fn receive_share(vault: &Vault, nickname: &str, connection: Connection
         serde_json::from_slice(&manifest_bytes).context("Failed to deserialize manifest")?;
 
     let tombstone_bytes = network::receive_bytes(&mut recv).await?;
-    let remote_tombstones: Vec<Tombstone> =
+    let _remote_tombstones: Vec<Tombstone> =
         serde_json::from_slice(&tombstone_bytes).context("Failed to deserialize tombstone")?;
 
     let local_manifest =
@@ -127,15 +130,30 @@ pub async fn receive_share(vault: &Vault, nickname: &str, connection: Connection
         }
     }
 
-    for entry_to_delete in remote_tombstones {
-        let entry = local_manifest.get(&entry_to_delete.uuid);
-        if let Some(entry) = entry {
-            let contact_base = vault.path.join("footnotes").join(nickname);
-            if entry.path.starts_with(&contact_base) {
-                fs::remove_file(&entry.path).ok();
-                tombstone_delete(&vault.base_path(), &entry_to_delete.uuid).await?;
-            } else {
-                tracing::warn!("tombstone path escapes contact directory, ignoring");
+    // this manifest freshness check may not be worth it because it's at best a
+    // mitigation. it's to protect against a stale device coming online and
+    // removing a bunch of files. they would just re-replicate when a newer
+    // device syncs. this mechanism could also be improved if only one device in
+    // the group is in charge of sharing. it's "eventually correct"
+    let manifest_timestamp = remote_manifest
+        .values()
+        .map(|e| e.modified)
+        .max()
+        .unwrap_or(LamportTimestamp(0));
+
+    let contact_dir = vault.path.join("footnotes").join(nickname);
+    let local_contact_manifest = create_manifest_for_contact(&contact_dir)?;
+
+    for (uuid, local_entry) in &local_contact_manifest {
+        if !remote_manifest.contains_key(uuid) && local_entry.modified <= manifest_timestamp {
+            // not in remote manifest, and older than the manifest snapshot
+            let full_path = contact_dir.join(&local_entry.path);
+            if let Err(e) = fs::remove_file(&full_path) {
+                tracing::debug!(
+                    "failed to delete file missing from manifest {}: {}",
+                    full_path.display(),
+                    e
+                );
             }
         }
     }
