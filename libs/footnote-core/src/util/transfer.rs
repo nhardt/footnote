@@ -148,6 +148,10 @@ pub async fn receive_share(vault: &Vault, nickname: &str, connection: Connection
         if !remote_manifest.contains_key(uuid) && local_entry.modified <= manifest_timestamp {
             // not in remote manifest, and older than the manifest snapshot
             let full_path = contact_dir.join(&local_entry.path);
+            tracing::info!(
+                "removing file that was not in the manifest: {}",
+                full_path.display()
+            );
             if let Err(e) = fs::remove_file(&full_path) {
                 tracing::debug!(
                     "failed to delete file missing from manifest {}: {}",
