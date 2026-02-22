@@ -1,5 +1,6 @@
 mod footnote_editor;
 mod footnotes;
+mod share_dropdown;
 
 use dioxus::prelude::*;
 
@@ -15,9 +16,9 @@ use footnote_core::util::manifest::find_responses;
 use footnote_core::util::tombstone::tombstone_create;
 
 use crate::body::note::footnotes::Footnotes;
+use crate::body::note::share_dropdown::ShareDropdown;
 use crate::context::{AppContext, MenuContext};
 use crate::modal::confirm_modal::ConfirmModal;
-
 #[derive(Clone, Copy, PartialEq)]
 enum SaveStatus {
     Saved,
@@ -385,10 +386,11 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
                             onclick: move |_| show_delete_note_modal.set(true),
                             "Delete Note"
                         }
-                        button {
-                            class: "px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors",
-                            onclick: move |_| show_share_modal.set(true),
-                            "Share"
+                        if !app_context.contacts.read().is_empty() {
+                            ShareDropdown {
+                                share_with: share_with,
+                                on_change: move |_| save_status.set(SaveStatus::Unsaved),
+                            }
                         }
                     }
                 }
@@ -525,18 +527,6 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
                             }
                         }
                     }
-                }
-            }
-        }
-
-        if show_share_modal() {
-            ShareWithModal {
-                current_shares: share_with(),
-                oncancel: move |_| show_share_modal.set(false),
-                onsave: move |new_shares: String| {
-                    share_with.set(new_shares);
-                    show_share_modal.set(false);
-                    save_status.set(SaveStatus::Unsaved);
                 }
             }
         }
