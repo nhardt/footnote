@@ -7,7 +7,7 @@ use crate::context::AppContext;
 use crate::context::MenuContext;
 
 #[component]
-pub fn NoteSelectModal() -> Element {
+pub fn NoteBrowserModal() -> Element {
     let app_context = use_context::<AppContext>();
     let tree = use_memo(move || build_tree_from_manifest(&app_context.manifest.read()));
 
