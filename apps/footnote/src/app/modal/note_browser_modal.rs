@@ -9,6 +9,9 @@ use crate::context::MenuContext;
 #[component]
 pub fn NoteBrowserModal() -> Element {
     let app_context = use_context::<AppContext>();
+    use_effect(|| {
+        consume_context::<AppContext>().reload_manifest();
+    });
     let tree = use_memo(move || build_tree_from_manifest(&app_context.manifest.read()));
 
     let mut root_children: Vec<_> = tree().children.into_iter().collect();
