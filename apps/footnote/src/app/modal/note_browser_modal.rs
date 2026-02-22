@@ -10,7 +10,9 @@ use crate::context::MenuContext;
 pub fn NoteBrowserModal() -> Element {
     let app_context = use_context::<AppContext>();
     use_effect(|| {
-        consume_context::<AppContext>().reload_manifest();
+        if let Err(e) = consume_context::<AppContext>().reload_manifest() {
+            tracing::warn!("could not reload manifest {}", e)
+        }
     });
     let tree = use_memo(move || build_tree_from_manifest(&app_context.manifest.read()));
 
