@@ -2,11 +2,13 @@ use dioxus::prelude::*;
 
 use crate::context::AppContext;
 
+use footnote_core::model::contact::Contact;
+
 #[component]
 pub fn ShareDropdown(share_with: Signal<String>, on_change: EventHandler<()>) -> Element {
     let app_context = use_context::<AppContext>();
     let mut show_dropdown = use_signal(|| false);
-    let contacts = app_context.contacts.read();
+    let mut sorted_contacts = use_signal(Vec::<Contact>::new);
 
     let current_shares: Vec<String> = share_with
         .read()
@@ -14,30 +16,39 @@ pub fn ShareDropdown(share_with: Signal<String>, on_change: EventHandler<()>) ->
         .map(|s| s.to_string())
         .collect();
 
-    // Sort: selected first, then alphabetical
-    let mut sorted_contacts: Vec<_> = contacts.iter().collect();
-    sorted_contacts.sort_by(|a, b| {
-        let a_selected = current_shares.contains(&a.nickname);
-        let b_selected = current_shares.contains(&b.nickname);
-        match (a_selected, b_selected) {
-            (true, false) => std::cmp::Ordering::Less,
-            (false, true) => std::cmp::Ordering::Greater,
-            _ => a.nickname.cmp(&b.nickname),
-        }
-    });
-
     rsx! {
         div {
             class: "relative",
 
             button {
                 class: "px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors",
-                onclick: move |_| show_dropdown.toggle(),
+                onclick: move |_| {
+                    if !show_dropdown() {
+                        let contacts = app_context.contacts.read();
+                        let shares: Vec<String> = share_with
+                            .read()
+                            .split_whitespace()
+                            .map(|s| s.to_string())
+                            .collect();
+
+                        let mut sorted: Vec<_> = contacts.iter().cloned().collect();
+                        sorted.sort_by(|a, b| {
+                            let a_selected = shares.contains(&a.nickname);
+                            let b_selected = shares.contains(&b.nickname);
+                            match (a_selected, b_selected) {
+                                (true, false) => std::cmp::Ordering::Less,
+                                (false, true) => std::cmp::Ordering::Greater,
+                                _ => a.nickname.cmp(&b.nickname),
+                            }
+                        });
+                        sorted_contacts.set(sorted);
+                    }
+                    show_dropdown.toggle();
+                },
                 "Share"
             }
 
             if show_dropdown() {
-                // Backdrop to close on outside click
                 div {
                     class: "fixed inset-0 z-40",
                     onclick: move |_| show_dropdown.set(false),
@@ -50,7 +61,7 @@ pub fn ShareDropdown(share_with: Signal<String>, on_change: EventHandler<()>) ->
                     div {
                         class: "py-1",
 
-                        for contact in sorted_contacts {
+                        for contact in sorted_contacts.read().iter() {
                             {
                                 let nickname = contact.nickname.clone();
                                 let is_selected = current_shares.contains(&nickname);
