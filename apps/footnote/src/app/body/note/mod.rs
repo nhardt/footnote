@@ -357,9 +357,9 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
     };
 
     let (status_icon, status_class) = match save_status() {
-        SaveStatus::Saved => ("✓", "text-green-500"),
+        SaveStatus::Saved => ("Saved", "text-green-500"),
         SaveStatus::Unsaved => ("Save", "text-yellow-500"),
-        SaveStatus::Syncing => ("↻", "text-blue-500 animate-spin"),
+        SaveStatus::Syncing => ("Saving...", "text-blue-500 animate-spin"),
     };
 
     rsx! {
@@ -373,28 +373,6 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
                     "{relative_path()}"
                 }
 
-                if !read_only() {
-                    div {
-                        class: "flex items-center gap-2 mb-4",
-                        button {
-                            class: "px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors flex items-center gap-2 {status_class}",
-                            onclick: move |_| save_note(None),
-                            "{status_icon}"
-                        }
-                        button {
-                            class: "px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors flex items-center gap-2 {status_class}",
-                            onclick: move |_| show_delete_note_modal.set(true),
-                            "Delete Note"
-                        }
-                        if !app_context.contacts.read().is_empty() {
-                            ShareDropdown {
-                                share_with: share_with,
-                                on_change: move |_| save_status.set(SaveStatus::Unsaved),
-                            }
-                        }
-                    }
-                }
-
                 textarea {
                     id: "note-body",
                     class: "w-full px-4 py-4 bg-zinc-900/30 border border-zinc-800 rounded-lg text-sm font-mono text-zinc-100 focus:border-zinc-600 focus:ring-1 focus:ring-zinc-600 focus:outline-none mb-6",
@@ -402,6 +380,28 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
                     onblur: sync_body_to_footnotes,
                     oninput: move |_| save_status.set(SaveStatus::Unsaved),
                     readonly: read_only,
+                }
+
+                if !read_only() {
+                    div {
+                        class: "flex items-center justify-end gap-2 mt-2 mb-6",
+                        button {
+                            class: "px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors",
+                            onclick: move |_| show_delete_note_modal.set(true),
+                            "Delete"
+                        }
+                        if !app_context.contacts.read().is_empty() {
+                            ShareDropdown {
+                                share_with: share_with,
+                                on_change: move |_| save_status.set(SaveStatus::Unsaved),
+                            }
+                        }
+                        button {
+                            class: "px-3 py-1.5 text-sm font-medium rounded-md transition-colors {status_class}",
+                            onclick: move |_| save_note(None),
+                            "{status_icon}"
+                        }
+                    }
                 }
 
                 div {
