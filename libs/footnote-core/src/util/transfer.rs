@@ -307,16 +307,18 @@ pub async fn receive_mirror(vault: &Vault, connection: Connection) -> Result<()>
     for entry_to_delete in remote_tombstones {
         let entry = local_manifest.get(&entry_to_delete.uuid);
         if let Some(entry) = entry {
+            if entry.modified > entry_to_delete.deleted_at {
+                tracing::info!(
+                    "keeping {} - local edit newer than tombstone",
+                    entry.path.display()
+                );
+                continue;
+            }
             tracing::info!("deleting {}", entry.path.display());
-            if let Err(e) = fs::remove_file(&entry.path) {
+            if let Err(e) = fs::remove_file(&vault.base_path().join(&entry.path)) {
                 tracing::warn!("cound not remove {}: {}", entry.path.display(), e);
             }
-            tombstone_create(
-                &vault.base_path(),
-                entry_to_delete.uuid,
-                LamportTimestamp::new(Some(entry.modified)),
-            )
-            .await?;
+            tombstone_create(&vault.base_path(), entry_to_delete.uuid, entry.modified).await?;
         }
     }
 
