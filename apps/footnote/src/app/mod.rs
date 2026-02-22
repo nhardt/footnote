@@ -16,7 +16,7 @@ use crate::header::Header;
 use crate::modal::import_contact_modal::ImportContactModal;
 use crate::modal::listen_for_pair_modal::ListenForPairModal;
 use crate::modal::new_note_modal::NewNoteModal;
-use crate::modal::open_note_modal::NoteSelectModal;
+use crate::modal::note_browser_modal::NoteBrowserModal;
 use crate::modal::pair_with_listening_device_modal::PairWithListeningDeviceModal;
 use crate::modal::share_my_contact_modal::ShareMyContactModal;
 use crate::route::Route;
@@ -144,7 +144,7 @@ pub fn Main() -> Element {
         }
 
         if *consume_context::<MenuContext>().note_browser_visible.read() {
-            NoteSelectModal {}
+            NoteBrowserModal {}
         }
 
         if *consume_context::<MenuContext>().import_contact_visible.read() {
