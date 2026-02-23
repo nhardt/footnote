@@ -77,6 +77,10 @@ pub fn ListenForPairModal() -> Element {
                 class: "bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl max-w-md w-full",
                 onclick: move |evt| evt.stop_propagation(),
 
+                div { class: "px-6 py-4 border-b border-zinc-800",
+                    h2 { class: "text-base font-semibold text-zinc-100", "Pair with First Device" }
+                }
+
                 div { class: "p-6 border-b border-zinc-800",
                     if !is_listening() {
                         div { class: "flex flex-col gap-4",
