@@ -15,6 +15,7 @@ use footnote_core::util::tombstone::tombstone_create;
 #[derive(Parser)]
 #[command(name = "footnote")]
 #[command(about = "A CLI tool for p2p sync and share", long_about = None)]
+#[command(version)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
