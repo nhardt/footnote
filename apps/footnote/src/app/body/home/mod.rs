@@ -43,8 +43,13 @@ pub fn Home() -> Element {
                                 }
                                 p {
                                     class: "text-xs text-zinc-500 mb-4",
-                                    "The First Device will manage your list of
-                                    devices. Mobile is recommended. A mobile
+                                    "This wiki is currently in standalone mode.
+                                    If you would like to work on the files on
+                                    multiple devices, or share files with a
+                                    friend, you will need a First Device and
+                                    possibly more devices. The First Device will
+                                    manage your list of devices. Mobile is
+                                    recommended for First Device. A mobile
                                     device can pair by scanning a QR code, and
                                     can exchange contact records via AirDrop or
                                     Nearby Share"
