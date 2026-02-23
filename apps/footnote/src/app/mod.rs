@@ -58,6 +58,12 @@ pub fn App() -> Element {
         Err(_) => "footnote.wiki".to_string(),
     };
 
+    tracing::info!(
+        "vault_path={}, vault_name={}",
+        vault_path.display(),
+        vault_name
+    );
+
     let vault_path = ensure_vault_at_path(&vault_path, &vault_name)?;
     let vault = Vault::new(&vault_path)?;
     use_context_provider(|| AppContext::new(vault.clone()));
