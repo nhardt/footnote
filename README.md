@@ -318,25 +318,14 @@ Layers of security:
 
 ### Little
 
-- update display on file changes
-- progress on sync
-- fzf full text search
-- debt: rework components to take the data they need, vs taking a path and getting it
-- debt: factor tailwind heavy primitives (button, modal)
 - Trigger mirror immediately on save
 
 ### Medium
 
-- contact refresh
-- local file rename 
-- local file deletes
-- Contact distribution upon update
-- sync log
 - directory level sharing
 
 ### Big
 
-- replicate file deletes (probably can get by with a path, deleted timestamp)
 - drag/drop sharing: in contact_view, ability to include/exclude files
 - groups for sharing
 - automated testing across supported platforms
@@ -346,13 +335,6 @@ Layers of security:
 
 - "as if" view. browser your files as if you are a user you share with
 - view/edit modes
-- Linking: Links are probably easiest if they link to a doc-uuid, but being able
-  to use a local file system path is better, and being able to use the same path
-  everywhere is even better. It'd be nice if Alice could reference
-  footnotes/bob/events/party_at_my_place.md and Charlie, a friend of both, could
-  navigate those documents easily on their local filesystem. (if all links are
-  by uuid, this might work)
-- Shared primary, the ability for a family PC to be used for the whole family's notes
 - better distrbuted writes
   - automerge, CRDT
   - diff-patch-merge https://crates.io/crates/diff-match-patch-rs
