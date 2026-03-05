@@ -568,50 +568,6 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
 }
 
 #[component]
-fn ShareWithModal(
-    current_shares: String,
-    oncancel: EventHandler,
-    onsave: EventHandler<String>,
-) -> Element {
-    let mut share_input = use_signal(|| current_shares);
-
-    rsx! {
-        div {
-            class: "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50",
-            onclick: move |_| oncancel.call(()),
-
-            div {
-                class: "w-full max-w-md border border-zinc-700 rounded-lg bg-zinc-900 shadow-2xl p-6",
-                onclick: move |evt| evt.stop_propagation(),
-
-                h3 { class: "text-lg font-semibold mb-4", "Share with contacts" }
-
-                input {
-                    class: "w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-sm focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 mb-4",
-                    r#type: "text",
-                    placeholder: "contact1 contact2",
-                    value: "{share_input}",
-                    oninput: move |e| share_input.set(e.value())
-                }
-
-                div { class: "flex gap-2 justify-end",
-                    button {
-                        class: "px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100",
-                        onclick: move |_| oncancel.call(()),
-                        "Cancel"
-                    }
-                    button {
-                        class: "px-4 py-2 bg-zinc-100 text-zinc-900 rounded-md text-sm font-medium hover:bg-white",
-                        onclick: move |_| onsave.call(share_input()),
-                        "Save"
-                    }
-                }
-            }
-        }
-    }
-}
-
-#[component]
 fn SaveAsModal(
     relative_path: String,
     oncancel: EventHandler,
