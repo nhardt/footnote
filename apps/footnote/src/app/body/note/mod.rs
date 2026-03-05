@@ -31,7 +31,6 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
     let nav = navigator();
     let mut app_context = use_context::<AppContext>();
 
-    let mut show_share_modal = use_signal(|| false);
     let mut show_save_as_modal = use_signal(|| false);
     let mut show_delete_note_modal = use_signal(|| false);
     let mut delete_note_error = use_signal(|| String::new());
@@ -239,6 +238,7 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
                     return;
                 }
 
+                loaded_note_full_path.set(full_path.to_string_lossy().to_string());
                 save_status.set(SaveStatus::Saved);
             }
             Err(e) => {
@@ -390,6 +390,11 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
                             onclick: move |_| show_delete_note_modal.set(true),
                             "Delete"
                         }
+                        button {
+                            class: "px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors",
+                            onclick: move |_| show_save_as_modal.set(true),
+                            "Rename"
+                        }
                         if !app_context.contacts.read().is_empty() {
                             ShareDropdown {
                                 share_with: share_with,
@@ -534,7 +539,7 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
         if show_save_as_modal() {
             SaveAsModal {
                 relative_path: relative_path.read(),
-                oncancel: move |_| show_share_modal.set(false),
+                oncancel: move |_| show_save_as_modal.set(false),
                 onsave: move |new_relative_path: String| {
                     spawn(async move {
                         save_note(Some(new_relative_path.clone())).await;
