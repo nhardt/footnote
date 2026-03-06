@@ -1986,6 +1986,36 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 
 [[package]]
+name = "dx_icons"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "721d85cd58f5457b07de4bd52cf383ab6ecfe143b813710164efdbf6e05e15e8"
+dependencies = [
+ "dx_icons_feather",
+ "dx_icons_lucide",
+]
+
+[[package]]
+name = "dx_icons_feather"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6079c65e9c002361a3108a2639e5ab67f054ef425db5a06dde8032e4e5c69a59"
+dependencies = [
+ "dioxus",
+ "serde_json",
+]
+
+[[package]]
+name = "dx_icons_lucide"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e7bd82310ecd827a53f983ee5290f576eb58fc9982d2047d986ce921f57fbef"
+dependencies = [
+ "dioxus",
+ "serde_json",
+]
+
+[[package]]
 name = "dyn-clone"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2223,6 +2253,7 @@ dependencies = [
  "clap",
  "dioxus",
  "dirs 5.0.1",
+ "dx_icons",
  "ed25519-dalek 2.2.0",
  "footnote-core",
  "futures",

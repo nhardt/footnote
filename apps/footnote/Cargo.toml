@@ -37,6 +37,7 @@ anyerr = "0.1.1"
 gethostname = "1.1.0"
 open = "5.3.3"
 qrcode-generator = "5.0.0"
+dx_icons = { version = "0.1", features = ["lucide"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21"

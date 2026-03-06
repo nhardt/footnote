@@ -1,4 +1,5 @@
 use dioxus::prelude::*;
+use dx_icons::lucide::*;
 
 use footnote_core::util::tree_node::build_tree_from_manifest;
 use footnote_core::util::tree_node::TreeNode;
@@ -117,26 +118,9 @@ fn BrowserRowFolder(name: String, open: bool, children: Element, is_footnote: bo
             button {
                 class: "flex gap-2 items-center py-1.5 px-2 w-full text-sm text-left rounded transition-colors hover:bg-zinc-800",
                 onclick: toggle_open,
-                svg {
-                    class: "flex-shrink-0 w-4 h-4 text-zinc-500",
-                    fill: "none",
-                    stroke: "currentColor",
-                    view_box: "0 0 24 24",
-                    path {
-                        d: "M19 9l-7 7-7-7",
-                        stroke_linecap: "round",
-                        stroke_linejoin: "round",
-                        stroke_width: "2",
-                    }
-                }
-                svg {
-                    class: "flex-shrink-0 w-4 h-4 text-zinc-500",
-                    fill: "currentColor",
-                    view_box: "0 0 20 20",
-                    path { d: "M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" }
-                }
+                Icon { icon: LucideIcon::FolderOpen, size: 18 }
                 span { class: "font-medium",
-                    class: if is_footnote { "text-amber-400" } else { "text-zinc-500" },
+                    class: if is_footnote { "text-amber-400" } else { "text-zinc-200" },
                     "{name}"
                 }
             }
@@ -145,26 +129,9 @@ fn BrowserRowFolder(name: String, open: bool, children: Element, is_footnote: bo
             button {
                 class: "flex gap-2 items-center py-1.5 px-2 w-full text-sm text-left rounded transition-colors hover:bg-zinc-800",
                 onclick: toggle_open,
-                svg {
-                    class: "flex-shrink-0 w-4 h-4",
-                    fill: "none",
-                    stroke: "currentColor",
-                    view_box: "0 0 24 24",
-                    path {
-                        d: "M9 5l7 7-7 7",
-                        stroke_linecap: "round",
-                        stroke_linejoin: "round",
-                        stroke_width: "2",
-                    }
-                }
-                svg {
-                    class: "flex-shrink-0 w-4 h-4 text-zinc-500",
-                    fill: "currentColor",
-                    view_box: "0 0 20 20",
-                    path { d: "M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" }
-                }
+                Icon { icon: LucideIcon::Folder, size: 18 }
                 span { class: "font-medium",
-                    class: if is_footnote { "text-amber-400" } else { "text-zinc-500" },
+                    class: if is_footnote { "text-amber-400" } else { "text-zinc-200" },
                     "{name}"
                 }
             }
@@ -186,18 +153,7 @@ fn BrowserRowFile(node: TreeNode, is_footnote: bool) -> Element {
         button {
             class: "flex gap-2 items-center py-1.5 px-2 w-full text-sm text-left rounded transition-colors hover:bg-zinc-800",
             onclick: onclick,
-            div { class: "flex-shrink-0 w-4 h-4" }
-            svg {
-                class: "flex-shrink-0 w-4 h-4 text-zinc-500",
-                fill: "currentColor",
-                view_box: "0 0 20 20",
-                path {
-                    clip_rule: "evenodd",
-                    d: "M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z",
-                    fill_rule: "evenodd",
-                }
-            }
-
+            Icon { icon: LucideIcon::FileText, size: 18 }
             span {
                 class: if is_footnote { "text-amber-300" } else { "text-zinc-300" },
                 "{node.name}"
