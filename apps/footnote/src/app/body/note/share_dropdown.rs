@@ -1,6 +1,6 @@
 use dioxus::prelude::*;
 
-use crate::context::AppContext;
+use crate::context::app_context::AppContext;
 
 use footnote_core::model::contact::Contact;
 

@@ -1,9 +1,9 @@
 use dioxus::prelude::*;
 use footnote_core::model::device::Device;
 
-use crate::context::AppContext;
-use crate::context::MenuContext;
-use crate::sync_status_context::SyncStatusContext;
+use crate::context::app_context::AppContext;
+use crate::context::menu_context::MenuContext;
+use crate::context::sync_status_context::SyncStatusContext;
 
 #[component]
 pub fn SyncActivity() -> Element {

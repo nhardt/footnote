@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 
-use crate::context::{AppContext, MenuContext};
+use crate::context::app_context::AppContext;
+use crate::context::menu_context::MenuContext;
 
 #[cfg(any(target_os = "android", target_os = "ios"))]
 use crate::platform::SHARE_SHEET_SUPPORTED;

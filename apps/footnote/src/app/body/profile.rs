@@ -4,9 +4,9 @@ use footnote_core::model::device::Device;
 use footnote_core::model::vault::VaultState;
 use footnote_core::util::sync_status_record::SyncDirection;
 
-use crate::context::AppContext;
+use crate::context::app_context::AppContext;
+use crate::context::sync_status_context::SyncStatusContext;
 use crate::modal::confirm_modal::ConfirmModal;
-use crate::sync_status_context::SyncStatusContext;
 
 #[component]
 pub fn Profile() -> Element {

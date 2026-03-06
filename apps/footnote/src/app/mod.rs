@@ -10,8 +10,9 @@ use std::path::PathBuf;
 use footnote_core::model::vault::Vault;
 use footnote_core::util::filesystem::ensure_vault_at_path;
 
-use crate::context::AppContext;
-use crate::context::MenuContext;
+use crate::context::app_context::AppContext;
+use crate::context::menu_context::MenuContext;
+use crate::context::sync_status_context::SyncStatusContext;
 use crate::header::Header;
 use crate::modal::import_contact_modal::ImportContactModal;
 use crate::modal::listen_for_pair_modal::ListenForPairModal;
@@ -20,7 +21,6 @@ use crate::modal::note_browser_modal::NoteBrowserModal;
 use crate::modal::pair_with_listening_device_modal::PairWithListeningDeviceModal;
 use crate::modal::share_my_contact_modal::ShareMyContactModal;
 use crate::route::Route;
-use crate::sync_status_context::SyncStatusContext;
 
 #[cfg(target_os = "android")]
 use {

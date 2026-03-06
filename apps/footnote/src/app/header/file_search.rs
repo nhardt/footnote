@@ -4,7 +4,7 @@ use futures::stream::StreamExt;
 use std::fs;
 use std::path::{Component, PathBuf};
 
-use crate::context::AppContext;
+use crate::context::app_context::AppContext;
 use crate::route::Route;
 
 /// Split text into (before, match, after) segments for highlighting.

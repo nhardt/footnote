@@ -2,7 +2,8 @@ use dioxus::prelude::*;
 
 use footnote_core::model::vault::VaultState;
 
-use crate::context::{AppContext, MenuContext};
+use crate::context::app_context::AppContext;
+use crate::context::menu_context::MenuContext;
 
 mod sync_activity;
 use sync_activity::SyncActivity;

@@ -2,7 +2,8 @@ use dioxus::prelude::*;
 
 use footnote_core::service::join_service::JoinService;
 
-use crate::context::{AppContext, MenuContext};
+use crate::context::app_context::AppContext;
+use crate::context::menu_context::MenuContext;
 
 #[component]
 pub fn PairWithListeningDeviceModal() -> Element {

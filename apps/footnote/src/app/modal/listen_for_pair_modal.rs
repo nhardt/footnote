@@ -3,8 +3,10 @@ use dioxus::prelude::*;
 use qrcode_generator::QrCodeEcc;
 use tokio_util::sync::CancellationToken;
 
-use crate::context::{AppContext, MenuContext};
 use footnote_core::service::join_service::{JoinEvent, JoinService};
+
+use crate::context::app_context::AppContext;
+use crate::context::menu_context::MenuContext;
 
 #[component]
 pub fn ListenForPairModal() -> Element {
