@@ -4,8 +4,8 @@ use dx_icons::lucide::*;
 use footnote_core::util::tree_node::build_tree_from_manifest;
 use footnote_core::util::tree_node::TreeNode;
 
-use crate::context::AppContext;
-use crate::context::MenuContext;
+use crate::context::app_context::AppContext;
+use crate::context::menu_context::MenuContext;
 
 #[component]
 pub fn NoteBrowserModal() -> Element {

@@ -6,7 +6,7 @@ pub mod sync_service_toggle;
 
 use footnote_core::model::vault::VaultState;
 
-use crate::context::AppContext;
+use crate::context::app_context::AppContext;
 
 use file_search::FileSearch;
 use menu::HeaderMenu;

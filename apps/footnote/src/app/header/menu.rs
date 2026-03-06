@@ -3,8 +3,8 @@ use dx_icons::lucide::*;
 
 use footnote_core::model::vault::VaultState;
 
-use crate::context::AppContext;
-use crate::context::MenuContext;
+use crate::context::app_context::AppContext;
+use crate::context::menu_context::MenuContext;
 
 #[component]
 pub fn HeaderMenu() -> Element {

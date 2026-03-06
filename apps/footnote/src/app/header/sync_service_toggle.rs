@@ -8,8 +8,8 @@ use footnote_core::model::vault::Vault;
 use footnote_core::service::sync_service::SyncService;
 use footnote_core::service::ALPN_SYNC;
 
-use crate::context::AppContext;
-use crate::sync_status_context::SyncStatusContext;
+use crate::context::app_context::AppContext;
+use crate::context::sync_status_context::SyncStatusContext;
 
 #[component]
 pub fn SyncServiceToggle() -> Element {

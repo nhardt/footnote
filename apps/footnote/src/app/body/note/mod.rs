@@ -17,7 +17,8 @@ use footnote_core::util::tombstone::tombstone_create;
 
 use crate::body::note::footnotes::Footnotes;
 use crate::body::note::share_dropdown::ShareDropdown;
-use crate::context::{AppContext, MenuContext};
+use crate::context::app_context::AppContext;
+use crate::context::menu_context::MenuContext;
 use crate::modal::confirm_modal::ConfirmModal;
 #[derive(Clone, Copy, PartialEq)]
 enum SaveStatus {

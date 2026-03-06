@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
 
-use crate::context::AppContext;
-use crate::context::MenuContext;
+use crate::context::app_context::AppContext;
+use crate::context::menu_context::MenuContext;
 
 #[component]
 pub fn ImportContactModal() -> Element {

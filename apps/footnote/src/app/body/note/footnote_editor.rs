@@ -6,7 +6,7 @@ use dioxus::prelude::*;
 
 use footnote_core::model::note::Note;
 
-use crate::context::AppContext;
+use crate::context::app_context::AppContext;
 
 #[component]
 pub fn FootnoteEditor(
