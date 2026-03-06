@@ -62,6 +62,7 @@ pub struct MenuContext {
     pub menu_visible: Signal<bool>,
 
     pub new_note_visible: Signal<bool>,
+    pub new_note_path_prefix: Signal<Option<String>>,
 
     pub note_browser_visible: Signal<bool>,
 
@@ -82,6 +83,8 @@ impl MenuContext {
             menu_visible: Signal::new(false),
 
             new_note_visible: Signal::new(false),
+            new_note_path_prefix: Signal::new(Option::<String>::None),
+
             note_browser_visible: Signal::new(false),
 
             share_contact_visible: Signal::new(false),
@@ -154,8 +157,9 @@ impl MenuContext {
         self.pair_with_listener_visible.set(false);
     }
 
-    pub fn set_new_note_visible(&mut self) {
+    pub fn set_new_note_visible(&mut self, path_prefix: Option<String>) {
         self.close_all();
+        self.new_note_path_prefix.set(path_prefix);
         self.new_note_visible.set(true);
     }
 
