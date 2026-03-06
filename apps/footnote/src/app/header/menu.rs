@@ -67,7 +67,7 @@ pub fn HeaderMenu() -> Element {
 
                         MenuButton {
                             label: "New Note",
-                            onclick: move |_| { consume_context::<MenuContext>().set_new_note_visible(); }
+                            onclick: move |_| { consume_context::<MenuContext>().set_new_note_visible(None); }
                         }
 
                         MenuButton {

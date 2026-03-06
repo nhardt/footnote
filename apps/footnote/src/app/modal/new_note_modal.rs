@@ -8,7 +8,15 @@ use crate::context::MenuContext;
 #[component]
 pub fn NewNoteModal() -> Element {
     let app_context = use_context::<AppContext>();
-    let mut note_path = use_signal(|| String::new());
+    let menu_context = use_context::<MenuContext>();
+
+    let initial_path = menu_context
+        .new_note_path_prefix
+        .read()
+        .clone()
+        .unwrap_or_default();
+
+    let mut note_path = use_signal(|| initial_path);
     let mut error_message = use_signal(|| String::new());
 
     let create_by_path = move |_| async move {

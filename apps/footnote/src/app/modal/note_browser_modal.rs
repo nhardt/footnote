@@ -59,7 +59,8 @@ pub fn NoteBrowserModal() -> Element {
                         TreeNodeView {
                             name: &name,
                             node: child,
-                            is_footnote: name == "footnotes"
+                            is_footnote: name == "footnotes",
+                            path_prefix: name.clone()
                         }
                     }
                 }
@@ -69,7 +70,7 @@ pub fn NoteBrowserModal() -> Element {
 }
 
 #[component]
-fn TreeNodeView(name: String, node: TreeNode, is_footnote: bool) -> Element {
+fn TreeNodeView(name: String, node: TreeNode, is_footnote: bool, path_prefix: String) -> Element {
     let is_folder = !node.children.is_empty();
 
     if is_folder {
@@ -84,16 +85,19 @@ fn TreeNodeView(name: String, node: TreeNode, is_footnote: bool) -> Element {
             }
         });
 
+        let child_path_prefix = format!("{}/{}", path_prefix, name);
         rsx! {
             BrowserRowFolder {
                 name: node.name.clone(),
                 open: false,
                 is_footnote: is_footnote,
+                path_prefix: path_prefix,
                 for child in sorted_children {
                     TreeNodeView {
                         name: child.name.clone(),
                         node: child,
-                        is_footnote: is_footnote
+                        is_footnote: is_footnote,
+                        path_prefix: child_path_prefix.clone()
                     }
                 }
             }
@@ -109,7 +113,13 @@ fn TreeNodeView(name: String, node: TreeNode, is_footnote: bool) -> Element {
 }
 
 #[component]
-fn BrowserRowFolder(name: String, open: bool, children: Element, is_footnote: bool) -> Element {
+fn BrowserRowFolder(
+    name: String,
+    open: bool,
+    children: Element,
+    is_footnote: bool,
+    path_prefix: String,
+) -> Element {
     let mut open_signal = use_signal(|| open);
     let toggle_open = move |_| open_signal.set(!open_signal());
 
@@ -123,7 +133,22 @@ fn BrowserRowFolder(name: String, open: bool, children: Element, is_footnote: bo
                     class: if is_footnote { "text-amber-400" } else { "text-zinc-200" },
                     "{name}"
                 }
+                if !is_footnote {
+                    div { class: "flex-1" }
+                    button {
+                        onclick: {
+                            let prefix = path_prefix.clone();
+                            move |evt| {
+                                evt.stop_propagation();
+                                consume_context::<MenuContext>().set_new_note_visible(Some(format!("{}/", prefix.clone())));
+                            }
+                        },
+                        Icon { icon: LucideIcon::Plus, size: 18 }
+                    }
+                }
             }
+
+
             div { class: "ml-6", {children} }
         } else {
             button {
