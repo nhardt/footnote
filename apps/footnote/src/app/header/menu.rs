@@ -1,4 +1,5 @@
 use dioxus::prelude::*;
+use dx_icons::lucide::*;
 
 use footnote_core::model::vault::VaultState;
 
@@ -18,17 +19,17 @@ pub fn HeaderMenu() -> Element {
             button {
                 class: "px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors",
                 onclick: move |_| menu_context.toggle_menu(),
-                "☰"
+                Icon { icon: LucideIcon::Menu, size: 18 }
             }
 
             button { class: "px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors",
                 onclick: move |_| consume_context::<MenuContext>().go_back(),
-                "←"
+                Icon { icon: LucideIcon::ArrowLeft, size: 18 }
             }
 
             button { class: "px-3 py-1.5 text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors",
                 onclick: move |_| consume_context::<MenuContext>().go_forward(),
-                "→"
+                Icon { icon: LucideIcon::ArrowRight, size: 18 }
             }
 
             if *menu_context.menu_visible.read() {
