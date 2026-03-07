@@ -17,6 +17,7 @@ use footnote_core::util::tombstone::tombstone_create;
 
 use crate::body::note::footnotes::Footnotes;
 use crate::body::note::share_dropdown::ShareDropdown;
+use crate::components::path_input::PathInput;
 use crate::context::app_context::AppContext;
 use crate::context::menu_context::MenuContext;
 use crate::modal::confirm_modal::ConfirmModal;
@@ -587,16 +588,14 @@ fn SaveAsModal(
             onclick: move |_| oncancel.call(()),
 
             div {
-                class: "w-full max-w-md border border-zinc-700 rounded-lg bg-zinc-900 shadow-2xl p-6",
+                class: "flex flex-col p-6 w-full max-w-md rounded-lg border shadow-2xl border-zinc-700 bg-zinc-900",
                 onclick: move |evt| evt.stop_propagation(),
 
                 h3 { class: "text-lg font-semibold mb-4", "Save as..." }
 
-                input {
-                    class: "w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-sm focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 mb-4",
-                    r#type: "text",
-                    value: "{path_input}",
-                    oninput: move |e| path_input.set(e.value())
+                PathInput {
+                    value: path_input,
+                    oninput: move |e| path_input.set(e)
                 }
 
                 div { class: "flex gap-2 justify-end",
