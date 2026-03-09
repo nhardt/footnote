@@ -78,6 +78,18 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
             return;
         };
 
+        if let Some(in_reply_to) = note.frontmatter.reply_to {
+            if let Some(entry) = app_context.manifest.read().get(&in_reply_to) {
+                consume_context::<MenuContext>().go_note(&entry.path.to_string_lossy().to_string());
+                return;
+            }
+            tracing::warn!(
+                "note {} is reply but original document not found",
+                note.frontmatter.uuid
+            );
+        }
+
+        // debt: these are likely supposed to be memos
         share_with.set(note.frontmatter.share_with.join(" "));
         footnotes.set(note.footnotes);
 
