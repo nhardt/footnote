@@ -23,6 +23,8 @@ use crate::body::note::share_dropdown::ShareDropdown;
 use crate::components::path_input::PathInput;
 use crate::context::app_context::AppContext;
 use crate::context::menu_context::MenuContext;
+use crate::context::sync_status_context;
+use crate::context::sync_status_context::SyncStatusContext;
 use crate::modal::confirm_modal::ConfirmModal;
 
 #[derive(Clone, Copy, PartialEq)]
@@ -267,6 +269,7 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
         timestamp: LamportTimestamp,
     ) {
         let app_context = use_context::<AppContext>();
+        let mut sync_status_context = use_context::<SyncStatusContext>();
         let vault = app_context.vault.read();
         if let Ok((this_device_id, _)) = vault.device_public_key() {
             if let Ok(mut record) = SyncStatusRecord::start(
@@ -282,6 +285,10 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
                     filename: relative_path,
                     timestamp: timestamp,
                 });
+                // the semantics are a little off here, record_success takes the
+                // record so we don't reuse it, but it makes more sense to me
+                // that we'd update the sync_context after we record success
+                sync_status_context.set(record.clone());
                 let _ = record.record_success();
             }
         }
