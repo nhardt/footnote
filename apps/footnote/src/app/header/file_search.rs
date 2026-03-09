@@ -81,6 +81,8 @@ pub fn FileSearch() -> Element {
                     {
                         if let Some(file_name) = entry.file_name().to_str() {
                             if !file_name.starts_with('.') && file_name.ends_with(".md") {
+                                let mut match_count = 0;
+
                                 let path = entry.path().to_path_buf();
                                 let display_name = path
                                     .file_stem()
@@ -94,6 +96,7 @@ pub fn FileSearch() -> Element {
                                     display_name.to_lowercase()
                                 };
                                 if name_cmp.contains(&query_normalized) {
+                                    match_count += 1;
                                     results.push(SearchResult {
                                         path: path.clone(),
                                         display: display_name.clone(),
@@ -102,7 +105,6 @@ pub fn FileSearch() -> Element {
                                     });
                                 }
 
-                                let mut match_count = 0;
                                 if let Ok(content) = fs::read_to_string(&path) {
                                     for (_line_num, line) in content.lines().enumerate() {
                                         let line_cmp = if case_sensitive {
