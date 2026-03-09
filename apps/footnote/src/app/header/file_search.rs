@@ -49,7 +49,6 @@ pub fn FileSearch() -> Element {
     let nav = use_navigator();
 
     let mut search_input = use_signal(|| String::new());
-    let mut dropdown_open = use_signal(|| false);
     let mut search_results = use_signal(|| Vec::<SearchResult>::new());
     let mut is_searching = use_signal(|| false);
 
@@ -144,91 +143,96 @@ pub fn FileSearch() -> Element {
 
     rsx! {
         div {
-            class: "flex-1 relative",
+            class: "flex-1",
             input {
                 r#type: "text",
                 class: "w-full px-3 py-1.5 bg-zinc-900 border border-zinc-700 rounded-md text-sm font-mono text-zinc-100 placeholder-zinc-500 focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500",
                 placeholder: "Type to search",
                 value: "{search_input}",
-                onfocus: move |_| dropdown_open.set(true),
                 oninput: move |evt| {
                     let value = evt.value();
+                    is_searching.set(true);
                     search_input.set(value.clone());
-                    dropdown_open.set(!value.is_empty());
                     search_task.send(value);
                 },
-                onblur: move |_| {
-                    dropdown_open.set(false);
-                },
             }
-            if dropdown_open() && !search_results().is_empty() {
+
+            if !search_input.is_empty() {
                 div {
-                    class: "absolute top-full left-0 right-0 mt-1 bg-zinc-900 border border-zinc-700 rounded-md shadow-2xl z-50 max-h-96 overflow-y-auto",
+                    class: "overflow-y-auto absolute right-4 left-4 z-50 mt-1 max-h-96 rounded-md border shadow-2xl bg-zinc-900 border-zinc-700",
                     onmousedown: move |e| e.prevent_default(),
-                    for result in search_results() {
-                        {
-                            let file = result.path.to_string_lossy().to_string();
-                            let Ok(relative_path) = result.path.strip_prefix(&vault_path) else {
-                                return rsx!{};
-                            };
-                            let segments: Vec<String> = relative_path
-                                .components()
-                                .filter_map(|component| {
-                                    match component {
-                                        Component::Normal(os_str) => Some(os_str.to_string_lossy().into_owned()),
-                                        _ => None,
-                                    }
-                                })
-                                .collect();
 
-                            let display_name = result.display.clone();
-                            let query = search_input();
-                            let preview = match &result.match_type {
-                                MatchType::Filename => None,
-                                MatchType::Content { .. } => result.preview.clone(),
-                            };
-                            let name_parts = highlight_split(&display_name, &query);
-                            let preview_parts = preview.as_ref().and_then(|p| highlight_split(p, &query));
-
-                            rsx! {
-                                button {
-                                    key: "{file}-{result.match_type:?}",
-                                    class: "w-full px-2 py-1 text-left hover:bg-zinc-800 border-b border-zinc-800/50 last:border-0 font-mono text-sm flex items-center gap-2",
-                                    onclick: move |_| {
-                                        nav.push(Route::NoteView { vault_relative_path_segments: segments.clone() });
-                                        search_input.set(String::new());
-                                        dropdown_open.set(false);
-                                    },
-                                    span {
-                                        class: "text-zinc-500 text-xs shrink-0",
-                                        if let Some((before, matched, after)) = &name_parts {
-                                            span { "{before}" }
-                                            span { class: "text-yellow-400", "{matched}" }
-                                            span { "{after}" }
-                                        } else {
-                                            span { "{display_name}" }
+                    if !is_searching() && search_results().is_empty() {
+                        div {
+                            class: "px-3 py-2 text-xs text-zinc-500 text-center",
+                            "No results found"
+                        }
+                    }
+                    else if is_searching() && search_results().is_empty() {
+                        div {
+                            class: "px-3 py-2 text-xs text-zinc-500 text-center",
+                            "Searching..."
+                        }
+                    }
+                    else {
+                        for result in search_results() {
+                            {
+                                let file = result.path.to_string_lossy().to_string();
+                                let Ok(relative_path) = result.path.strip_prefix(&vault_path) else {
+                                    return rsx!{};
+                                };
+                                let segments: Vec<String> = relative_path
+                                    .components()
+                                    .filter_map(|component| {
+                                        match component {
+                                            Component::Normal(os_str) => Some(os_str.to_string_lossy().into_owned()),
+                                            _ => None,
                                         }
-                                    }
-                                    if let Some(text) = &preview {
+                                    })
+                                    .collect();
+
+                                let display_name = result.display.clone();
+                                let query = search_input();
+                                let preview = match &result.match_type {
+                                    MatchType::Filename => None,
+                                    MatchType::Content { .. } => result.preview.clone(),
+                                };
+                                let name_parts = highlight_split(&display_name, &query);
+                                let preview_parts = preview.as_ref().and_then(|p| highlight_split(p, &query));
+
+                                rsx! {
+                                    button {
+                                        key: "{file}-{result.match_type:?}",
+                                        class: "w-full px-2 py-1 text-left hover:bg-zinc-800 border-b border-zinc-800/50 last:border-0 font-mono text-sm flex items-center gap-2",
+                                        onclick: move |_| {
+                                            nav.push(Route::NoteView { vault_relative_path_segments: segments.clone() });
+                                            search_input.set(String::new());
+                                        },
                                         span {
-                                            class: "text-zinc-100 truncate",
-                                            if let Some((before, matched, after)) = &preview_parts {
+                                            class: "text-zinc-500 text-xs shrink-0",
+                                            if let Some((before, matched, after)) = &name_parts {
                                                 span { "{before}" }
                                                 span { class: "text-yellow-400", "{matched}" }
                                                 span { "{after}" }
                                             } else {
-                                                span { "{text}" }
+                                                span { "{display_name}" }
+                                            }
+                                        }
+                                        if let Some(text) = &preview {
+                                            span {
+                                                class: "text-zinc-100 truncate",
+                                                if let Some((before, matched, after)) = &preview_parts {
+                                                    span { "{before}" }
+                                                    span { class: "text-yellow-400", "{matched}" }
+                                                    span { "{after}" }
+                                                } else {
+                                                    span { "{text}" }
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
-                        }
-                    }
-                    if is_searching() {
-                        div {
-                            class: "px-3 py-2 text-xs text-zinc-500 text-center",
-                            "Searching..."
                         }
                     }
                 }
