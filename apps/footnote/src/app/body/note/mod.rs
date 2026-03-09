@@ -7,12 +7,15 @@ use dioxus::prelude::*;
 use indexmap::IndexMap;
 use regex::bytes::Regex;
 use std::fs;
+use std::path::Path;
 use std::path::PathBuf;
 use uuid::Uuid;
 
 use footnote_core::model::note::Note;
 use footnote_core::util::lamport_timestamp::LamportTimestamp;
 use footnote_core::util::manifest::find_responses;
+use footnote_core::util::sync_status_record::RecentFile;
+use footnote_core::util::sync_status_record::SyncStatusRecord;
 use footnote_core::util::tombstone::tombstone_create;
 
 use crate::body::note::footnotes::Footnotes;
@@ -21,6 +24,7 @@ use crate::components::path_input::PathInput;
 use crate::context::app_context::AppContext;
 use crate::context::menu_context::MenuContext;
 use crate::modal::confirm_modal::ConfirmModal;
+
 #[derive(Clone, Copy, PartialEq)]
 enum SaveStatus {
     Saved,
@@ -239,6 +243,11 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
                     save_status.set(SaveStatus::Unsaved);
                     return;
                 }
+                record_local_edit_as_sync_record(
+                    &full_path,
+                    note_copy.frontmatter.uuid,
+                    note_copy.frontmatter.modified,
+                );
 
                 loaded_note_full_path.set(full_path.to_string_lossy().to_string());
                 save_status.set(SaveStatus::Saved);
@@ -249,6 +258,34 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
             }
         }
     };
+
+    // for now, to quickly get local edits into the recent files list, we will
+    // record local edits into an incoming sync record
+    fn record_local_edit_as_sync_record(
+        absolute_path: &Path,
+        uuid: Uuid,
+        timestamp: LamportTimestamp,
+    ) {
+        let app_context = use_context::<AppContext>();
+        let vault = app_context.vault.read();
+        if let Ok((this_device_id, _)) = vault.device_public_key() {
+            if let Ok(mut record) = SyncStatusRecord::start(
+                vault.base_path(),
+                this_device_id,
+                footnote_core::util::sync_status_record::SyncType::Mirror,
+                footnote_core::util::sync_status_record::SyncDirection::Inbound,
+            ) {
+                let relative_path =
+                    vault.absolute_path_to_relative_string(absolute_path.to_path_buf());
+                let _ = record.record_file_complete(RecentFile {
+                    uuid: uuid,
+                    filename: relative_path,
+                    timestamp: timestamp,
+                });
+                let _ = record.record_success();
+            }
+        }
+    }
 
     // Semantics for navigating:
     // - if footnote_text is http(s) link, do external nav

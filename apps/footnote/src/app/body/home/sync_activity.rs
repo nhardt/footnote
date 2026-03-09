@@ -101,7 +101,7 @@ pub fn SyncActivity() -> Element {
         div { class: "border border-zinc-800 rounded-lg bg-zinc-900/30",
             div { class: "px-6 py-3 border-b border-zinc-800 flex items-center gap-3",
                 span { class: "text-sm font-semibold font-mono text-zinc-400 mr-auto",
-                    "Recent Incoming"
+                    "Recent Files"
                 }
                 select {
                     class: "bg-zinc-800 border border-zinc-700 rounded-md text-sm text-zinc-300 px-2 py-1 focus:outline-none focus:border-zinc-500 appearance-none",
