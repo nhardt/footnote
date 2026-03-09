@@ -10,7 +10,9 @@ use crate::route::Route;
 /// Split text into (before, match, after) segments for highlighting.
 /// Returns None if query not found.
 fn highlight_split(text: &str, query: &str) -> Option<(String, String, String)> {
-    let case_sensitive = query.chars().any(|c| c.is_uppercase());
+    // mobile always wants to upcase the first letter, skip it for smart case
+    // detection
+    let case_sensitive = query.chars().skip(1).any(|c| c.is_uppercase());
     let start = if case_sensitive {
         text.find(query)?
     } else {
@@ -65,7 +67,7 @@ pub fn FileSearch() -> Element {
 
                 // file I/O occurs in blocking thread
                 let results = tokio::task::spawn_blocking(move || {
-                    let case_sensitive = query.chars().any(|c| c.is_uppercase());
+                    let case_sensitive = query.chars().skip(1).any(|c| c.is_uppercase());
                     let query_normalized = if case_sensitive {
                         query.clone()
                     } else {
@@ -100,6 +102,7 @@ pub fn FileSearch() -> Element {
                                     });
                                 }
 
+                                let mut match_count = 0;
                                 if let Ok(content) = fs::read_to_string(&path) {
                                     for (_line_num, line) in content.lines().enumerate() {
                                         let line_cmp = if case_sensitive {
@@ -115,6 +118,10 @@ pub fn FileSearch() -> Element {
                                                 match_type: MatchType::Content {},
                                                 preview: Some(preview),
                                             });
+                                            match_count += 1;
+                                            if match_count > 2 {
+                                                break;
+                                            }
                                         }
                                     }
                                 }
