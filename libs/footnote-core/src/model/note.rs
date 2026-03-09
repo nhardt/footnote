@@ -442,12 +442,14 @@ modified: 1768591570
 share_with: []
 ---
 
-a much younger me thought there was a "right answer" to life somewhere. i believed that if we could start with agreed upon axioms and take agreed upon logical steps we could arrive at truth. (so basically, i was current with 16th century liebnetz philosophy [1], although i definitely did not take his same axioms!)
+interesting ideas and people:
+Godel [1]
+Leibniz [2]
+Haidt [3]
 
-these days, i just think it's an interesting concept. i know conclusions come from lots of combinations of logic, evidence, lived experience, influence and feelings. and sometimes the conclusion comes first and the rest comes second! [2]
-
-[1]: https://en.wikipedia.org/wiki/Gottfried_Wilhelm_Leibniz
-[2]: https://youtu.be/NiTc-ORKlxE
+[1]: https://en.wikipedia.org/wiki/G%C3%B6del%27s_incompleteness_theorems
+[2]: https://en.wikipedia.org/wiki/Gottfried_Wilhelm_Leibniz
+[3]: https://youtu.be/NiTc-ORKlxE
 
 
 [1]:
