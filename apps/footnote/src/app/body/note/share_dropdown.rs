@@ -45,7 +45,12 @@ pub fn ShareDropdown(share_with: Signal<String>, on_change: EventHandler<()>) ->
                     }
                     show_dropdown.toggle();
                 },
-                "Share"
+                if share_with.read().len() > 0 {
+                    "Shared"
+                }
+                else {
+                    "Share"
+                }
             }
 
             if show_dropdown() {
