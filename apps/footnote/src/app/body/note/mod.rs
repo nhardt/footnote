@@ -23,7 +23,6 @@ use crate::body::note::share_dropdown::ShareDropdown;
 use crate::components::path_input::PathInput;
 use crate::context::app_context::AppContext;
 use crate::context::menu_context::MenuContext;
-use crate::context::sync_status_context;
 use crate::context::sync_status_context::SyncStatusContext;
 use crate::modal::confirm_modal::ConfirmModal;
 
