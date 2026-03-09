@@ -2,6 +2,7 @@ use dioxus::prelude::*;
 
 use anyhow::Result;
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 use footnote_core::{
     model::{device::Device, vault::Vault},
@@ -81,13 +82,23 @@ impl SyncStatusContext {
 
     pub fn recent_files_for_devices(&self, devices: &[Device]) -> Vec<RecentFile> {
         let statuses = self.statuses.read();
+        let vault_path = self.vault_path.read();
+
         let mut files: Vec<RecentFile> = devices
             .iter()
             .filter_map(|d| statuses.get(&(d.iroh_endpoint_id.clone(), SyncDirection::Inbound)))
             .flat_map(|s| s.recent_files.iter().cloned())
             .collect();
         files.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
-        files.dedup_by_key(|f| f.uuid);
+
+        let mut seen_uuids = HashSet::new();
+        let mut seen_paths = HashSet::new();
+        files.retain(|f| {
+            seen_uuids.insert(f.uuid)
+                && seen_paths.insert(f.filename.clone())
+                && vault_path.join(f.filename.clone()).exists()
+        });
+
         files.truncate(30);
         files
     }
