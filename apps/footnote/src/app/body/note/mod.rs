@@ -603,10 +603,7 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
                         save_note(Some(new_relative_path.clone())).await;
                         show_save_as_modal.set(false);
                         save_status.set(SaveStatus::Saved);
-                        nav.replace(format!(
-                            "/note/{}",
-                            app_context.vault.read().relative_string_to_absolute_string(&new_relative_path)
-                        ));
+                        nav.replace(format!("/note/{}", new_relative_path));
                     });
                 }
             }
