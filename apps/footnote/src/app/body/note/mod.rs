@@ -642,7 +642,7 @@ fn SaveAsModal(
                     oninput: move |e| path_input.set(e)
                 }
 
-                div { class: "flex gap-2 justify-end",
+                div { class: "flex gap-2 justify-end mt-4",
                     button {
                         class: "px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100",
                         onclick: move |_| oncancel.call(()),
