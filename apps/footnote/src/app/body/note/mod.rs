@@ -37,6 +37,7 @@ enum SaveStatus {
 pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Element {
     let nav = navigator();
     let mut app_context = use_context::<AppContext>();
+    let mut sync_status_context = use_context::<SyncStatusContext>();
 
     let mut show_save_as_modal = use_signal(|| false);
     let mut show_delete_note_modal = use_signal(|| false);
@@ -216,7 +217,6 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
 
     let save_note = move |relative_path: Option<String>| async move {
         save_status.set(SaveStatus::Syncing);
-
         let mut note_copy = match Note::from_path(PathBuf::from(loaded_note_full_path()), true) {
             Ok(n) => n,
             Err(e) => {
@@ -256,11 +256,33 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
                     save_status.set(SaveStatus::Unsaved);
                     return;
                 }
-                record_local_edit_as_sync_record(
-                    &full_path,
-                    note_copy.frontmatter.uuid,
-                    note_copy.frontmatter.modified,
-                );
+
+                // for now, to quickly get local edits into the recent files list, we will
+                // record local edits into an incoming sync record
+                {
+                    let vault = app_context.vault.read();
+                    if let Ok((this_device_id, _)) = vault.device_public_key() {
+                        if let Ok(mut record) = SyncStatusRecord::start(
+                            vault.base_path(),
+                            this_device_id,
+                            footnote_core::util::sync_status_record::SyncType::Mirror,
+                            footnote_core::util::sync_status_record::SyncDirection::Inbound,
+                        ) {
+                            let relative_path =
+                                vault.absolute_path_to_relative_string(full_path.to_path_buf());
+                            let _ = record.record_file_complete(RecentFile {
+                                uuid: note_copy.frontmatter.uuid,
+                                filename: relative_path,
+                                timestamp: note_copy.frontmatter.modified,
+                            });
+                            // the semantics are a little off here, record_success takes the
+                            // record so we don't reuse it, but it makes more sense to me
+                            // that we'd update the sync_context after we record success
+                            sync_status_context.set(record.clone());
+                            let _ = record.record_success();
+                        }
+                    }
+                }
 
                 loaded_note_full_path.set(full_path.to_string_lossy().to_string());
                 save_status.set(SaveStatus::Saved);
@@ -271,39 +293,6 @@ pub fn NoteView(vault_relative_path_segments: ReadSignal<Vec<String>>) -> Elemen
             }
         }
     };
-
-    // for now, to quickly get local edits into the recent files list, we will
-    // record local edits into an incoming sync record
-    fn record_local_edit_as_sync_record(
-        absolute_path: &Path,
-        uuid: Uuid,
-        timestamp: LamportTimestamp,
-    ) {
-        let app_context = use_context::<AppContext>();
-        let mut sync_status_context = use_context::<SyncStatusContext>();
-        let vault = app_context.vault.read();
-        if let Ok((this_device_id, _)) = vault.device_public_key() {
-            if let Ok(mut record) = SyncStatusRecord::start(
-                vault.base_path(),
-                this_device_id,
-                footnote_core::util::sync_status_record::SyncType::Mirror,
-                footnote_core::util::sync_status_record::SyncDirection::Inbound,
-            ) {
-                let relative_path =
-                    vault.absolute_path_to_relative_string(absolute_path.to_path_buf());
-                let _ = record.record_file_complete(RecentFile {
-                    uuid: uuid,
-                    filename: relative_path,
-                    timestamp: timestamp,
-                });
-                // the semantics are a little off here, record_success takes the
-                // record so we don't reuse it, but it makes more sense to me
-                // that we'd update the sync_context after we record success
-                sync_status_context.set(record.clone());
-                let _ = record.record_success();
-            }
-        }
-    }
 
     // Semantics for navigating:
     // - if footnote_text is http(s) link, do external nav
