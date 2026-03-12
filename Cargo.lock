@@ -2243,7 +2243,7 @@ checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
 name = "footnote"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "anyerr",
  "anyhow",
@@ -2290,7 +2290,7 @@ dependencies = [
 
 [[package]]
 name = "footnote-cli"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "anyhow",
  "clap",
@@ -2303,7 +2303,7 @@ dependencies = [
 
 [[package]]
 name = "footnote-core"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2329,7 +2329,7 @@ dependencies = [
 
 [[package]]
 name = "footnote_mobile"
-version = "0.4.6"
+version = "0.4.7"
 dependencies = [
  "android_logger",
  "anyhow",
