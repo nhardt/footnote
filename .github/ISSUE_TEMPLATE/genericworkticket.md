@@ -1,14 +1,16 @@
 ---
-name: Feature request
-about: Add new intended behavior
+name: GenericWorkTicket
+about: Custom section headings as needed
 title: ''
-labels: enhancement
+labels: ''
 assignees: ''
 
 ---
 
 ## Problem
 
+
 ## Proposed Solution
+
 
 ## Context
