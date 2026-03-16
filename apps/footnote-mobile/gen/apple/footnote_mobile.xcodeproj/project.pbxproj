@@ -212,7 +212,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "cd \"${SRCROOT}/../..\"\necho \"Building ${CONFIGURATION} rust libfootnote_mobile\"\n\nif [ \"${CONFIGURATION}\" = \"release\" ]; then\n    ~/.cargo/bin/cargo build --release --target aarch64-apple-ios --lib\n    cd \"${SRCROOT}\"\n    mkdir -p Sources/aarch64-apple-ios/release\n    cp ../../../../target/aarch64-apple-ios/release/libfootnote_mobile.a Sources/aarch64-apple-ios/release\nelse\n    echo \"Building debug rust libfootnote_mobile\"\n    ~/.cargo/bin/cargo build --target aarch64-apple-ios --lib\n    cd \"${SRCROOT}\"\n    mkdir -p Sources/aarch64-apple-ios/debug\n    cp ../../../../target/aarch64-apple-ios/debug/libfootnote_mobile.a Sources/aarch64-apple-ios/debug\nfi\n";
+			shellScript = "cd \"${SRCROOT}/../..\"\necho \"Building ${CONFIGURATION} rust libfootnote_mobile\"\nexport PATH=\"$HOME/.cargo/bin:$PATH\"\n\nif [ \"${CONFIGURATION}\" = \"release\" ]; then\n    cargo build --release --target aarch64-apple-ios --lib\n    cd \"${SRCROOT}\"\n    mkdir -p Sources/aarch64-apple-ios/release\n    cp ../../../../target/aarch64-apple-ios/release/libfootnote_mobile.a Sources/aarch64-apple-ios/release\nelse\n    echo \"Building debug rust libfootnote_mobile\"\n    cargo build --target aarch64-apple-ios --lib\n    cd \"${SRCROOT}\"\n    mkdir -p Sources/aarch64-apple-ios/debug\n    cp ../../../../target/aarch64-apple-ios/debug/libfootnote_mobile.a Sources/aarch64-apple-ios/debug\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
