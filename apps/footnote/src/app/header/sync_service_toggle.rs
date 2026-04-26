@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 
+use iroh::endpoint::presets::N0;
 use iroh::Endpoint;
 use tokio::time::{interval, Duration};
 use tokio_util::sync::CancellationToken;
@@ -65,7 +66,7 @@ pub fn SyncServiceToggle() -> Element {
             });
 
             tokio::spawn(async move {
-                let Ok(endpoint) = Endpoint::builder()
+                let Ok(endpoint) = Endpoint::builder(N0)
                     .secret_key(secret_key.clone())
                     .alpns(vec![ALPN_SYNC.to_vec()])
                     .bind()

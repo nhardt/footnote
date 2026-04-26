@@ -1,5 +1,5 @@
 use anyhow::Result;
-use iroh::Endpoint;
+use iroh::{endpoint::presets, Endpoint};
 use n0_error::StdResultExt;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -38,10 +38,10 @@ impl JoinService {
         }
 
         tracing::info!("generating iroh address for this device");
-        let secret_key = iroh::SecretKey::generate(&mut rand::rng());
+        let secret_key = iroh::SecretKey::generate();
 
         tracing::info!("creating endpoint");
-        let endpoint = Endpoint::builder()
+        let endpoint = Endpoint::builder(presets::N0)
             .secret_key(secret_key.clone())
             .alpns(vec![ALPN_VAULT_JOIN.to_vec()])
             .bind()
@@ -127,7 +127,7 @@ impl JoinService {
         let (secret_key, _) = vault.device_secret_key()?;
 
         tracing::info!("build endpoint");
-        let endpoint = Endpoint::builder()
+        let endpoint = Endpoint::builder(presets::N0)
             .secret_key(secret_key.clone())
             .bind()
             .await?;

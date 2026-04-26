@@ -4,10 +4,10 @@ use crate::util::lamport_timestamp::LamportTimestamp;
 use crate::util::sync_status_record;
 use anyhow::Result;
 use ed25519_dalek::SigningKey;
+use rand_core::OsRng;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use rand_core::OsRng;
 pub struct LocalUser {
     pub vault_path: PathBuf,
     pub devices: Vec<Device>,
