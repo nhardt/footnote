@@ -2,6 +2,7 @@ use crate::model::device::Device;
 use crate::model::{contact::Contact, note::Note, user::LocalUser};
 use anyhow::Result;
 use core::fmt;
+use iroh::endpoint::presets;
 use iroh::Endpoint;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
@@ -202,7 +203,7 @@ impl Vault {
         let Ok((secret_key, _)) = self.device_secret_key() else {
             anyhow::bail!("could not get secret key");
         };
-        let Ok(endpoint) = Endpoint::builder()
+        let Ok(endpoint) = Endpoint::builder(presets::N0)
             .secret_key(secret_key.clone())
             .alpns(vec![alpn.to_vec()])
             .bind()
@@ -443,7 +444,7 @@ impl Vault {
     fn create_device_key(&self, device_name: &str) -> anyhow::Result<()> {
         let footnotes_dir = self.path.join(".footnote");
         let device_key_file = footnotes_dir.join("device_key");
-        let device_key = iroh::SecretKey::generate(&mut rand::rng());
+        let device_key = iroh::SecretKey::generate();
         let encoded_key = hex::encode(device_key.to_bytes());
         let device_line = format!("{} {}", encoded_key, device_name);
         fs::write(&device_key_file, device_line)?;
